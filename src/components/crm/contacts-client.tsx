@@ -9,9 +9,10 @@ import {
 } from "@/lib/labels";
 import type { Contact } from "@/db/schema";
 import { cn, formatCompact, initials, timeAgo } from "@/lib/utils";
-import { ArrowUpRight, Cloud, Plus, Search, UserPlus } from "lucide-react";
+import { isRuralType } from "@/lib/rural";
+import { ArrowUpRight, Building2, Cloud, Layers, Plus, Search, Tractor, UserPlus } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -24,8 +25,28 @@ const SOURCE_STYLES: Record<string, string> = {
   google: "bg-blue-500/10 text-blue-500 border-blue-500/20",
 };
 
-export function ContactsClient({ initial }: { initial: Contact[] }) {
+export type ContactsTab = "todos" | "imoveis" | "rurais";
+type Segment = { urbano: boolean; rural: boolean };
+
+/** Segmento de um contato recém-criado (sem negociações): pelo interesse. */
+function segmentOf(c: Contact, segments: Record<string, Segment>): Segment {
+  if (segments[c.id]) return segments[c.id];
+  const rural = c.interestTypes.some(isRuralType);
+  return { rural, urbano: c.interestTypes.some((t) => !isRuralType(t)) || !rural };
+}
+
+export function ContactsClient({
+  initial,
+  segments = {},
+  initialTab = "todos",
+}: {
+  initial: Contact[];
+  segments?: Record<string, Segment>;
+  initialTab?: ContactsTab;
+}) {
   const router = useRouter();
+  const pathname = usePathname();
+  const [tab, setTab] = useState<ContactsTab>(initialTab);
   const [items, setItems] = useState(initial);
   const [q, setQ] = useState("");
   const [type, setType] = useState("all");
@@ -45,8 +66,24 @@ export function ContactsClient({ initial }: { initial: Contact[] }) {
     notes: "",
   });
 
+  const counts = useMemo(
+    () => ({
+      todos: items.length,
+      imoveis: items.filter((c) => segmentOf(c, segments).urbano).length,
+      rurais: items.filter((c) => segmentOf(c, segments).rural).length,
+    }),
+    [items, segments],
+  );
+
+  function switchTab(t: ContactsTab) {
+    setTab(t);
+    router.replace(t === "todos" ? pathname : `${pathname}?tipo=${t}`, { scroll: false });
+  }
+
   const filtered = useMemo(() => {
     let list = items;
+    if (tab === "imoveis") list = list.filter((c) => segmentOf(c, segments).urbano);
+    if (tab === "rurais") list = list.filter((c) => segmentOf(c, segments).rural);
     if (type !== "all") list = list.filter((c) => c.type === type);
     if (q.trim()) {
       const t = q.toLowerCase();
@@ -58,7 +95,7 @@ export function ContactsClient({ initial }: { initial: Contact[] }) {
       );
     }
     return list;
-  }, [items, q, type]);
+  }, [items, q, type, tab, segments]);
 
   function toggleInterest(t: string) {
     setForm((f) => ({
@@ -111,6 +148,29 @@ export function ContactsClient({ initial }: { initial: Contact[] }) {
 
   return (
     <div>
+      <div className="mb-4 inline-flex rounded-full border border-hairline p-1">
+        {(
+          [
+            { id: "todos", label: "Todos", icon: Layers },
+            { id: "imoveis", label: "Imóveis", icon: Building2 },
+            { id: "rurais", label: "Rurais", icon: Tractor },
+          ] as const
+        ).map((t) => (
+          <button
+            key={t.id}
+            onClick={() => switchTab(t.id)}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium transition-all duration-300",
+              tab === t.id ? "bg-ink text-canvas" : "text-subtle hover:text-ink",
+            )}
+          >
+            <t.icon className="size-3.5" />
+            {t.label}
+            <span className="font-mono text-[10.5px] opacity-60">{counts[t.id]}</span>
+          </button>
+        ))}
+      </div>
+
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative min-w-56 flex-1">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-subtle" />
@@ -167,6 +227,15 @@ export function ContactsClient({ initial }: { initial: Contact[] }) {
                       <span className="min-w-0">
                         <span className="flex items-center gap-1.5 truncate font-medium leading-tight group-hover:underline group-hover:underline-offset-4">
                           {c.name}
+                          {segmentOf(c, segments).rural && (
+                            <span
+                              className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600"
+                              title="Interesse ou negociação em propriedade rural"
+                            >
+                              <Tractor className="size-3" />
+                              Rural
+                            </span>
+                          )}
                           {c.googleResourceName && (
                             <Cloud
                               className="size-3.5 shrink-0 text-blue-500"
@@ -208,7 +277,9 @@ export function ContactsClient({ initial }: { initial: Contact[] }) {
         </table>
         {filtered.length === 0 && (
           <p className="py-14 text-center text-sm text-subtle">
-            Nenhum contato encontrado.
+            {tab === "rurais"
+              ? "Nenhum contato rural — marque interesse em fazenda, sítio ou chácara."
+              : "Nenhum contato encontrado."}
           </p>
         )}
       </div>
@@ -251,8 +322,10 @@ export function ContactsClient({ initial }: { initial: Contact[] }) {
             <span className="mb-1.5 block text-xs font-medium text-subtle">
               Interesse em
             </span>
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(TYPE_LABELS).map(([k, v]) => {
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <Building2 className="size-3.5 text-subtle" />
+                {Object.entries(TYPE_LABELS).filter(([k]) => !isRuralType(k)).map(([k, v]) => {
                 const on = form.interestTypes.includes(k);
                 return (
                   <button
@@ -270,6 +343,28 @@ export function ContactsClient({ initial }: { initial: Contact[] }) {
                   </button>
                 );
               })}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Tractor className="size-3.5 text-subtle" />
+                {Object.entries(TYPE_LABELS).filter(([k]) => isRuralType(k)).map(([k, v]) => {
+                const on = form.interestTypes.includes(k);
+                return (
+                  <button
+                    key={k}
+                    type="button"
+                    onClick={() => toggleInterest(k)}
+                    className={cn(
+                      "rounded-full border px-3.5 py-2 text-xs font-medium transition-all",
+                      on
+                        ? "border-transparent bg-accent text-on-accent"
+                        : "border-hairline text-subtle hover:text-ink",
+                    )}
+                  >
+                    {v}
+                  </button>
+                );
+              })}
+              </div>
             </div>
           </div>
           <Field label="Bairros de interesse" hint="Separados por vírgula" className="sm:col-span-2">
