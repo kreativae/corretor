@@ -2,6 +2,9 @@ import { FichaSheet } from "./ficha-sheet";
 import { PrintBar } from "./print-bar";
 import { getPropertyByCode, getWhiteLabel } from "@/lib/queries";
 import { getCurrentUser } from "@/lib/auth";
+import { isRuralType, normalizeRural } from "@/lib/rural";
+import { headers } from "next/headers";
+import QRCode from "qrcode";
 import { getSiteContent } from "@/lib/site-content";
 import { TIME_ZONE } from "@/lib/utils";
 import type { Metadata } from "next";
@@ -42,6 +45,19 @@ export default async function FichaPage({
         ? `+${digits.slice(0, 2)} (${digits.slice(2, 4)}) ${digits.slice(4, 8)}-${digits.slice(8)}`
         : digits;
 
+  // QR code → página pública do mapa (KMZ), no domínio em que a ficha foi aberta
+  let qrSvg: string | undefined;
+  if (isRuralType(p.type) && normalizeRural(p.rural).kmzUrl) {
+    const h = await headers();
+    const host = h.get("x-forwarded-host") ?? h.get("host");
+    const proto = host?.startsWith("localhost") ? "http" : "https";
+    qrSvg = await QRCode.toString(`${proto}://${host}/imoveis/${p.code}/mapa`, {
+      type: "svg",
+      margin: 0,
+      errorCorrectionLevel: "M",
+    });
+  }
+
   return (
     <div className="ficha-page min-h-screen overflow-x-auto bg-neutral-200 py-8 pb-28 print:bg-white print:p-0">
       <PrintBar backHref={user ? `/crm/imoveis/${p.id}` : `/imoveis/${p.code}`} />
@@ -58,6 +74,7 @@ export default async function FichaPage({
         showIcon={wl.fichaShowIcon}
         showName={wl.fichaShowName}
         showDomain={wl.fichaShowDomain}
+        qrSvg={qrSvg}
       />
     </div>
   );

@@ -1,15 +1,18 @@
 import { PropertiesTable } from "@/components/crm/properties-table";
 import { listProperties, listPropertyViewTotals } from "@/lib/queries";
+import { isRuralType } from "@/lib/rural";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Imóveis" };
 
 export default async function ImoveisCrmPage() {
-  const [properties, viewCounts] = await Promise.all([
+  const [all, viewCounts] = await Promise.all([
     listProperties(),
     listPropertyViewTotals(),
   ]);
+  // Rurais ficam em /crm/propriedades
+  const properties = all.filter((p) => !isRuralType(p.type));
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">

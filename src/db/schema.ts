@@ -1,3 +1,4 @@
+import type { RuralData } from "@/lib/rural";
 import { sql } from "drizzle-orm";
 import {
   boolean,
@@ -93,7 +94,16 @@ export const properties = pgTable("properties", {
   code: text("code").notNull().unique(),
   title: text("title").notNull(),
   type: text("type", {
-    enum: ["apartamento", "casa", "cobertura", "estudio", "terreno"],
+    enum: [
+      "apartamento",
+      "casa",
+      "cobertura",
+      "estudio",
+      "terreno",
+      "fazenda",
+      "sitio",
+      "chacara",
+    ],
   }).notNull(),
   purpose: text("purpose", { enum: ["venda", "aluguel"] })
     .notNull()
@@ -124,6 +134,8 @@ export const properties = pgTable("properties", {
     .notNull()
     .default(sql`'[]'::jsonb`),
   published: boolean("published").notNull().default(true),
+  /** Dados de propriedade rural (fazenda, sítio, chácara) — ver src/lib/rural.ts */
+  rural: jsonb("rural").$type<RuralData>(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

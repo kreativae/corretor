@@ -8,7 +8,7 @@ export function blobToken() {
 }
 
 /** Pastas permitidas no Blob; só elas são servidas por /api/media. */
-export const MEDIA_FOLDERS = ["imoveis", "marca"] as const;
+export const MEDIA_FOLDERS = ["imoveis", "marca", "kmz"] as const;
 export type MediaFolder = (typeof MEDIA_FOLDERS)[number];
 
 export function isMediaPath(pathname: string) {

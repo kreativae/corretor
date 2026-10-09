@@ -4,7 +4,9 @@ import { Button, Field, Input, Select, Switch, Textarea } from "@/components/ui"
 import { FEATURES, PURPOSE_LABELS, STATUS_LABELS, TYPE_LABELS } from "@/lib/labels";
 import type { PropertyWithImages } from "@/lib/queries";
 import { PhotoManager } from "./photo-manager";
-import { cn } from "@/lib/utils";
+import { RuralFields } from "./rural-fields";
+import { isRuralType, normalizeRural, pricePerAlq, RURAL_TYPES, type RuralData } from "@/lib/rural";
+import { cn, formatBRL } from "@/lib/utils";
 import { ArrowLeft, Check, ImageIcon, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -12,13 +14,25 @@ import { toast } from "sonner";
 
 const inputCls = "h-10";
 
-export function PropertyForm({ initial }: { initial?: PropertyWithImages }) {
+export function PropertyForm({
+  initial,
+  kind,
+}: {
+  initial?: PropertyWithImages;
+  /** Novo cadastro: urbano (padrão) ou rural. Na edição, vem do tipo. */
+  kind?: "urbano" | "rural";
+}) {
   const router = useRouter();
   const isEdit = !!initial;
+  const rural = initial ? isRuralType(initial.type) : kind === "rural";
+  const typeOptions = Object.entries(TYPE_LABELS).filter(
+    ([k]) => isRuralType(k) === rural,
+  );
+  const [ruralData, setRuralData] = useState<RuralData>(() => normalizeRural(initial?.rural));
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     title: initial?.title ?? "",
-    type: initial?.type ?? "apartamento",
+    type: initial?.type ?? (rural ? RURAL_TYPES[0] : "apartamento"),
     purpose: initial?.purpose ?? "venda",
     status: initial?.status ?? "disponivel",
     price: initial?.price?.toString() ?? "",
@@ -32,8 +46,8 @@ export function PropertyForm({ initial }: { initial?: PropertyWithImages }) {
     garage: initial?.garage?.toString() ?? "0",
     street: initial?.street ?? "",
     neighborhood: initial?.neighborhood ?? "",
-    city: initial?.city ?? "São Paulo",
-    state: initial?.state ?? "SP",
+    city: initial?.city ?? (rural ? "" : "São Paulo"),
+    state: initial?.state ?? (rural ? "PR" : "SP"),
     description: initial?.description ?? "",
     features: initial?.features ?? ([] as string[]),
     images: (initial?.images ?? []).map((i) => i.url),
@@ -57,7 +71,12 @@ export function PropertyForm({ initial }: { initial?: PropertyWithImages }) {
   }
 
   async function submit() {
-    if (!form.title.trim() || !form.price || !form.area || !form.neighborhood.trim()) {
+    if (rural) {
+      if (!form.title.trim() || !form.price || !ruralData.totalAlq || !form.neighborhood.trim()) {
+        toast.error("Preencha título, preço, área total e região.");
+        return;
+      }
+    } else if (!form.title.trim() || !form.price || !form.area || !form.neighborhood.trim()) {
       toast.error("Preencha título, preço, área e bairro.");
       return;
     }
@@ -85,6 +104,19 @@ export function PropertyForm({ initial }: { initial?: PropertyWithImages }) {
         features: form.features,
         images: imageUrls,
         published: form.published,
+        ...(rural
+          ? {
+              rural: ruralData,
+              condoFee: null,
+              iptu: null,
+              lotArea: null,
+              bedrooms: 0,
+              suites: 0,
+              bathrooms: 0,
+              garage: 0,
+              features: [],
+            }
+          : {}),
       };
       const res = await fetch(
         isEdit ? `/api/properties/${initial.id}` : "/api/properties",
@@ -124,7 +156,13 @@ export function PropertyForm({ initial }: { initial?: PropertyWithImages }) {
             {isEdit ? initial.code : "Cadastro"}
           </p>
           <h1 className="font-display text-2xl font-semibold tracking-tight">
-            {isEdit ? "Editar imóvel" : "Novo imóvel"}
+            {rural
+              ? isEdit
+                ? "Editar propriedade rural"
+                : "Nova propriedade rural"
+              : isEdit
+                ? "Editar imóvel"
+                : "Novo imóvel"}
           </h1>
         </div>
       </div>
@@ -139,13 +177,17 @@ export function PropertyForm({ initial }: { initial?: PropertyWithImages }) {
                 <Input
                   value={form.title}
                   onChange={(e) => set("title", e.target.value)}
-                  placeholder="Ex.: Casa de vidro no Alto de Pinheiros"
+                  placeholder={
+                    rural
+                      ? "Ex.: Fazenda 120 alqueires dupla aptidão em Tamarana"
+                      : "Ex.: Casa de vidro no Alto de Pinheiros"
+                  }
                   className={inputCls}
                 />
               </Field>
               <Field label="Tipo">
                 <Select value={form.type} onChange={(e) => set("type", e.target.value)}>
-                  {Object.entries(TYPE_LABELS).map(([k, v]) => (
+                  {typeOptions.map(([k, v]) => (
                     <option key={k} value={k}>{v}</option>
                   ))}
                 </Select>
@@ -160,6 +202,10 @@ export function PropertyForm({ initial }: { initial?: PropertyWithImages }) {
             </div>
           </section>
 
+          {rural ? (
+            <RuralFields value={ruralData} onChange={setRuralData} />
+          ) : (
+            <>
           {/* Características */}
           <section className={sectionCls}>
             <h2 className={h2Cls}>Características</h2>
@@ -216,6 +262,9 @@ export function PropertyForm({ initial }: { initial?: PropertyWithImages }) {
             </div>
           </section>
 
+            </>
+          )}
+
           {/* Descrição */}
           <section className={sectionCls}>
             <h2 className={h2Cls}>Descrição</h2>
@@ -223,7 +272,11 @@ export function PropertyForm({ initial }: { initial?: PropertyWithImages }) {
               rows={7}
               value={form.description}
               onChange={(e) => set("description", e.target.value)}
-              placeholder="Conte a história do imóvel: luz, planta, reforma, vista…"
+              placeholder={
+                rural
+                  ? "Histórico da área, produtividade, sede, vizinhança, logística de escoamento…"
+                  : "Conte a história do imóvel: luz, planta, reforma, vista…"
+              }
             />
           </section>
         </div>
@@ -236,23 +289,37 @@ export function PropertyForm({ initial }: { initial?: PropertyWithImages }) {
               <Field label={form.purpose === "aluguel" ? "Aluguel mensal (R$)" : "Preço de venda (R$)"}>
                 <Input type="number" min={0} value={form.price} onChange={(e) => set("price", e.target.value)} placeholder="1.850.000" className={cn(inputCls, "font-mono tabular")} />
               </Field>
-              <Field label="Condomínio (R$/mês)">
-                <Input type="number" min={0} value={form.condoFee} onChange={(e) => set("condoFee", e.target.value)} className={cn(inputCls, "font-mono tabular")} />
-              </Field>
-              <Field label="IPTU (R$/ano)">
-                <Input type="number" min={0} value={form.iptu} onChange={(e) => set("iptu", e.target.value)} className={cn(inputCls, "font-mono tabular")} />
-              </Field>
+              {rural ? (
+                <div className="rounded-xl bg-soft px-4 py-3">
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-subtle">Preço por alqueire</p>
+                  <p className="mt-1 font-mono text-lg tabular">
+                    {(() => {
+                      const v = pricePerAlq(Number(form.price) || 0, ruralData.totalAlq);
+                      return v ? formatBRL(v) : "—";
+                    })()}
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <Field label="Condomínio (R$/mês)">
+                    <Input type="number" min={0} value={form.condoFee} onChange={(e) => set("condoFee", e.target.value)} className={cn(inputCls, "font-mono tabular")} />
+                  </Field>
+                  <Field label="IPTU (R$/ano)">
+                    <Input type="number" min={0} value={form.iptu} onChange={(e) => set("iptu", e.target.value)} className={cn(inputCls, "font-mono tabular")} />
+                  </Field>
+                </>
+              )}
             </div>
           </section>
 
           {/* Endereço */}
           <section className={sectionCls}>
-            <h2 className={h2Cls}>Endereço</h2>
+            <h2 className={h2Cls}>{rural ? "Localização" : "Endereço"}</h2>
             <div className="space-y-4">
-              <Field label="Rua e número">
+              <Field label={rural ? "Estrada / acesso" : "Rua e número"}>
                 <Input value={form.street} onChange={(e) => set("street", e.target.value)} className={inputCls} />
               </Field>
-              <Field label="Bairro">
+              <Field label={rural ? "Região / distrito / bairro rural" : "Bairro"}>
                 <Input value={form.neighborhood} onChange={(e) => set("neighborhood", e.target.value)} className={inputCls} />
               </Field>
               <div className="grid grid-cols-[1fr_90px] gap-3">
@@ -321,7 +388,7 @@ export function PropertyForm({ initial }: { initial?: PropertyWithImages }) {
             </Button>
             <Button variant="accent" loading={saving} onClick={submit}>
               <Save className="size-4" />
-              {isEdit ? "Salvar alterações" : "Cadastrar imóvel"}
+              {isEdit ? "Salvar alterações" : rural ? "Cadastrar propriedade" : "Cadastrar imóvel"}
             </Button>
           </div>
         </div>

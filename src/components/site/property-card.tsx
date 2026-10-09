@@ -1,6 +1,7 @@
 import { STATUS_LABELS, TYPE_LABELS } from "@/lib/labels";
 import type { PropertyWithImages } from "@/lib/queries";
 import { cn, formatBRL, formatNumber } from "@/lib/utils";
+import { APTIDAO_LABELS, formatAlq, isRuralType, normalizeRural } from "@/lib/rural";
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 
@@ -73,7 +74,12 @@ export function PropertyCard({
             )}
           </p>
           <p className="mt-0.5 text-xs text-subtle">
-            {formatNumber(p.area)} m² · {p.bedrooms} {p.bedrooms === 1 ? "quarto" : "quartos"}
+            {isRuralType(p.type)
+              ? (() => {
+                  const r = normalizeRural(p.rural);
+                  return `${formatAlq(r.totalAlq ?? 0)} alq${r.aptidao ? ` · ${APTIDAO_LABELS[r.aptidao]}` : ""}`;
+                })()
+              : `${formatNumber(p.area)} m² · ${p.bedrooms} ${p.bedrooms === 1 ? "quarto" : "quartos"}`}
           </p>
         </div>
       </div>

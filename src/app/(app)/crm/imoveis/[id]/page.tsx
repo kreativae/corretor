@@ -1,3 +1,14 @@
+import { RuralDetails } from "@/components/rural-details";
+import {
+  APTIDAO_LABELS,
+  formatAlq,
+  formatHa,
+  formatPct,
+  isRuralType,
+  normalizeRural,
+  pricePerAlq,
+  ruralAreas,
+} from "@/lib/rural";
 import { AdExporterModal } from "@/components/crm/ad-exporter-modal";
 import { PortalPanel } from "@/components/crm/portal-panel";
 import { Timeline } from "@/components/crm/timeline";
@@ -29,6 +40,9 @@ import {
   Pencil,
   Ruler,
   ShowerHead,
+  Sprout,
+  Trees,
+  Wheat,
 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -57,12 +71,22 @@ export default async function ImovelCrmPage({
   ]);
   const propertyVisits = allVisits.filter((v) => v.property?.id === p.id);
 
-  const specs = [
-    { icon: Ruler, label: "Área", value: `${formatNumber(p.area)} m²` },
-    { icon: BedDouble, label: "Quartos", value: p.bedrooms },
-    { icon: ShowerHead, label: "Banheiros", value: p.bathrooms },
-    { icon: Car, label: "Vagas", value: p.garage },
-  ];
+  const rural = isRuralType(p.type);
+  const r = normalizeRural(p.rural);
+  const areas = ruralAreas(r);
+  const specs = rural
+    ? [
+        { icon: Ruler, label: `Área total · ${formatHa(areas.total)} ha`, value: `${formatAlq(areas.total)} alq` },
+        { icon: Sprout, label: "Aptidão", value: r.aptidao ? APTIDAO_LABELS[r.aptidao] : "—" },
+        { icon: Wheat, label: "Área plantada", value: `${formatAlq(areas.plantada)} alq` },
+        { icon: Trees, label: "Reserva legal", value: formatPct(areas.reservaPct) },
+      ]
+    : [
+        { icon: Ruler, label: "Área", value: `${formatNumber(p.area)} m²` },
+        { icon: BedDouble, label: "Quartos", value: p.bedrooms },
+        { icon: ShowerHead, label: "Banheiros", value: p.bathrooms },
+        { icon: Car, label: "Vagas", value: p.garage },
+      ];
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -70,7 +94,7 @@ export default async function ImovelCrmPage({
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-start gap-4">
           <Link
-            href="/crm/imoveis"
+            href={rural ? "/crm/propriedades" : "/crm/imoveis"}
             className="mt-1 flex size-10 shrink-0 items-center justify-center rounded-full border border-hairline text-subtle transition-colors hover:bg-soft hover:text-ink"
             aria-label="Voltar"
           >
@@ -196,6 +220,15 @@ export default async function ImovelCrmPage({
             )}
           </div>
 
+          {rural && (
+            <div className="rounded-2xl border border-hairline bg-card p-6">
+              <h2 className="mb-5 font-display text-base font-semibold tracking-tight">
+                Dados da propriedade
+              </h2>
+              <RuralDetails r={r} mapHref={`/imoveis/${p.code}/mapa`} showDocs />
+            </div>
+          )}
+
           {/* Visitas */}
           <div className="rounded-2xl border border-hairline bg-card p-6">
             <h2 className="font-display text-base font-semibold tracking-tight">
@@ -259,12 +292,14 @@ export default async function ImovelCrmPage({
               {formatBRL(p.price)}
             </p>
             <div className="mt-4 space-y-2 border-t border-hairline pt-4 text-sm">
-              {[
-                ["Condomínio", p.condoFee],
-                ["IPTU /ano", p.iptu],
-                ["Terreno", p.lotArea ? `${formatNumber(p.lotArea)} m²` : null],
-                ["Suítes", p.suites || null],
-              ]
+              {(rural
+                ? [["Por alqueire", pricePerAlq(p.price, r.totalAlq)]]
+                : [
+                    ["Condomínio", p.condoFee],
+                    ["IPTU /ano", p.iptu],
+                    ["Terreno", p.lotArea ? `${formatNumber(p.lotArea)} m²` : null],
+                    ["Suítes", p.suites || null],
+                  ])
                 .filter(([, v]) => v != null)
                 .map(([k, v]) => (
                   <div key={k as string} className="flex justify-between text-subtle">
@@ -276,7 +311,7 @@ export default async function ImovelCrmPage({
                 ))}
             </div>
             <div className="mt-4 rounded-xl bg-soft p-3.5 text-xs leading-relaxed text-subtle">
-              <p className="font-medium text-ink">Endereço</p>
+              <p className="font-medium text-ink">{rural ? "Localização" : "Endereço"}</p>
               <p className="mt-1">
                 {p.street ? `${p.street}, ` : ""}
                 {p.neighborhood}

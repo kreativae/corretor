@@ -40,19 +40,33 @@ export async function POST(req: Request) {
     if (!(file instanceof File)) {
       return NextResponse.json({ error: "Nenhum arquivo enviado." }, { status: 400 });
     }
-    if (!ALLOWED.includes(file.type)) {
-      return NextResponse.json({ error: "Formato não suportado (use JPG, PNG ou WebP)." }, { status: 400 });
-    }
-    if (file.size > MAX_BYTES) {
-      return NextResponse.json({ error: "Arquivo acima de 4 MB." }, { status: 413 });
-    }
-    const ext = file.type.split("/")[1].replace("jpeg", "jpg");
     const requested = String(form.get("folder") ?? "imoveis");
     const folder: MediaFolder = (MEDIA_FOLDERS as readonly string[]).includes(requested)
       ? (requested as MediaFolder)
       : "imoveis";
-    const pathname = `${folder}/${folder === "marca" ? "logo" : "foto"}.${ext}`;
-    const options = { token, addRandomSuffix: true, contentType: file.type } as const;
+
+    let pathname: string;
+    let contentType: string;
+    if (folder === "kmz") {
+      // Navegadores costumam enviar KMZ sem tipo; valida pela extensão
+      const ext = file.name.toLowerCase().split(".").pop();
+      if (ext !== "kmz" && ext !== "kml") {
+        return NextResponse.json({ error: "Envie um arquivo .kmz ou .kml." }, { status: 400 });
+      }
+      contentType = ext === "kmz" ? "application/vnd.google-earth.kmz" : "application/vnd.google-earth.kml+xml";
+      pathname = `kmz/perimetro.${ext}`;
+    } else {
+      if (!ALLOWED.includes(file.type)) {
+        return NextResponse.json({ error: "Formato não suportado (use JPG, PNG ou WebP)." }, { status: 400 });
+      }
+      const ext = file.type.split("/")[1].replace("jpeg", "jpg");
+      contentType = file.type;
+      pathname = `${folder}/${folder === "marca" ? "logo" : "foto"}.${ext}`;
+    }
+    if (file.size > MAX_BYTES) {
+      return NextResponse.json({ error: "Arquivo acima de 4 MB." }, { status: 413 });
+    }
+    const options = { token, addRandomSuffix: true, contentType } as const;
     try {
       const blob = await put(pathname, file, { ...options, access: "public" });
       return NextResponse.json({ url: blob.url });

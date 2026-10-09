@@ -20,6 +20,7 @@ import {
   ShieldCheck,
   Users,
   X,
+  Tractor,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -28,6 +29,7 @@ import { useEffect, useState, type ReactNode } from "react";
 const CRM_NAV = [
   { href: "/crm", label: "Visão geral", icon: LayoutDashboard, exact: true },
   { href: "/crm/imoveis", label: "Imóveis", icon: Building2 },
+  { href: "/crm/propriedades", label: "Propriedades rurais", icon: Tractor },
   { href: "/crm/pipeline", label: "Pipeline", icon: Columns3 },
   { href: "/crm/contatos", label: "Contatos", icon: Users },
   { href: "/crm/agenda", label: "Agenda", icon: CalendarDays },

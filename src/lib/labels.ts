@@ -6,6 +6,9 @@ export const TYPE_LABELS: Record<string, string> = {
   cobertura: "Cobertura",
   estudio: "Estúdio",
   terreno: "Terreno",
+  fazenda: "Fazenda",
+  sitio: "Sítio",
+  chacara: "Chácara",
 };
 
 export const PURPOSE_LABELS: Record<string, string> = {

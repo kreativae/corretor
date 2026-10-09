@@ -7,7 +7,7 @@ export const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
 export function sendFile(
   file: File,
   onProgress: (pct: number) => void,
-  folder: "imoveis" | "marca" = "imoveis",
+  folder: "imoveis" | "marca" | "kmz" = "imoveis",
 ) {
   return new Promise<string>((resolve, reject) => {
     const xhr = new XMLHttpRequest();

@@ -1,6 +1,7 @@
 import { db } from "@/db";
 import { activities, deals, properties, propertyImages, visits } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { alqToM2, isRuralType, sanitizeRural } from "@/lib/rural";
 import { NextResponse } from "next/server";
 
 type Params = { params: Promise<{ id: string }> };
@@ -29,6 +30,14 @@ export async function PATCH(req: Request, { params }: Params) {
 
     const { images, id: _ignore, code: _code, createdAt: _c, ...data } = body;
     void _ignore; void _code; void _c;
+    if ("type" in data) {
+      if (isRuralType(data.type)) {
+        data.rural = sanitizeRural(data.rural);
+        data.area = alqToM2(data.rural.totalAlq ?? 0);
+      } else {
+        data.rural = null;
+      }
+    }
 
     const [updated] = await db
       .update(properties)

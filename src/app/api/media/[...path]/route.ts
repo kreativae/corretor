@@ -26,6 +26,11 @@ export async function GET(
       "Content-Type": result.blob.contentType,
       "Content-Length": String(result.blob.size),
       "Cache-Control": "public, max-age=31536000, s-maxage=31536000, immutable",
+      // CORS: o mapa público lê o KMZ via fetch
+      "Access-Control-Allow-Origin": "*",
+      ...(pathname.startsWith("kmz/")
+        ? { "Content-Disposition": `attachment; filename="${pathname.split("/").pop()}"` }
+        : {}),
     },
   });
 }

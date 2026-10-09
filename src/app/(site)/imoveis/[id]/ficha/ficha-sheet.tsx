@@ -1,3 +1,17 @@
+import {
+  ACESSO_LABELS,
+  APTIDAO_LABELS,
+  ENERGIA_LABELS,
+  formatAlq,
+  formatHa,
+  formatPct,
+  isRuralType,
+  normalizeRural,
+  pricePerAlq,
+  ruralAreas,
+  SOLO_LABELS,
+  TOPOGRAFIA_LABELS,
+} from "@/lib/rural";
 import { STATUS_LABELS, TYPE_LABELS } from "@/lib/labels";
 import type { PropertyWithImages } from "@/lib/queries";
 import { formatBRL, formatNumber } from "@/lib/utils";
@@ -9,6 +23,9 @@ import {
   MessageCircle,
   Ruler,
   Trees,
+  Compass,
+  Sprout,
+  Wheat,
 } from "lucide-react";
 
 const MAX_FEATURES = 24;
@@ -30,6 +47,7 @@ export function FichaSheet({
   showIcon = true,
   showName = true,
   showDomain = true,
+  qrSvg,
 }: {
   p: PropertyWithImages;
   orgName: string;
@@ -43,9 +61,14 @@ export function FichaSheet({
   showIcon?: boolean;
   showName?: boolean;
   showDomain?: boolean;
+  /** QR code (SVG) para o mapa do KMZ — propriedades rurais */
+  qrSvg?: string;
 }) {
   const imgs = p.images.map((i) => i.url);
-  const specs = [
+  const rural = isRuralType(p.type);
+  const r = normalizeRural(p.rural);
+  const areas = ruralAreas(r);
+  const urbanSpecs = [
     { icon: Ruler, label: "Área construída", value: `${formatNumber(p.area)} m²` },
     p.lotArea ? { icon: Trees, label: "Terreno", value: `${formatNumber(p.lotArea)} m²` } : null,
     {
@@ -56,12 +79,41 @@ export function FichaSheet({
     { icon: Bath, label: "Banheiros", value: String(p.bathrooms) },
     { icon: Car, label: "Vagas", value: String(p.garage) },
   ].filter((s) => s !== null);
+  const specs = rural
+    ? [
+        { icon: Ruler, label: `Área total · ${formatHa(areas.total)} ha`, value: `${formatAlq(areas.total)} alq` },
+        { icon: Wheat, label: `Plantada · ${formatPct(areas.plantadaPct)}`, value: `${formatAlq(areas.plantada)} alq` },
+        { icon: Sprout, label: `Pastagem · ${formatPct(areas.pastagemPct)}`, value: `${formatAlq(areas.pastagem)} alq` },
+        { icon: Trees, label: `Reserva legal · ${formatPct(areas.reservaPct)}`, value: `${formatAlq(areas.reserva)} alq` },
+        { icon: Compass, label: "Aptidão", value: r.aptidao ? APTIDAO_LABELS[r.aptidao] : "—" },
+      ]
+    : urbanSpecs;
+  const ruralRows: [string, string][] = rural
+    ? ([
+        ["Área aberta", `${formatAlq(areas.aberta)} alq`],
+        ["APP", areas.app ? `${formatAlq(areas.app)} alq` : ""],
+        ["Culturas", r.culturas],
+        ["Lotação", r.cabecas ? `${formatAlq(r.cabecas)} cabeças` : ""],
+        ["Topografia", r.topografia ? TOPOGRAFIA_LABELS[r.topografia] : ""],
+        ["Solo", r.solo ? SOLO_LABELS[r.solo] : ""],
+        ["Energia", r.energia ? ENERGIA_LABELS[r.energia] : ""],
+        ["Acesso", r.acesso ? ACESSO_LABELS[r.acesso] : ""],
+        ["Até a cidade", r.distanciaCidadeKm != null ? `${formatAlq(r.distanciaCidadeKm)} km` : ""],
+        ["Água", r.agua.join(", ")],
+        ["Benfeitorias", r.benfeitorias.join(", ")],
+      ].filter(([, v]) => v) as [string, string][])
+    : [];
+  const perAlq = rural ? pricePerAlq(p.price, r.totalAlq) : null;
   const features = p.features.slice(0, MAX_FEATURES);
   const extraFeatures = p.features.length - features.length;
-  const costs = [
-    p.condoFee ? `Condomínio ${formatBRL(p.condoFee)}/mês` : null,
-    p.iptu ? `IPTU ${formatBRL(p.iptu)}/ano` : null,
-  ].filter(Boolean);
+  const costs = (
+    rural
+      ? [perAlq ? `${formatBRL(perAlq)} por alqueire` : null]
+      : [
+          p.condoFee ? `Condomínio ${formatBRL(p.condoFee)}/mês` : null,
+          p.iptu ? `IPTU ${formatBRL(p.iptu)}/ano` : null,
+        ]
+  ).filter(Boolean);
 
   return (
     <article className="ficha-sheet mx-auto flex h-[297mm] w-[210mm] flex-col overflow-hidden bg-white px-[13mm] pb-[10mm] pt-[12mm] text-neutral-900 shadow-sm print:shadow-none">
@@ -178,18 +230,48 @@ export function FichaSheet({
       {/* Descrição + comodidades: ocupam o espaço restante */}
       <div
         className={`mt-[5mm] grid min-h-0 flex-1 gap-[7mm] ${
-          features.length ? "grid-cols-[1.15fr_1fr]" : "grid-cols-1"
+          features.length || rural ? "grid-cols-[1.15fr_1fr]" : "grid-cols-1"
         }`}
       >
         <section className="flex min-h-0 flex-col">
           <h2 className="shrink-0 text-[9.5px] font-semibold uppercase tracking-[0.2em] text-neutral-400">
-            Sobre o imóvel
+            {rural ? "Sobre a propriedade" : "Sobre o imóvel"}
           </h2>
           <p className="ficha-fade mt-2 min-h-0 flex-1 overflow-hidden whitespace-pre-line text-[11px] leading-[1.55] text-neutral-700">
             {p.description || "—"}
           </p>
         </section>
-        {features.length > 0 && (
+        {rural && (
+          <section className="flex min-h-0 flex-col overflow-hidden">
+            <h2 className="shrink-0 text-[9.5px] font-semibold uppercase tracking-[0.2em] text-neutral-400">
+              A propriedade
+            </h2>
+            <dl className="mt-2 min-h-0 shrink space-y-1 overflow-hidden text-[10.5px] leading-snug">
+              {ruralRows.map(([k, v]) => (
+                <div key={k} className="flex gap-2 border-b border-neutral-100 pb-1">
+                  <dt className="w-[24mm] shrink-0 text-neutral-500">{k}</dt>
+                  <dd className="line-clamp-2 min-w-0 font-medium">{v}</dd>
+                </div>
+              ))}
+            </dl>
+            {qrSvg && (
+              <div className="mt-[4mm] flex shrink-0 items-center gap-3 rounded-md border border-neutral-200 p-2.5">
+                <div
+                  className="size-[26mm] shrink-0 [&>svg]:size-full"
+                  dangerouslySetInnerHTML={{ __html: qrSvg }}
+                />
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold leading-tight">Mapa da propriedade</p>
+                  <p className="mt-1 text-[9.5px] leading-snug text-neutral-500">
+                    Aponte a câmera do celular para ver o perímetro em satélite, traçar a rota e
+                    baixar o KMZ para o Google Earth.
+                  </p>
+                </div>
+              </div>
+            )}
+          </section>
+        )}
+        {!rural && features.length > 0 && (
           <section className="min-h-0 overflow-hidden">
             <h2 className="text-[9.5px] font-semibold uppercase tracking-[0.2em] text-neutral-400">
               Comodidades

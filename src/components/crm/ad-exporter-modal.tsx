@@ -1,5 +1,16 @@
 "use client";
 
+import {
+  APTIDAO_LABELS,
+  formatAlq,
+  formatHa,
+  formatPct,
+  isRuralType,
+  normalizeRural,
+  pricePerAlq,
+  ruralAreas,
+} from "@/lib/rural";
+
 import { Button, Modal } from "@/components/ui";
 import type { PropertyWithImages, WhiteLabel } from "@/lib/queries";
 import { formatBRL, formatCompact, formatNumber } from "@/lib/utils";
@@ -35,8 +46,39 @@ export function AdExporterModal({
   const fichaUrl = `${siteUrl}/imoveis/${p.code}/ficha`;
   const xmlFeedUrl = `${siteUrl}/api/feed.xml`;
 
+  const rural = isRuralType(p.type);
+  const r = normalizeRural(p.rural);
+  const ra = ruralAreas(r);
+  const mapaUrl = `${siteUrl}/imoveis/${p.code}/mapa`;
+  const perAlq = pricePerAlq(p.price, r.totalAlq);
+  const ruralLines = [
+    `📐 *Área total:* ${formatAlq(ra.total)} alqueires (${formatHa(ra.total)} ha)`,
+    r.aptidao ? `🌾 *Aptidão:* ${APTIDAO_LABELS[r.aptidao]}` : "",
+    ra.plantada ? `🚜 *Área plantada:* ${formatAlq(ra.plantada)} alq` : "",
+    ra.pastagem ? `🐄 *Pastagem:* ${formatAlq(ra.pastagem)} alq` : "",
+    ra.reserva ? `🌳 *Reserva legal:* ${formatAlq(ra.reserva)} alq (${formatPct(ra.reservaPct)})` : "",
+    r.culturas ? `🌱 *Culturas:* ${r.culturas}` : "",
+    r.agua.length ? `💧 *Água:* ${r.agua.join(", ")}` : "",
+    r.benfeitorias.length ? `🏠 *Benfeitorias:* ${r.benfeitorias.join(", ")}` : "",
+  ].filter(Boolean);
+
   // Copies pré-formatadas para cada canal
-  const whatsappCopy = `✨ *${p.title.toUpperCase()}* (${p.code})
+  const whatsappCopy = rural
+    ? `✨ *${p.title.toUpperCase()}* (${p.code})
+📍 *Localização:* ${p.neighborhood} — ${p.city}/${p.state}
+
+${ruralLines.join("\n")}
+
+💰 *Valor:* ${formatBRL(p.price)}${perAlq ? ` (${formatBRL(perAlq)}/alq)` : ""}
+${r.kmzUrl ? `\n🗺️ *Mapa do perímetro (KMZ):*\n${mapaUrl}\n` : ""}
+🔗 *Fotos e detalhes:*
+${propertyUrl}
+
+📄 *Ficha técnica em PDF:*
+${fichaUrl}
+
+_Atendimento exclusivo ${wl.orgName}_`
+    : `✨ *${p.title.toUpperCase()}* (${p.code})
 📍 *Localização:* ${p.neighborhood} — ${p.city}/${p.state}
 
 📐 *Área:* ${formatNumber(p.area)} m² construídos
@@ -55,7 +97,18 @@ ${fichaUrl}
 
 _Atendimento exclusivo ${wl.orgName}_`;
 
-  const instagramCopy = `🏡 ${p.title} | ${p.neighborhood.toUpperCase()}
+  const instagramCopy = rural
+    ? `🌾 ${p.title} | ${p.city.toUpperCase()}/${p.state}
+
+${p.description ? `${p.description.slice(0, 180)}...\n\n` : ""}${ruralLines.map((l) => l.replace(/\*/g, "")).join("\n")}
+
+💰 ${formatBRL(p.price)}${perAlq ? ` · ${formatBRL(perAlq)} por alqueire` : ""}
+
+📲 Fale com a gente pelo direct ou link na bio.
+Código: ${p.code}
+
+#fazenda #fazendaavenda #imoveisrurais #agro #${p.type} #${p.city.toLowerCase().replace(/\s+/g, "")} #${wl.orgName.toLowerCase().replace(/\s+/g, "")}`
+    : `🏡 ${p.title} | ${p.neighborhood.toUpperCase()}
 
 ${p.description ? `${p.description.slice(0, 180)}...\n\n` : ""}✨ Detalhes do imóvel:
 • ${formatNumber(p.area)} m² de área privativa
@@ -71,7 +124,26 @@ Código de referência: ${p.code}
 
 #imoveis #imoveisdeluxo #${p.neighborhood.toLowerCase().replace(/\s+/g, "")} #apartamentodeluxo #${p.type} #imobiliaria #${wl.orgName.toLowerCase().replace(/\s+/g, "")}`;
 
-  const classificadosCopy = `[${p.code}] ${TYPE_LABELS[p.type] || "Imóvel"} com ${formatNumber(p.area)}m², ${p.bedrooms} quartos em ${p.neighborhood} - ${p.city}
+  const classificadosCopy = rural
+    ? `[${p.code}] ${TYPE_LABELS[p.type]} ${formatAlq(ra.total)} alqueires em ${p.city}/${p.state}
+
+VALOR: ${formatBRL(p.price)}${perAlq ? ` (${formatBRL(perAlq)} por alqueire)` : ""}
+
+ÁREAS:
+- Total: ${formatAlq(ra.total)} alq (${formatHa(ra.total)} ha)
+- Aberta: ${formatAlq(ra.aberta)} alq
+- Plantada: ${formatAlq(ra.plantada)} alq
+- Pastagem: ${formatAlq(ra.pastagem)} alq
+- Reserva legal: ${formatAlq(ra.reserva)} alq (${formatPct(ra.reservaPct)})
+${r.aptidao ? `- Aptidão: ${APTIDAO_LABELS[r.aptidao]}\n` : ""}${r.culturas ? `- Culturas: ${r.culturas}\n` : ""}${r.agua.length ? `- Água: ${r.agua.join(", ")}\n` : ""}${r.benfeitorias.length ? `- Benfeitorias: ${r.benfeitorias.join(", ")}\n` : ""}
+DESCRIÇÃO:
+${p.description || "Consulte mais informações."}
+
+CONTATO:
+${wl.orgName}${wl.phone ? `\nWhatsApp: +${wl.phone}` : ""}
+Ref: ${p.code}
+Link: ${propertyUrl}${r.kmzUrl ? `\nMapa (KMZ): ${mapaUrl}` : ""}`
+    : `[${p.code}] ${TYPE_LABELS[p.type] || "Imóvel"} com ${formatNumber(p.area)}m², ${p.bedrooms} quartos em ${p.neighborhood} - ${p.city}
 
 VALOR: ${formatBRL(p.price)}${p.purpose === "aluguel" ? "/mês" : ""}
 ${p.condoFee ? `Condomínio: ${formatBRL(p.condoFee)} | ` : ""}${p.iptu ? `IPTU: ${formatBRL(p.iptu)}/ano` : ""}

@@ -1,3 +1,13 @@
+import { RuralDetails } from "@/components/rural-details";
+import {
+  APTIDAO_LABELS,
+  formatAlq,
+  formatHa,
+  isRuralType,
+  normalizeRural,
+  pricePerAlq,
+  ruralAreas,
+} from "@/lib/rural";
 import { Gallery } from "@/components/site/gallery";
 import { PropertyCard } from "@/components/site/property-card";
 import { PropertyTracker } from "@/components/site/property-tracker";
@@ -23,6 +33,9 @@ import {
   Ruler,
   ShowerHead,
   Sparkles,
+  Sprout,
+  Trees,
+  Wheat,
 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -59,12 +72,22 @@ export default async function ImovelPage({ params }: { params: Params }) {
     )
     .slice(0, 3);
 
-  const specs = [
-    { icon: Ruler, label: "Área", value: `${formatNumber(p.area)} m²` },
-    { icon: BedDouble, label: "Quartos", value: p.bedrooms },
-    { icon: ShowerHead, label: "Banheiros", value: p.bathrooms },
-    { icon: Car, label: "Vagas", value: p.garage },
-  ];
+  const rural = isRuralType(p.type);
+  const r = normalizeRural(p.rural);
+  const areas = ruralAreas(r);
+  const specs = rural
+    ? [
+        { icon: Ruler, label: `Área total · ${formatHa(areas.total)} ha`, value: `${formatAlq(areas.total)} alq` },
+        { icon: Sprout, label: "Aptidão", value: r.aptidao ? APTIDAO_LABELS[r.aptidao] : "—" },
+        { icon: Wheat, label: "Área plantada", value: `${formatAlq(areas.plantada)} alq` },
+        { icon: Trees, label: "Reserva legal", value: `${formatAlq(areas.reserva)} alq` },
+      ]
+    : [
+        { icon: Ruler, label: "Área", value: `${formatNumber(p.area)} m²` },
+        { icon: BedDouble, label: "Quartos", value: p.bedrooms },
+        { icon: ShowerHead, label: "Banheiros", value: p.bathrooms },
+        { icon: Car, label: "Vagas", value: p.garage },
+      ];
 
   const waText = encodeURIComponent(
     `Olá! Tenho interesse no imóvel ${p.code} — ${p.title} (${formatBRL(p.price)}). Podemos conversar?`,
@@ -141,6 +164,17 @@ export default async function ImovelPage({ params }: { params: Params }) {
               </>
             )}
 
+            {rural && (
+              <>
+                <h2 className="mt-12 font-display text-2xl font-semibold tracking-tight">
+                  A propriedade
+                </h2>
+                <div className="mt-5 rounded-2xl border border-hairline bg-card p-6">
+                  <RuralDetails r={r} mapHref={`/imoveis/${p.code}/mapa`} />
+                </div>
+              </>
+            )}
+
             {p.features.length > 0 && (
               <>
                 <h2 className="mt-12 font-display text-2xl font-semibold tracking-tight">
@@ -201,6 +235,14 @@ export default async function ImovelPage({ params }: { params: Params }) {
                 )}
               </p>
               <div className="mt-4 space-y-2 border-t border-hairline pt-4 text-sm">
+                {rural && pricePerAlq(p.price, r.totalAlq) != null && (
+                  <div className="flex justify-between text-subtle">
+                    <span>Por alqueire</span>
+                    <span className="font-mono tabular text-ink">
+                      {formatBRL(pricePerAlq(p.price, r.totalAlq))}
+                    </span>
+                  </div>
+                )}
                 {p.condoFee != null && (
                   <div className="flex justify-between text-subtle">
                     <span>Condomínio</span>

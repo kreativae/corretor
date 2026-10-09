@@ -8,6 +8,13 @@ import {
   TYPE_LABELS,
 } from "@/lib/labels";
 import type { PropertyWithImages } from "@/lib/queries";
+import {
+  APTIDAO_LABELS,
+  formatAlq,
+  isRuralType,
+  normalizeRural,
+  pricePerAlq,
+} from "@/lib/rural";
 import { cn, formatBRL, formatNumber } from "@/lib/utils";
 import {
   ArrowUpRight,
@@ -16,6 +23,7 @@ import {
   Pencil,
   Plus,
   Search,
+  Tractor,
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
@@ -26,10 +34,14 @@ import { toast } from "sonner";
 export function PropertiesTable({
   initial,
   viewCounts = {},
+  kind = "urbano",
 }: {
   initial: PropertyWithImages[];
   viewCounts?: Record<string, { total: number; unique: number }>;
+  kind?: "urbano" | "rural";
 }) {
+  const rural = kind === "rural";
+  const noun = rural ? "propriedades" : "imóveis";
   const router = useRouter();
   const [items, setItems] = useState(initial);
   const [q, setQ] = useState("");
@@ -105,7 +117,7 @@ export function PropertiesTable({
           <Input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Buscar por código, título ou bairro…"
+            placeholder={rural ? "Buscar por código, título ou região…" : "Buscar por código, título ou bairro…"}
             className="pl-10"
           />
         </div>
@@ -119,22 +131,24 @@ export function PropertiesTable({
         </Select>
         <Select value={type} onChange={(e) => setType(e.target.value)} className="w-auto">
           <option value="all">Todos os tipos</option>
-          {Object.entries(TYPE_LABELS).map(([k, v]) => (
-            <option key={k} value={k}>
-              {v}
-            </option>
-          ))}
+          {Object.entries(TYPE_LABELS)
+            .filter(([k]) => isRuralType(k) === rural)
+            .map(([k, v]) => (
+              <option key={k} value={k}>
+                {v}
+              </option>
+            ))}
         </Select>
-        <Link href="/crm/imoveis/novo">
+        <Link href={rural ? "/crm/propriedades/nova" : "/crm/imoveis/novo"}>
           <Button variant="primary" size="md">
             <Plus className="size-4" />
-            Novo imóvel
+            {rural ? "Nova propriedade" : "Novo imóvel"}
           </Button>
         </Link>
       </div>
 
       <p className="mt-4 font-mono text-[11px] uppercase tracking-[0.16em] text-subtle">
-        {filtered.length} de {items.length} imóveis
+        {filtered.length} de {items.length} {noun}
       </p>
 
       {/* Tabela */}
@@ -142,9 +156,9 @@ export function PropertiesTable({
         <table className="w-full min-w-[940px] text-left text-sm">
           <thead>
             <tr className="border-b border-hairline font-mono text-[10px] uppercase tracking-[0.16em] text-subtle">
-              <th className="px-5 py-3.5 font-medium">Imóvel</th>
+              <th className="px-5 py-3.5 font-medium">{rural ? "Propriedade" : "Imóvel"}</th>
               <th className="px-4 py-3.5 font-medium">Tipo</th>
-              <th className="px-4 py-3.5 font-medium">Finalidade</th>
+              <th className="px-4 py-3.5 font-medium">{rural ? "Aptidão" : "Finalidade"}</th>
               <th className="px-4 py-3.5 text-right font-medium">Área</th>
               <th className="px-4 py-3.5 text-right font-medium">Preço</th>
               <th className="px-4 py-3.5 text-right font-medium">Views</th>
@@ -174,7 +188,11 @@ export function PropertiesTable({
                           className="absolute inset-0 h-full w-full object-cover"
                         />
                       ) : (
-                        <Building2 className="absolute inset-0 m-auto size-4 text-subtle" />
+                        rural ? (
+                          <Tractor className="absolute inset-0 m-auto size-4 text-subtle" />
+                        ) : (
+                          <Building2 className="absolute inset-0 m-auto size-4 text-subtle" />
+                        )
                       )}
                     </span>
                     <span className="min-w-0">
@@ -189,13 +207,25 @@ export function PropertiesTable({
                 </td>
                 <td className="px-4 py-3 text-subtle">{TYPE_LABELS[p.type]}</td>
                 <td className="px-4 py-3 text-subtle">
-                  {PURPOSE_LABELS[p.purpose]}
+                  {rural
+                    ? (() => {
+                        const apt = normalizeRural(p.rural).aptidao;
+                        return apt ? APTIDAO_LABELS[apt] : "—";
+                      })()
+                    : PURPOSE_LABELS[p.purpose]}
                 </td>
                 <td className="px-4 py-3 text-right font-mono tabular text-subtle">
-                  {formatNumber(p.area)} m²
+                  {rural
+                    ? `${formatAlq(normalizeRural(p.rural).totalAlq ?? 0)} alq`
+                    : `${formatNumber(p.area)} m²`}
                 </td>
                 <td className="px-4 py-3 text-right font-mono font-medium tabular">
                   {formatBRL(p.price)}
+                  {rural && pricePerAlq(p.price, normalizeRural(p.rural).totalAlq) && (
+                    <span className="block text-[10.5px] font-normal text-subtle">
+                      {formatBRL(pricePerAlq(p.price, normalizeRural(p.rural).totalAlq))}/alq
+                    </span>
+                  )}
                 </td>
                 <td className="px-4 py-3 text-right">
                   <span
@@ -251,7 +281,11 @@ export function PropertiesTable({
         </table>
         {filtered.length === 0 && (
           <p className="py-14 text-center text-sm text-subtle">
-            Nenhum imóvel com esses filtros.
+            {rural
+              ? items.length
+                ? "Nenhuma propriedade com esses filtros."
+                : "Nenhuma propriedade rural cadastrada ainda."
+              : "Nenhum imóvel com esses filtros."}
           </p>
         )}
       </div>
