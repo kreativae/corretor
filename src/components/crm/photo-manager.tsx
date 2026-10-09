@@ -9,6 +9,35 @@ import { toast } from "sonner";
 
 type Pending = { id: string; name: string; progress: number };
 
+const MAX_SIDE = 2560;
+
+/**
+ * Reduz a foto no navegador antes do envio (lado maior ≤ 2560 px, WebP 85%).
+ * Fotos de câmera caem de ~10 MB para < 1 MB. Mantém o original se não ganhar.
+ */
+async function compressImage(file: File): Promise<File> {
+  if (file.type === "image/gif" || file.type === "image/svg+xml") return file;
+  try {
+    const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+    const scale = Math.min(1, MAX_SIDE / Math.max(bitmap.width, bitmap.height));
+    const w = Math.round(bitmap.width * scale);
+    const h = Math.round(bitmap.height * scale);
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    canvas.getContext("2d")!.drawImage(bitmap, 0, 0, w, h);
+    bitmap.close();
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/webp", 0.85),
+    );
+    if (!blob || blob.type !== "image/webp" || blob.size >= file.size) return file;
+    const base = file.name.replace(/\.[^.]+$/, "") || "foto";
+    return new File([blob], `${base}.webp`, { type: "image/webp" });
+  } catch {
+    return file;
+  }
+}
+
 /** Galeria do anúncio: upload, URL externa, capa, ordem e remoção. */
 export function PhotoManager({
   images,
@@ -33,11 +62,12 @@ export function PhotoManager({
       const id = crypto.randomUUID();
       setPending((p) => [...p, { id, name: file.name, progress: 0 }]);
       try {
-        const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-        const blob = await upload(`imoveis/foto.${ext}`, file, {
+        const ready = await compressImage(file);
+        const ext = ready.name.split(".").pop()?.toLowerCase() || "jpg";
+        const blob = await upload(`imoveis/foto.${ext}`, ready, {
           access: "public",
           handleUploadUrl: "/api/uploads",
-          multipart: file.size > 5 * 1024 * 1024,
+          multipart: ready.size > 8 * 1024 * 1024,
           onUploadProgress: ({ percentage }) =>
             setPending((p) => p.map((x) => (x.id === id ? { ...x, progress: percentage } : x))),
         });
