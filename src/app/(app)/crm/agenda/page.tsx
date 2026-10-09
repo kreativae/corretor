@@ -5,7 +5,12 @@ import type { Metadata } from "next";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Agenda" };
 
-export default async function AgendaPage() {
+export default async function AgendaPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tipo?: string }>;
+}) {
+  const { tipo } = await searchParams;
   const [visits, contacts, properties] = await Promise.all([
     listVisits(),
     listContacts(),
@@ -32,7 +37,8 @@ export default async function AgendaPage() {
         contacts={contacts.map((c) => ({ id: c.id, name: c.name }))}
         properties={properties
           .filter((p) => ["disponivel", "reservado"].includes(p.status))
-          .map((p) => ({ id: p.id, code: p.code, title: p.title }))}
+          .map((p) => ({ id: p.id, code: p.code, title: p.title, type: p.type }))}
+        initialTab={tipo === "imoveis" || tipo === "rurais" ? tipo : "todas"}
       />
     </div>
   );

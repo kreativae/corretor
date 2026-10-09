@@ -3,9 +3,13 @@
 import { Button, Field, Input, Modal, Select } from "@/components/ui";
 import { VISIT_STATUS_LABELS } from "@/lib/labels";
 import type { Contact, Property, Visit } from "@/db/schema";
+import { isRuralType } from "@/lib/rural";
 import { cn } from "@/lib/utils";
 import {
+  Building2,
   CalendarPlus,
+  Layers,
+  Tractor,
   Check,
   Cloud,
   ChevronLeft,
@@ -13,7 +17,7 @@ import {
   RotateCcw,
   X,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -42,16 +46,24 @@ function mondayOf(offset: number) {
   return d;
 }
 
+export type AgendaTab = "todas" | "imoveis" | "rurais";
+
+const isRuralVisit = (v: VisitLite) => isRuralType(v.property?.type);
+
 export function AgendaClient({
   initialVisits,
   contacts,
   properties,
+  initialTab = "todas",
 }: {
   initialVisits: VisitLite[];
   contacts: { id: string; name: string }[];
-  properties: { id: string; code: string; title: string }[];
+  properties: { id: string; code: string; title: string; type: string }[];
+  initialTab?: AgendaTab;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const [tab, setTab] = useState<AgendaTab>(initialTab);
   const [offset, setOffset] = useState(0);
   const [visits, setVisits] = useState(initialVisits);
   const [open, setOpen] = useState(false);
@@ -76,8 +88,22 @@ export function AgendaClient({
 
   const weekLabel = `${week[0].getDate()} ${MONTHS[week[0].getMonth()]} — ${week[6].getDate()} ${MONTHS[week[6].getMonth()]} ${week[6].getFullYear()}`;
 
+  const counts = {
+    todas: visits.length,
+    imoveis: visits.filter((v) => !isRuralVisit(v)).length,
+    rurais: visits.filter(isRuralVisit).length,
+  };
+  const modalProperties =
+    tab === "todas" ? properties : properties.filter((p) => isRuralType(p.type) === (tab === "rurais"));
+
+  function switchTab(t: AgendaTab) {
+    setTab(t);
+    router.replace(t === "todas" ? pathname : `${pathname}?tipo=${t}`, { scroll: false });
+  }
+
   function visitsFor(day: Date) {
     return visits
+      .filter((v) => tab === "todas" || isRuralVisit(v) === (tab === "rurais"))
       .filter((v) => {
         const d = new Date(v.visit.scheduledAt);
         return d.toDateString() === day.toDateString();
@@ -208,6 +234,29 @@ export function AgendaClient({
         </Button>
       </div>
 
+      <div className="mt-4 inline-flex rounded-full border border-hairline p-1">
+        {(
+          [
+            { id: "todas", label: "Todas", icon: Layers },
+            { id: "imoveis", label: "Imóveis", icon: Building2 },
+            { id: "rurais", label: "Rurais", icon: Tractor },
+          ] as const
+        ).map((t) => (
+          <button
+            key={t.id}
+            onClick={() => switchTab(t.id)}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium transition-all duration-300",
+              tab === t.id ? "bg-ink text-canvas" : "text-subtle hover:text-ink",
+            )}
+          >
+            <t.icon className="size-3.5" />
+            {t.label}
+            <span className="font-mono text-[10.5px] opacity-60">{counts[t.id]}</span>
+          </button>
+        ))}
+      </div>
+
       <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.16em] text-subtle">
         Arraste os cartões entre os dias para reagendar
       </p>
@@ -321,8 +370,11 @@ export function AgendaClient({
                     <p className="mt-1 truncate text-xs font-medium">
                       {v.contact?.name ?? "—"}
                     </p>
-                    <p className="truncate text-[10.5px] text-subtle">
-                      {v.property?.title ?? "—"}
+                    <p className="flex items-center gap-1 truncate text-[10.5px] text-subtle">
+                      {isRuralVisit(v) && (
+                        <Tractor className="size-3 shrink-0 text-emerald-600" aria-label="Propriedade rural" />
+                      )}
+                      <span className="truncate">{v.property?.title ?? "—"}</span>
                     </p>
                   </div>
                 ))}
@@ -348,10 +400,10 @@ export function AgendaClient({
               ))}
             </Select>
           </Field>
-          <Field label="Imóvel">
+          <Field label={tab === "rurais" ? "Propriedade" : "Imóvel"}>
             <Select value={form.propertyId} onChange={(e) => setForm({ ...form, propertyId: e.target.value })}>
-              <option value="">Selecionar imóvel…</option>
-              {properties.map((p) => (
+              <option value="">{tab === "rurais" ? "Selecionar propriedade…" : "Selecionar imóvel…"}</option>
+              {modalProperties.map((p) => (
                 <option key={p.id} value={p.id}>{p.code} — {p.title}</option>
               ))}
             </Select>
