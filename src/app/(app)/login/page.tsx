@@ -3,6 +3,7 @@ import { Mark } from "@/components/brand";
 import { getCurrentUser } from "@/lib/auth";
 import { getWhiteLabel } from "@/lib/queries";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -84,26 +85,10 @@ export default async function LoginPage({
 
           <LoginForm nextPath={sp.next} />
 
-          <div className="mt-10 rounded-2xl border border-dashed border-hairline-strong p-4">
-            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-subtle">
-              Credenciais de demonstração
-            </p>
-            <div className="mt-3 space-y-2 font-mono text-[11.5px]">
-              <p className="flex justify-between gap-3">
-                <span className="text-subtle">admin</span>
-                <span>marina@nordimoveis.com.br · nord2026</span>
-              </p>
-              <p className="flex justify-between gap-3">
-                <span className="text-subtle">corretor</span>
-                <span>rafael@nordimoveis.com.br · nord2026</span>
-              </p>
-            </div>
-          </div>
-
           <p className="mt-8 text-center text-xs text-subtle">
-            <a href="/" className="transition-colors hover:text-ink">
+            <Link href="/" className="transition-colors hover:text-ink">
               ← Voltar ao site público
-            </a>
+            </Link>
           </p>
         </div>
       </div>

@@ -76,10 +76,10 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
     }
     return {
       id: "temp-admin",
-      name: "Marina Duarte",
-      email: "marina@nordimoveis.com.br",
+      name: "Administrador",
+      email: "",
       role: "admin",
-      creci: "112.334-F",
+      creci: null,
       lastLoginAt: null,
     };
   }
