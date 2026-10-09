@@ -44,7 +44,7 @@ export default async function FichaPage({
 
   return (
     <div className="ficha-page min-h-screen overflow-x-auto bg-neutral-200 py-8 pb-28 print:bg-white print:p-0">
-      <PrintBar />
+      <PrintBar backHref={user ? `/crm/imoveis/${p.id}` : `/imoveis/${p.code}`} />
       <FichaSheet
         p={p}
         orgName={wl.orgName}
