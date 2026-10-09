@@ -10,6 +10,7 @@ import {
 import type { PropertyWithImages } from "@/lib/queries";
 import {
   APTIDAO_LABELS,
+  crmPropertyPath,
   formatAlq,
   isRuralType,
   normalizeRural,
@@ -175,7 +176,7 @@ export function PropertiesTable({
               >
                 <td className="px-5 py-3">
                   <Link
-                    href={`/crm/imoveis/${p.id}`}
+                    href={crmPropertyPath(p)}
                     className="flex items-center gap-3.5"
                   >
                     <span className="relative block size-11 shrink-0 overflow-hidden rounded-lg bg-soft">
@@ -255,7 +256,7 @@ export function PropertiesTable({
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-end gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-                    <Link href={`/crm/imoveis/${p.id}/editar`}>
+                    <Link href={crmPropertyPath(p, "/editar")}>
                       <Button variant="ghost" size="icon" aria-label="Editar">
                         <Pencil className="size-4" />
                       </Button>
@@ -268,7 +269,7 @@ export function PropertiesTable({
                     >
                       <Trash2 className="size-4 text-red-500/80" />
                     </Button>
-                    <Link href={`/crm/imoveis/${p.id}`}>
+                    <Link href={crmPropertyPath(p)}>
                       <Button variant="ghost" size="icon" aria-label="Abrir">
                         <ArrowUpRight className="size-4" />
                       </Button>

@@ -5,9 +5,9 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Editar imóvel" };
+export const metadata: Metadata = { title: "Editar propriedade rural" };
 
-export default async function EditarImovelPage({
+export default async function EditarPropriedadePage({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -15,7 +15,7 @@ export default async function EditarImovelPage({
   const { id } = await params;
   const property = await getPropertyById(id);
   if (!property) notFound();
-  if (isRuralType(property.type)) redirect(crmPropertyPath(property, "/editar"));
+  if (!isRuralType(property.type)) redirect(crmPropertyPath(property, "/editar"));
   return (
     <div className="mx-auto max-w-6xl">
       <PropertyForm initial={property} />

@@ -216,3 +216,8 @@ export function sanitizeRural(input: unknown): RuralData {
   if (out.kmzUrl && !/^https?:\/\//.test(out.kmzUrl)) out.kmzUrl = "";
   return out;
 }
+
+/** Caminho no CRM: rurais em /crm/propriedades, urbanos em /crm/imoveis. */
+export function crmPropertyPath(p: { id: string; type: string | null | undefined }, suffix = "") {
+  return `/crm/${isRuralType(p.type) ? "propriedades" : "imoveis"}/${p.id}${suffix}`;
+}

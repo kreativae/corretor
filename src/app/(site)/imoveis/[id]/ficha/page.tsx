@@ -2,7 +2,7 @@ import { FichaSheet } from "./ficha-sheet";
 import { PrintBar } from "./print-bar";
 import { getPropertyByCode, getWhiteLabel } from "@/lib/queries";
 import { getCurrentUser } from "@/lib/auth";
-import { isRuralType, normalizeRural } from "@/lib/rural";
+import { crmPropertyPath, isRuralType, normalizeRural } from "@/lib/rural";
 import { headers } from "next/headers";
 import QRCode from "qrcode";
 import { getSiteContent } from "@/lib/site-content";
@@ -63,7 +63,7 @@ export default async function FichaPage({
   return (
     <div className="ficha-page min-h-screen overflow-x-auto bg-neutral-200 py-8 pb-28 print:bg-white print:p-0">
       <PrintBar
-        backHref={user ? `/crm/imoveis/${p.id}` : `/imoveis/${p.code}`}
+        backHref={user ? crmPropertyPath(p) : `/imoveis/${p.code}`}
         kmz={
           user && rural
             ? { propertyId: p.id, type: p.type, rural: ruralData }

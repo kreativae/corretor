@@ -5,7 +5,7 @@ import { FEATURES, PURPOSE_LABELS, STATUS_LABELS, TYPE_LABELS } from "@/lib/labe
 import type { PropertyWithImages } from "@/lib/queries";
 import { PhotoManager } from "./photo-manager";
 import { RuralFields } from "./rural-fields";
-import { isRuralType, normalizeRural, pricePerAlq, RURAL_TYPES, type RuralData } from "@/lib/rural";
+import { crmPropertyPath, isRuralType, normalizeRural, pricePerAlq, RURAL_TYPES, type RuralData } from "@/lib/rural";
 import { cn, formatBRL } from "@/lib/utils";
 import { ArrowLeft, Check, ImageIcon, Save, Sparkles } from "lucide-react";
 import { generateDescription } from "@/lib/description";
@@ -162,7 +162,7 @@ export function PropertyForm({
       if (!res.ok) throw new Error();
       const data = await res.json();
       toast.success(isEdit ? "Imóvel atualizado." : `Imóvel ${data.code} criado.`);
-      router.push(`/crm/imoveis/${data.id}`);
+      router.push(crmPropertyPath(data));
       router.refresh();
     } catch {
       toast.error("Não foi possível salvar. Verifique os campos.");

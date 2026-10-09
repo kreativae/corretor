@@ -1,3 +1,4 @@
+import { crmPropertyPath } from "@/lib/rural";
 import { ContactActions } from "@/components/crm/contact-actions";
 import { Timeline } from "@/components/crm/timeline";
 import { Badge } from "@/components/ui";
@@ -160,7 +161,7 @@ export default async function ContatoPage({
               {matches.map(({ property, score }) => (
                 <Link
                   key={property.id}
-                  href={`/crm/imoveis/${property.id}`}
+                  href={crmPropertyPath(property)}
                   className="group flex items-center gap-4 rounded-xl border border-hairline p-3 transition-all duration-300 hover:border-hairline-strong hover:bg-soft/50"
                 >
                   <span className="relative block size-14 shrink-0 overflow-hidden rounded-lg bg-soft">
