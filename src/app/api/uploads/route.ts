@@ -14,10 +14,16 @@ export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ ok: false, error: "Faça login para enviar arquivos." });
   if (!blobToken()) {
+    // Só nomes (nunca valores), para identificar como a Vercel nomeou a variável
+    const related = Object.keys(process.env)
+      .filter((k) => /BLOB|STORE|TOKEN/i.test(k))
+      .sort();
     return NextResponse.json({
       ok: false,
       error:
         "Token do Vercel Blob não encontrado. Conecte o Blob Store ao projeto e faça um novo deploy.",
+      env: process.env.VERCEL_ENV ?? null,
+      related,
     });
   }
   return NextResponse.json({ ok: true });
