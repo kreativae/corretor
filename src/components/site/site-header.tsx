@@ -4,7 +4,7 @@ import { Wordmark } from "@/components/brand";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import { ArrowUpRight, Menu, X } from "lucide-react";
+import { ArrowUpRight, LogIn, Menu, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -55,6 +55,12 @@ export function SiteHeader({ orgName }: { orgName: string }) {
 
           <div className="flex items-center gap-2.5">
             <ThemeToggle className="hidden sm:inline-flex" />
+            <Link href="/login" className="hidden sm:block">
+              <Button variant="outline" size="sm" className="h-9 px-4">
+                Acessar sistema
+                <LogIn className="size-3.5" />
+              </Button>
+            </Link>
             <Link href="/imoveis" className="hidden sm:block">
               <Button variant="accent" size="sm" className="h-9 px-4">
                 Agendar visita
@@ -108,7 +114,13 @@ export function SiteHeader({ orgName }: { orgName: string }) {
             </Link>
           ))}
         </nav>
-        <div className="container-x mt-auto pb-10">
+        <div className="container-x mt-auto flex flex-col gap-3 pb-10">
+          <Link href="/login" onClick={() => setOpen(false)}>
+            <Button variant="outline" size="lg" className="w-full">
+              Acessar sistema
+              <LogIn className="size-4" />
+            </Button>
+          </Link>
           <Link href="/imoveis" onClick={() => setOpen(false)}>
             <Button variant="accent" size="lg" className="w-full">
               Agendar visita
