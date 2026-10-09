@@ -17,9 +17,10 @@ export async function GET(req: NextRequest) {
   const oauthError = url.searchParams.get("error");
   const rawCookie = req.cookies.get("imob_google_oauth")?.value;
 
-  const fail = (reason: string) => {
+  const fail = (reason: string, detail?: string) => {
     const target = new URL("/admin/configuracoes", origin);
     target.searchParams.set("error", reason);
+    if (detail) target.searchParams.set("detail", detail.slice(0, 200));
     const res = NextResponse.redirect(target);
     res.cookies.delete("imob_google_oauth");
     return res;
@@ -72,6 +73,9 @@ export async function GET(req: NextRequest) {
     return res;
   } catch (e) {
     console.error(e);
-    return fail("token_exchange_failed");
+    return fail(
+      "token_exchange_failed",
+      e instanceof Error ? e.message : undefined,
+    );
   }
 }

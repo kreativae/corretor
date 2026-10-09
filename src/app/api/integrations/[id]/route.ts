@@ -15,10 +15,10 @@ export async function PATCH(req: Request, { params }: Params) {
     const body = await req.json();
 
     const patch: Partial<typeof integrations.$inferInsert> = {};
-    if (body.clientId !== undefined) patch.clientId = body.clientId || null;
-    if (body.clientSecret !== undefined && body.clientSecret !== "") {
-      patch.clientSecret = body.clientSecret;
-    }
+    if (body.clientId !== undefined)
+      patch.clientId = String(body.clientId ?? "").trim() || null;
+    const clientSecret = String(body.clientSecret ?? "").trim();
+    if (clientSecret) patch.clientSecret = clientSecret;
     if (body.accountEmail !== undefined)
       patch.accountEmail = body.accountEmail || null;
     if (typeof body.autoSync === "boolean") patch.autoSync = body.autoSync;

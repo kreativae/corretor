@@ -72,7 +72,7 @@ export function buildGoogleAuthUrl(
   if (!scopes) throw new Error("Provedor Google inválido.");
 
   const params = new URLSearchParams({
-    client_id: integration.clientId,
+    client_id: integration.clientId.trim(),
     redirect_uri: googleRedirectUri(origin),
     response_type: "code",
     scope: scopes.join(" "),
@@ -118,8 +118,8 @@ export async function exchangeGoogleCode(
   return tokenRequest(
     new URLSearchParams({
       code,
-      client_id: integration.clientId,
-      client_secret: integration.clientSecret,
+      client_id: integration.clientId.trim(),
+      client_secret: integration.clientSecret.trim(),
       redirect_uri: googleRedirectUri(origin),
       grant_type: "authorization_code",
     }),
@@ -144,8 +144,8 @@ export async function getGoogleAccessToken(integration: Integration) {
   const token = await tokenRequest(
     new URLSearchParams({
       refresh_token: integration.refreshToken,
-      client_id: integration.clientId,
-      client_secret: integration.clientSecret,
+      client_id: integration.clientId.trim(),
+      client_secret: integration.clientSecret.trim(),
       grant_type: "refresh_token",
     }),
   );

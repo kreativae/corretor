@@ -397,9 +397,12 @@ export function IntegrationsClient({
         google_credentials: "Configure Client ID e Client Secret antes de conectar.",
         access_denied: "A autorização foi cancelada no Google.",
         invalid_state: "A sessão OAuth expirou. Tente conectar novamente.",
-        token_exchange_failed: "O Google recusou a troca do token. Revise a URI de redirecionamento.",
+        token_exchange_failed: "Falha ao concluir a autorização Google.",
       };
-      toast.error(messages[error] ?? "Não foi possível autorizar a conta Google.");
+      const detail = searchParams.get("detail");
+      toast.error(messages[error] ?? "Não foi possível autorizar a conta Google.", {
+        description: detail ?? undefined,
+      });
       router.replace("/admin/configuracoes");
     }
   }, [router, searchParams]);
