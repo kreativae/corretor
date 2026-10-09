@@ -51,7 +51,7 @@ export async function destroySession() {
 
 export type SessionUser = Pick<
   User,
-  "id" | "name" | "email" | "role" | "creci" | "lastLoginAt"
+  "id" | "name" | "email" | "role" | "creci" | "phone" | "lastLoginAt"
 >;
 
 /** Usuário logado (ou null). Seguro para usar em layouts/páginas. */
@@ -66,6 +66,7 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
           email: users.email,
           role: users.role,
           creci: users.creci,
+          phone: users.phone,
         })
         .from(users)
         .where(eq(users.role, "admin"))
@@ -80,6 +81,7 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
       email: "",
       role: "admin",
       creci: null,
+      phone: null,
       lastLoginAt: null,
     };
   }
@@ -96,6 +98,7 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
         email: users.email,
         role: users.role,
         creci: users.creci,
+        phone: users.phone,
         lastLoginAt: users.lastLoginAt,
         active: users.active,
       })
@@ -114,6 +117,7 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
       email: u.email,
       role: u.role,
       creci: u.creci,
+      phone: u.phone,
       lastLoginAt: u.lastLoginAt,
     };
   } catch {

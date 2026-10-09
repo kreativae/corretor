@@ -33,11 +33,14 @@ export default async function FichaPage({
         role: content.detail.brokerRole || "Atendimento",
       };
   const today = new Date().toLocaleDateString("pt-BR", { timeZone: TIME_ZONE });
-  const digits = wl.phone.replace(/\D/g, "");
+  // WhatsApp do corretor logado; sem ele, o da imobiliária (white label)
+  const digits = (user?.phone || wl.phone).replace(/\D/g, "");
   const phone =
     digits.length === 13
       ? `+${digits.slice(0, 2)} (${digits.slice(2, 4)}) ${digits.slice(4, 9)}-${digits.slice(9)}`
-      : wl.phone;
+      : digits.length === 12
+        ? `+${digits.slice(0, 2)} (${digits.slice(2, 4)}) ${digits.slice(4, 8)}-${digits.slice(8)}`
+        : digits;
 
   return (
     <div className="ficha-page min-h-screen overflow-x-auto bg-neutral-200 py-8 pb-28 print:bg-white print:p-0">

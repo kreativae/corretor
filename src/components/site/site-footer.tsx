@@ -64,10 +64,12 @@ export function SiteFooter({
             Contato
           </p>
           <ul className="mt-5 space-y-3 text-sm text-subtle">
-            <li className="font-mono tabular">
-              +{phone.slice(0, 2)} ({phone.slice(2, 4)}) {phone.slice(4, 9)}-
-              {phone.slice(9)}
-            </li>
+            {phone && (
+              <li className="font-mono tabular">
+                +{phone.slice(0, 2)} ({phone.slice(2, 4)}) {phone.slice(4, 9)}-
+                {phone.slice(9)}
+              </li>
+            )}
             <li>{email || footer.email}</li>
             {igHandle && (
               <li>

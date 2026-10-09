@@ -217,10 +217,12 @@ export function FichaSheet({
           <p className="truncate text-[12px] font-semibold">{brokerName}</p>
           <p className="truncate text-[10px] text-neutral-400">{brokerRole}</p>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <MessageCircle className="size-4 text-emerald-400" />
-          <span className="font-mono text-[13px] tabular">{phone}</span>
-        </div>
+        {phone && (
+          <div className="flex shrink-0 items-center gap-2">
+            <MessageCircle className="size-4 text-emerald-400" />
+            <span className="font-mono text-[13px] tabular">{phone}</span>
+          </div>
+        )}
         {showDomain && (
           <p className="shrink-0 text-right text-[9px] uppercase tracking-[0.16em] text-neutral-400">
             {domain}

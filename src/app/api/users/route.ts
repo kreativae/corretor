@@ -35,6 +35,7 @@ export async function POST(req: Request) {
         email,
         role: body.role === "admin" ? "admin" : "corretor",
         creci: body.creci || null,
+        phone: String(body.phone ?? "").replace(/\D/g, "") || null,
         passwordHash: body.password ? hashPassword(String(body.password)) : null,
       })
       .returning();

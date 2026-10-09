@@ -32,6 +32,7 @@ export default async function EquipePage() {
           email: u.email,
           role: u.role,
           creci: u.creci,
+          phone: u.phone,
           active: u.active,
           hasPassword: !!u.passwordHash,
           lastLoginAt: u.lastLoginAt ? u.lastLoginAt.toISOString() : null,

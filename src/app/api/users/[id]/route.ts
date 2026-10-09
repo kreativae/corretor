@@ -16,7 +16,8 @@ export async function PATCH(
 
     const patch: Partial<typeof users.$inferInsert> = {};
     if (body.name?.trim()) patch.name = body.name.trim();
-    if (body.creci !== undefined) patch.creci = body.creci || null;
+    if (body.creci !== undefined) patch.creci = String(body.creci ?? "").trim() || null;
+    if (body.phone !== undefined) patch.phone = String(body.phone ?? "").replace(/\D/g, "") || null;
     if (body.role && ["admin", "corretor"].includes(body.role)) {
       if (id === me.id && body.role !== "admin") {
         return NextResponse.json(

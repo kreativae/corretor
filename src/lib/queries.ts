@@ -55,7 +55,7 @@ export const WL_DEFAULTS: WhiteLabel = {
   brandSub: "IMÓVEIS",
   domain: "nordimoveis.com.br",
   accent: "#10b981",
-  phone: "5511998765432",
+  phone: "",
   email: "",
   instagram: "",
   tagline: "Imobiliária boutique",

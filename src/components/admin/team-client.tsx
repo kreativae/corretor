@@ -3,7 +3,7 @@
 import { Badge, Button, Field, Input, Modal, Select, Switch } from "@/components/ui";
 import { ROLE_LABELS } from "@/lib/labels";
 import { cn, initials, timeAgo } from "@/lib/utils";
-import { KeyRound, Plus, ShieldCheck, UserPlus } from "lucide-react";
+import { KeyRound, Pencil, Plus, ShieldCheck, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -14,6 +14,7 @@ export type TeamMember = {
   email: string;
   role: "admin" | "corretor";
   creci: string | null;
+  phone: string | null;
   active: boolean;
   hasPassword: boolean;
   lastLoginAt: string | null;
@@ -32,11 +33,14 @@ export function TeamClient({
   const [saving, setSaving] = useState(false);
   const [pwTarget, setPwTarget] = useState<TeamMember | null>(null);
   const [newPassword, setNewPassword] = useState("");
+  const [editTarget, setEditTarget] = useState<TeamMember | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", creci: "", phone: "" });
   const [form, setForm] = useState({
     name: "",
     email: "",
     role: "corretor",
     creci: "",
+    phone: "",
     password: "",
   });
 
@@ -55,7 +59,7 @@ export function TeamClient({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       toast.success(`${form.name} agora tem acesso à plataforma.`);
-      setForm({ name: "", email: "", role: "corretor", creci: "", password: "" });
+      setForm({ name: "", email: "", role: "corretor", creci: "", phone: "", password: "" });
       setOpen(false);
       router.refresh();
     } catch (e) {
@@ -79,6 +83,25 @@ export function TeamClient({
       toast.error("Não foi possível atualizar o usuário.");
       return false;
     }
+  }
+
+  function openEdit(u: TeamMember) {
+    setEditTarget(u);
+    setEditForm({ name: u.name, creci: u.creci ?? "", phone: u.phone ?? "" });
+  }
+
+  async function saveEdit() {
+    if (!editTarget || !editForm.name.trim()) {
+      toast.error("Informe o nome.");
+      return;
+    }
+    setSaving(true);
+    const ok = await updateUser(editTarget.id, editForm);
+    if (ok) {
+      toast.success("Cadastro atualizado.");
+      setEditTarget(null);
+    }
+    setSaving(false);
   }
 
   async function resetPassword() {
@@ -191,6 +214,16 @@ export function TeamClient({
                     <Button
                       size="sm"
                       variant="outline"
+                      onClick={() => openEdit(u)}
+                      className="h-8"
+                      aria-label={`Editar ${u.name}`}
+                    >
+                      <Pencil className="size-3.5" />
+                      Editar
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
                       onClick={() => setPwTarget(u)}
                       className="h-8"
                     >
@@ -264,12 +297,64 @@ export function TeamClient({
               placeholder="198.442-F"
             />
           </Field>
+          <Field label="WhatsApp (opcional)" hint="DDI + DDD + número · aparece na ficha">
+            <Input
+              inputMode="tel"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, "") })}
+              placeholder="5543999999999"
+              className="font-mono"
+            />
+          </Field>
         </div>
         <div className="mt-6 flex justify-end gap-2">
           <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
           <Button variant="accent" loading={saving} onClick={createUser}>
             <UserPlus className="size-4" />
             Criar acesso
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Editar cadastro */}
+      <Modal open={!!editTarget} onClose={() => setEditTarget(null)} title="Editar cadastro">
+        <div className="space-y-4">
+          <Field label="Nome completo">
+            <Input
+              value={editForm.name}
+              onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+            />
+          </Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="CRECI">
+              <Input
+                value={editForm.creci}
+                onChange={(e) => setEditForm({ ...editForm, creci: e.target.value })}
+                placeholder="000.000-F"
+              />
+            </Field>
+            <Field label="WhatsApp" hint="DDI + DDD + número">
+              <Input
+                inputMode="tel"
+                value={editForm.phone}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, phone: e.target.value.replace(/\D/g, "") })
+                }
+                placeholder="5543999999999"
+                className="font-mono"
+              />
+            </Field>
+          </div>
+          <p className="text-[11px] text-subtle">
+            Nome, CRECI e WhatsApp aparecem na ficha do imóvel gerada por este usuário.
+          </p>
+        </div>
+        <div className="mt-6 flex justify-end gap-2">
+          <Button variant="outline" onClick={() => setEditTarget(null)}>
+            Cancelar
+          </Button>
+          <Button variant="accent" loading={saving} onClick={saveEdit}>
+            Salvar
           </Button>
         </div>
       </Modal>
