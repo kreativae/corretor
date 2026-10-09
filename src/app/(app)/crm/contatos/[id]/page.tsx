@@ -1,0 +1,293 @@
+import { ContactActions } from "@/components/crm/contact-actions";
+import { Timeline } from "@/components/crm/timeline";
+import { Badge } from "@/components/ui";
+import {
+  CONTACT_TYPE_LABELS,
+  SOURCE_LABELS,
+  TYPE_LABELS,
+  VISIT_STATUS_LABELS,
+  VISIT_STATUS_STYLES,
+} from "@/lib/labels";
+import {
+  getContact,
+  getMatchesFor,
+  listActivitiesFor,
+  listDeals,
+  listProperties,
+  listVisits,
+} from "@/lib/queries";
+import { cn, formatBRL, formatCompact, formatDateTime, initials, timeAgo } from "@/lib/utils";
+import {
+  ArrowLeft,
+  Building2,
+  Mail,
+  Phone,
+  Sparkles,
+} from "lucide-react";
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+
+export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "Contato" };
+
+export default async function ContatoPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const [c, allVisits, allDeals, allProps] = await Promise.all([
+    getContact(id),
+    listVisits(),
+    listDeals(),
+    listProperties(),
+  ]);
+  if (!c) notFound();
+
+  const [matches, activities] = await Promise.all([
+    getMatchesFor(c),
+    listActivitiesFor("contato", c.id, 15),
+  ]);
+
+  const myVisits = allVisits.filter((v) => v.contact?.id === c.id);
+  const myDeals = allDeals.filter((d) => d.contact?.id === c.id);
+
+  return (
+    <div className="mx-auto max-w-6xl space-y-6">
+      {/* Cabeçalho */}
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex items-start gap-4">
+          <Link
+            href="/crm/contatos"
+            className="mt-1 flex size-10 shrink-0 items-center justify-center rounded-full border border-hairline text-subtle transition-colors hover:bg-soft hover:text-ink"
+            aria-label="Voltar"
+          >
+            <ArrowLeft className="size-4.5" />
+          </Link>
+          <div className="flex items-center gap-4">
+            <span className="flex size-14 items-center justify-center rounded-2xl bg-ink font-mono text-base font-semibold text-canvas">
+              {initials(c.name)}
+            </span>
+            <div>
+              <h1 className="font-display text-2xl font-semibold tracking-tight md:text-3xl">
+                {c.name}
+              </h1>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <Badge>{CONTACT_TYPE_LABELS[c.type]}</Badge>
+                <Badge>origem: {SOURCE_LABELS[c.source]}</Badge>
+                <span className="font-mono text-[11px] uppercase tracking-wider text-subtle">
+                  na base {timeAgo(c.createdAt)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-[1.6fr_1fr]">
+        <div className="space-y-5">
+          {/* Perfil de busca */}
+          <div className="rounded-2xl border border-hairline bg-card p-6">
+            <h2 className="font-display text-base font-semibold tracking-tight">
+              Perfil de busca
+            </h2>
+            <div className="mt-4 grid gap-4 text-sm sm:grid-cols-2">
+              <div className="rounded-xl bg-soft p-4">
+                <p className="text-[11px] uppercase tracking-wider text-subtle">Orçamento</p>
+                <p className="mt-1.5 font-mono font-medium tabular">
+                  {c.budgetMin || c.budgetMax
+                    ? `${c.budgetMin ? formatCompact(c.budgetMin) : "—"} → ${c.budgetMax ? formatCompact(c.budgetMax) : "—"}`
+                    : "Não informado"}
+                </p>
+              </div>
+              <div className="rounded-xl bg-soft p-4">
+                <p className="text-[11px] uppercase tracking-wider text-subtle">Contato</p>
+                <p className="mt-1.5 flex flex-col gap-1">
+                  <span className="flex items-center gap-1.5 text-[13px]">
+                    <Phone className="size-3.5 text-subtle" />
+                    {c.phone}
+                  </span>
+                  {c.email && (
+                    <span className="flex items-center gap-1.5 truncate text-[13px]">
+                      <Mail className="size-3.5 shrink-0 text-subtle" />
+                      {c.email}
+                    </span>
+                  )}
+                </p>
+              </div>
+            </div>
+            {(c.interestTypes.length > 0 || c.neighborhoods.length > 0) && (
+              <div className="mt-4 flex flex-wrap gap-1.5">
+                {c.interestTypes.map((t) => (
+                  <Badge key={t} className="border-transparent bg-accent/10 text-accent">
+                    {TYPE_LABELS[t]}
+                  </Badge>
+                ))}
+                {c.neighborhoods.map((n) => (
+                  <Badge key={n}>{n}</Badge>
+                ))}
+              </div>
+            )}
+            {c.notes && (
+              <p className="mt-4 border-t border-hairline pt-4 text-sm leading-relaxed text-subtle">
+                {c.notes}
+              </p>
+            )}
+          </div>
+
+          {/* Smart match */}
+          <div className="rounded-2xl border border-hairline bg-card p-6">
+            <div className="flex items-center justify-between">
+              <h2 className="flex items-center gap-2 font-display text-base font-semibold tracking-tight">
+                <Sparkles className="size-4 text-accent" />
+                Smart Match
+              </h2>
+              <span className="font-mono text-[10px] uppercase tracking-wider text-subtle">
+                {matches.length} imóveis compatíveis
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-subtle">
+              Cruzamento automático de orçamento, tipologia e bairros de interesse.
+            </p>
+            <div className="mt-5 space-y-2.5">
+              {matches.length === 0 && (
+                <p className="rounded-xl border border-dashed border-hairline-strong py-8 text-center text-sm text-subtle">
+                  Nenhum imóvel compatível no momento — novos cadastros serão
+                  cruzados automaticamente.
+                </p>
+              )}
+              {matches.map(({ property, score }) => (
+                <Link
+                  key={property.id}
+                  href={`/crm/imoveis/${property.id}`}
+                  className="group flex items-center gap-4 rounded-xl border border-hairline p-3 transition-all duration-300 hover:border-hairline-strong hover:bg-soft/50"
+                >
+                  <span className="relative block size-14 shrink-0 overflow-hidden rounded-lg bg-soft">
+                    {property.cover ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        src={property.cover}
+                        alt=""
+                        loading="lazy"
+                        className="absolute inset-0 h-full w-full object-cover"
+                      />
+                    ) : (
+                      <Building2 className="absolute inset-0 m-auto size-4 text-subtle" />
+                    )}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium group-hover:underline group-hover:underline-offset-4">
+                      {property.title}
+                    </span>
+                    <span className="mt-0.5 block font-mono text-[10.5px] uppercase tracking-wider text-subtle">
+                      {property.code} · {property.neighborhood} ·{" "}
+                      <span className="tabular">{formatBRL(property.price)}</span>
+                    </span>
+                    <span className="mt-2 block h-1 w-full overflow-hidden rounded-full bg-soft">
+                      <span
+                        className="block h-full rounded-full bg-accent transition-all duration-700 ease-expo"
+                        style={{ width: `${score}%` }}
+                      />
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-right">
+                    <span className="font-mono text-lg font-medium tabular text-accent">
+                      {score}
+                    </span>
+                    <span className="block text-[9px] uppercase tracking-widest text-subtle">
+                      match
+                    </span>
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Coluna lateral */}
+        <div className="space-y-5">
+          <ContactActions
+            contactId={c.id}
+            contactName={c.name}
+            properties={allProps
+              .filter((p) => ["disponivel", "reservado"].includes(p.status))
+              .map((p) => ({ id: p.id, code: p.code, title: p.title, price: p.price }))}
+          />
+
+          {/* Negociações */}
+          <div className="rounded-2xl border border-hairline bg-card p-5">
+            <h3 className="font-display text-sm font-semibold tracking-tight">
+              Negociações
+              <span className="ml-2 font-mono text-[11px] font-normal text-subtle">
+                {myDeals.length}
+              </span>
+            </h3>
+            {myDeals.length === 0 ? (
+              <p className="py-6 text-center text-xs text-subtle">
+                Nenhuma negociação aberta.
+              </p>
+            ) : (
+              <div className="mt-3 space-y-2">
+                {myDeals.map(({ deal }) => (
+                  <div
+                    key={deal.id}
+                    className="flex items-center justify-between rounded-xl bg-soft px-3.5 py-3 text-sm"
+                  >
+                    <span className="font-medium capitalize">
+                      {deal.stage.replace("_", " ")}
+                    </span>
+                    <span className="font-mono text-xs tabular text-subtle">
+                      {formatBRL(deal.value)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Visitas */}
+          <div className="rounded-2xl border border-hairline bg-card p-5">
+            <h3 className="font-display text-sm font-semibold tracking-tight">
+              Visitas
+              <span className="ml-2 font-mono text-[11px] font-normal text-subtle">
+                {myVisits.length}
+              </span>
+            </h3>
+            {myVisits.length === 0 ? (
+              <p className="py-6 text-center text-xs text-subtle">
+                Nenhuma visita registrada.
+              </p>
+            ) : (
+              <div className="mt-3 space-y-1.5">
+                {myVisits.map(({ visit: v, property }) => (
+                  <div key={v.id} className="flex items-center gap-3 rounded-xl px-2 py-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[13px] font-medium">
+                        {property?.title ?? "—"}
+                      </p>
+                      <p className="font-mono text-[10px] uppercase tracking-wider text-subtle">
+                        {formatDateTime(v.scheduledAt)}
+                      </p>
+                    </div>
+                    <Badge className={cn("border px-2 py-0.5 text-[10px]", VISIT_STATUS_STYLES[v.status])}>
+                      {VISIT_STATUS_LABELS[v.status]}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Timeline */}
+          <div className="rounded-2xl border border-hairline bg-card p-5">
+            <h3 className="mb-5 font-display text-sm font-semibold tracking-tight">
+              Linha do tempo
+            </h3>
+            <Timeline items={activities} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

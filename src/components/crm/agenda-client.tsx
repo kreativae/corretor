@@ -1,0 +1,382 @@
+"use client";
+
+import { Button, Field, Input, Modal, Select } from "@/components/ui";
+import { VISIT_STATUS_LABELS } from "@/lib/labels";
+import type { Contact, Property, Visit } from "@/db/schema";
+import { cn } from "@/lib/utils";
+import {
+  CalendarPlus,
+  Check,
+  Cloud,
+  ChevronLeft,
+  ChevronRight,
+  RotateCcw,
+  X,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
+
+export type VisitLite = {
+  visit: Visit;
+  property: Property | null;
+  contact: Contact | null;
+};
+
+const STATUS_BORDER: Record<string, string> = {
+  agendada: "border-l-sky-400",
+  confirmada: "border-l-emerald-400",
+  realizada: "border-l-zinc-400",
+  cancelada: "border-l-red-400 opacity-50",
+};
+
+const DAY_NAMES = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"];
+const MONTHS = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+const TIMES = ["08:00", "09:00", "10:00", "11:00", "12:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00"];
+
+function mondayOf(offset: number) {
+  const now = new Date();
+  const d = new Date(now);
+  d.setDate(now.getDate() - ((now.getDay() + 6) % 7) + offset * 7);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+export function AgendaClient({
+  initialVisits,
+  contacts,
+  properties,
+}: {
+  initialVisits: VisitLite[];
+  contacts: { id: string; name: string }[];
+  properties: { id: string; code: string; title: string }[];
+}) {
+  const router = useRouter();
+  const [offset, setOffset] = useState(0);
+  const [visits, setVisits] = useState(initialVisits);
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overDay, setOverDay] = useState<number | null>(null);
+  const [form, setForm] = useState({
+    contactId: "",
+    propertyId: "",
+    date: new Date().toISOString().split("T")[0],
+    time: "10:00",
+  });
+
+  const week = useMemo(() => {
+    const start = mondayOf(offset);
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(start.getTime() + i * 864e5);
+      return d;
+    });
+  }, [offset]);
+
+  const weekLabel = `${week[0].getDate()} ${MONTHS[week[0].getMonth()]} — ${week[6].getDate()} ${MONTHS[week[6].getMonth()]} ${week[6].getFullYear()}`;
+
+  function visitsFor(day: Date) {
+    return visits
+      .filter((v) => {
+        const d = new Date(v.visit.scheduledAt);
+        return d.toDateString() === day.toDateString();
+      })
+      .sort(
+        (a, b) =>
+          new Date(a.visit.scheduledAt).getTime() -
+          new Date(b.visit.scheduledAt).getTime(),
+      );
+  }
+
+  async function setStatus(v: VisitLite, status: string) {
+    setBusyId(v.visit.id);
+    const prev = visits;
+    setVisits((arr) =>
+      arr.map((x) =>
+        x.visit.id === v.visit.id
+          ? { ...x, visit: { ...x.visit, status: status as Visit["status"] } }
+          : x,
+      ),
+    );
+    try {
+      const res = await fetch(`/api/visits/${v.visit.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success(`Visita marcada como ${VISIT_STATUS_LABELS[status].toLowerCase()}.`);
+      router.refresh();
+    } catch {
+      setVisits(prev);
+      toast.error("Não foi possível atualizar a visita.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function reschedule(v: VisitLite, day: Date) {
+    const prev = visits;
+    const old = new Date(v.visit.scheduledAt);
+    const next = new Date(day);
+    next.setHours(old.getHours(), old.getMinutes(), 0, 0);
+    if (next.toDateString() === old.toDateString()) return;
+
+    setVisits((arr) =>
+      arr.map((x) =>
+        x.visit.id === v.visit.id
+          ? { ...x, visit: { ...x.visit, scheduledAt: next } }
+          : x,
+      ),
+    );
+    try {
+      const res = await fetch(`/api/visits/${v.visit.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: next.toISOString().slice(0, 10) }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success(
+        `Visita reagendada para ${next.toLocaleDateString("pt-BR", { weekday: "short", day: "numeric", month: "short" })}.`,
+      );
+      router.refresh();
+    } catch {
+      setVisits(prev);
+      toast.error("Não foi possível reagendar a visita.");
+    }
+  }
+
+  async function createVisit() {
+    if (!form.contactId || !form.propertyId || !form.date) {
+      toast.error("Selecione contato, imóvel e data.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch("/api/visits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contactId: form.contactId,
+          propertyId: form.propertyId,
+          date: form.date,
+          time: form.time,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      const created = await res.json();
+      const contact = contacts.find((c) => c.id === form.contactId) as unknown as Contact;
+      const property = properties.find((p) => p.id === form.propertyId) as unknown as Property;
+      setVisits((arr) => [...arr, { visit: created, contact, property }]);
+      toast.success("Visita agendada — lembrete enviado ao cliente.");
+      setOpen(false);
+      router.refresh();
+    } catch {
+      toast.error("Erro ao agendar visita.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div>
+      {/* Navegação da semana */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" onClick={() => setOffset((o) => o - 1)} aria-label="Semana anterior">
+            <ChevronLeft className="size-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setOffset(0)}
+            aria-label="Semana atual"
+            className="w-auto px-3 text-xs"
+          >
+            <RotateCcw className="size-3.5" />
+            Hoje
+          </Button>
+          <Button variant="outline" size="icon" onClick={() => setOffset((o) => o + 1)} aria-label="Próxima semana">
+            <ChevronRight className="size-4" />
+          </Button>
+          <p className="ml-2 font-mono text-sm tabular text-subtle">{weekLabel}</p>
+        </div>
+        <Button variant="accent" onClick={() => setOpen(true)}>
+          <CalendarPlus className="size-4" />
+          Nova visita
+        </Button>
+      </div>
+
+      <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.16em] text-subtle">
+        Arraste os cartões entre os dias para reagendar
+      </p>
+
+      {/* Grade da semana */}
+      <div className="mt-5 grid gap-2.5 overflow-x-auto md:grid-cols-7">
+        {week.map((day, i) => {
+          const isToday = day.toDateString() === new Date().toDateString();
+          const dayVisits = visitsFor(day);
+          return (
+            <div
+              key={i}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setOverDay(i);
+              }}
+              onDragLeave={() => setOverDay((d) => (d === i ? null : d))}
+              onDrop={(e) => {
+                e.preventDefault();
+                const v = visits.find((x) => x.visit.id === dragId);
+                if (v) reschedule(v, day);
+                setDragId(null);
+                setOverDay(null);
+              }}
+              className={cn(
+                "min-h-72 min-w-44 rounded-2xl border p-2.5 transition-colors duration-200",
+                overDay === i && dragId
+                  ? "border-[rgb(var(--accent))/0.6] bg-soft ring-2 ring-[rgb(var(--accent))/0.2]"
+                  : isToday
+                    ? "border-[rgb(var(--accent))/0.4] bg-soft/60"
+                    : "border-hairline bg-card",
+              )}
+            >
+              <div className="flex items-baseline justify-between px-1.5 pb-2.5 pt-1">
+                <span
+                  className={cn(
+                    "font-mono text-[10px] uppercase tracking-[0.18em]",
+                    isToday ? "font-semibold text-accent" : "text-subtle",
+                  )}
+                >
+                  {DAY_NAMES[i]}
+                </span>
+                <span
+                  className={cn(
+                    "font-mono text-sm tabular",
+                    isToday ? "font-semibold text-accent" : "text-ink",
+                  )}
+                >
+                  {day.getDate()}
+                </span>
+              </div>
+              <div className="space-y-1.5">
+                {dayVisits.map((v) => (
+                  <div
+                    key={v.visit.id}
+                    draggable={["agendada", "confirmada"].includes(v.visit.status)}
+                    onDragStart={() => setDragId(v.visit.id)}
+                    onDragEnd={() => {
+                      setDragId(null);
+                      setOverDay(null);
+                    }}
+                    title={
+                      ["agendada", "confirmada"].includes(v.visit.status)
+                        ? "Arraste para reagendar"
+                        : undefined
+                    }
+                    className={cn(
+                      "group rounded-lg border border-hairline border-l-4 bg-canvas p-2.5 transition-all duration-200 hover:shadow-md",
+                      STATUS_BORDER[v.visit.status],
+                      ["agendada", "confirmada"].includes(v.visit.status) &&
+                        "cursor-grab active:cursor-grabbing",
+                      dragId === v.visit.id && "rotate-2 opacity-40 shadow-lg",
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <p className="flex items-center gap-1.5 font-mono text-xs font-semibold tabular">
+                        {new Date(v.visit.scheduledAt).toLocaleTimeString("pt-BR", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                        {v.visit.googleEventId && (
+                          <Cloud
+                            className="size-3 text-blue-500"
+                            aria-label="Sincronizado com Google Calendar"
+                          />
+                        )}
+                      </p>
+                      <div className="flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                        {v.visit.status === "agendada" && (
+                          <button
+                            title="Confirmar"
+                            disabled={busyId === v.visit.id}
+                            onClick={() => setStatus(v, "confirmada")}
+                            className="rounded p-1 text-emerald-500 hover:bg-emerald-500/10"
+                          >
+                            <Check className="size-3" />
+                          </button>
+                        )}
+                        {["agendada", "confirmada"].includes(v.visit.status) && (
+                          <button
+                            title="Cancelar"
+                            disabled={busyId === v.visit.id}
+                            onClick={() => setStatus(v, "cancelada")}
+                            className="rounded p-1 text-red-400 hover:bg-red-500/10"
+                          >
+                            <X className="size-3" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <p className="mt-1 truncate text-xs font-medium">
+                      {v.contact?.name ?? "—"}
+                    </p>
+                    <p className="truncate text-[10.5px] text-subtle">
+                      {v.property?.title ?? "—"}
+                    </p>
+                  </div>
+                ))}
+                {dayVisits.length === 0 && (
+                  <p className="px-1.5 py-4 text-center font-mono text-[10px] uppercase tracking-wider text-subtle/50">
+                    livre
+                  </p>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Nova visita */}
+      <Modal open={open} onClose={() => setOpen(false)} title="Agendar visita">
+        <div className="space-y-4">
+          <Field label="Cliente">
+            <Select value={form.contactId} onChange={(e) => setForm({ ...form, contactId: e.target.value })}>
+              <option value="">Selecionar contato…</option>
+              {contacts.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Imóvel">
+            <Select value={form.propertyId} onChange={(e) => setForm({ ...form, propertyId: e.target.value })}>
+              <option value="">Selecionar imóvel…</option>
+              {properties.map((p) => (
+                <option key={p.id} value={p.id}>{p.code} — {p.title}</option>
+              ))}
+            </Select>
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Data">
+              <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+            </Field>
+            <Field label="Horário">
+              <Select value={form.time} onChange={(e) => setForm({ ...form, time: e.target.value })}>
+                {TIMES.map((t) => (
+                  <option key={t}>{t}</option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+        </div>
+        <div className="mt-6 flex justify-end gap-2">
+          <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+          <Button variant="accent" loading={saving} onClick={createVisit}>
+            <CalendarPlus className="size-4" />
+            Agendar
+          </Button>
+        </div>
+      </Modal>
+    </div>
+  );
+}
