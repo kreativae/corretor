@@ -1,7 +1,8 @@
 import { PrintBar } from "./print-bar";
 import { STATUS_LABELS, TYPE_LABELS } from "@/lib/labels";
 import { getPropertyByCode, getWhiteLabel } from "@/lib/queries";
-import { formatBRL } from "@/lib/utils";
+import { getSiteContent } from "@/lib/site-content";
+import { formatBRL, TIME_ZONE } from "@/lib/utils";
 import {
   BedDouble,
   Car,
@@ -23,11 +24,20 @@ export default async function FichaPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [wl, p] = await Promise.all([getWhiteLabel(), getPropertyByCode(id)]);
+  const [wl, p, content] = await Promise.all([
+    getWhiteLabel(),
+    getPropertyByCode(id),
+    getSiteContent(),
+  ]);
   if (!p) notFound();
 
   const imgs = p.images.map((i) => i.url);
-  const today = new Date().toLocaleDateString("pt-BR");
+  const today = new Date().toLocaleDateString("pt-BR", { timeZone: TIME_ZONE });
+  const digits = wl.phone.replace(/\D/g, "");
+  const phone =
+    digits.length === 13
+      ? `+${digits.slice(0, 2)} (${digits.slice(2, 4)}) ${digits.slice(4, 9)}-${digits.slice(9)}`
+      : wl.phone;
 
   const specs = [
     { icon: Ruler, label: "Área construída", value: `${p.area} m²` },
@@ -168,11 +178,11 @@ export default async function FichaPage({
         <footer className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-neutral-200 pt-6 text-xs text-neutral-500">
           <div className="flex items-center gap-2">
             <MessageCircle className="size-4 text-emerald-600" />
-            <span className="font-mono tabular">
-              +55 (11) 98765-4321
-            </span>
+            <span className="font-mono tabular">{phone}</span>
             <span className="mx-1">·</span>
-            <span>Rafael Costa — CRECI 198.442-F</span>
+            <span>
+              {content.detail.brokerName} — {content.detail.brokerRole}
+            </span>
           </div>
           <p className="font-mono uppercase tracking-[0.16em]">
             Gerado por ImobManager · {today}

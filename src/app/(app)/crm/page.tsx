@@ -9,7 +9,17 @@ import {
   listProperties,
   listVisits,
 } from "@/lib/queries";
-import { cn, formatBRL, formatCompact, formatTime, timeAgo, weekdayShort } from "@/lib/utils";
+import { getCurrentUser } from "@/lib/auth";
+import {
+  cn,
+  formatBRL,
+  formatCompact,
+  formatTime,
+  TIME_ZONE,
+  timeAgo,
+  weekdayShort,
+  zonedParts,
+} from "@/lib/utils";
 import {
   ArrowUpRight,
   Building2,
@@ -22,16 +32,18 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 export default async function CrmDashboard() {
-  const [properties, contacts, visits, deals, activities] = await Promise.all([
+  const [properties, contacts, visits, deals, activities, user] = await Promise.all([
     listProperties(),
     listContacts(),
     listVisits(),
     listDeals(),
     listActivities(10),
+    getCurrentUser(),
   ]);
 
   const now = new Date();
-  const hour = now.getHours();
+  const hour = zonedParts(now).hour;
+  const firstName = user?.name.trim().split(/\s+/)[0];
   const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
 
   const active = properties.filter((p) => p.status === "disponivel").length;
@@ -41,10 +53,10 @@ export default async function CrmDashboard() {
   ).length;
 
   // semana atual (segunda-feira)
-  const dow = (now.getDay() + 6) % 7;
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - dow);
-  monday.setHours(0, 0, 0, 0);
+  // Meia-noite de Brasília = 03:00 UTC (sem horário de verão desde 2019)
+  const today = zonedParts(now);
+  const dow = (today.weekday + 6) % 7;
+  const monday = new Date(Date.UTC(today.year, today.month, today.day - dow, 3));
   const weekVisits = visits.filter((v) => {
     const d = new Date(v.visit.scheduledAt);
     return d >= monday && d < new Date(monday.getTime() + 7 * 864e5);
@@ -68,14 +80,14 @@ export default async function CrmDashboard() {
 
   // barras da semana (seg–dom)
   const perDay = Array.from({ length: 7 }, (_, i) => {
-    const start = new Date(monday.getTime() + i * 864e5);
+    const start = monday.getTime() + i * 864e5;
     return {
       label: ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"][i],
-      count: weekVisits.filter(
-        (v) =>
-          new Date(v.visit.scheduledAt).toDateString() === start.toDateString(),
-      ).length,
-      today: start.toDateString() === now.toDateString(),
+      count: weekVisits.filter((v) => {
+        const t = new Date(v.visit.scheduledAt).getTime();
+        return t >= start && t < start + 864e5;
+      }).length,
+      today: i === dow,
     };
   });
   const maxDay = Math.max(...perDay.map((d) => d.count), 1);
@@ -97,13 +109,15 @@ export default async function CrmDashboard() {
         <div>
           <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-subtle">
             {now.toLocaleDateString("pt-BR", {
+              timeZone: TIME_ZONE,
               weekday: "long",
               day: "numeric",
               month: "long",
             })}
           </p>
           <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight md:text-4xl">
-            {greeting}, Rafael.
+            {greeting}
+            {firstName ? `, ${firstName}` : ""}.
           </h1>
         </div>
         <p className="max-w-xs text-right text-xs leading-relaxed text-subtle">

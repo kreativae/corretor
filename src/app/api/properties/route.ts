@@ -1,5 +1,6 @@
 import { db } from "@/db";
 import { activities, properties, propertyImages } from "@/db/schema";
+import { getCurrentUser } from "@/lib/auth";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
@@ -32,11 +33,12 @@ export async function POST(req: Request) {
       );
     }
 
+    const author = await getCurrentUser();
     await db.insert(activities).values({
       entity: "imovel",
       entityId: created.id,
       kind: "created",
-      text: `Imóvel ${created.code} cadastrado por Rafael Costa.`,
+      text: `Imóvel ${created.code} cadastrado${author ? ` por ${author.name}` : ""}.`,
     });
 
     return NextResponse.json(created, { status: 201 });

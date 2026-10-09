@@ -36,25 +36,54 @@ const monthsShort = [
 
 const weekdays = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
 
+/** Fuso usado em toda a plataforma (o servidor da Vercel roda em UTC). */
+export const TIME_ZONE = "America/Sao_Paulo";
+
+const zonedFormat = new Intl.DateTimeFormat("en-US", {
+  timeZone: TIME_ZONE,
+  year: "numeric",
+  month: "numeric",
+  day: "numeric",
+  hour: "numeric",
+  minute: "numeric",
+  weekday: "short",
+  hourCycle: "h23",
+});
+const weekdayIndex: Record<string, number> = {
+  Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
+};
+
+/** Partes da data no horário de Brasília. */
+export function zonedParts(d: Date | string) {
+  const parts = Object.fromEntries(
+    zonedFormat.formatToParts(new Date(d)).map((p) => [p.type, p.value]),
+  );
+  return {
+    year: Number(parts.year),
+    month: Number(parts.month) - 1,
+    day: Number(parts.day),
+    hour: Number(parts.hour),
+    minute: Number(parts.minute),
+    weekday: weekdayIndex[parts.weekday],
+  };
+}
+
 export function formatDate(d: Date | string) {
-  const date = new Date(d);
-  return `${date.getDate()} ${monthsShort[date.getMonth()]} ${date.getFullYear()}`;
+  const z = zonedParts(d);
+  return `${z.day} ${monthsShort[z.month]} ${z.year}`;
 }
 
 export function formatDateTime(d: Date | string) {
-  const date = new Date(d);
-  const h = String(date.getHours()).padStart(2, "0");
-  const m = String(date.getMinutes()).padStart(2, "0");
-  return `${formatDate(date)} · ${h}:${m}`;
+  return `${formatDate(d)} · ${formatTime(d)}`;
 }
 
 export function formatTime(d: Date | string) {
-  const date = new Date(d);
-  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+  const z = zonedParts(d);
+  return `${String(z.hour).padStart(2, "0")}:${String(z.minute).padStart(2, "0")}`;
 }
 
 export function weekdayShort(d: Date | string) {
-  return weekdays[new Date(d).getDay()];
+  return weekdays[zonedParts(d).weekday];
 }
 
 export function timeAgo(d: Date | string) {
