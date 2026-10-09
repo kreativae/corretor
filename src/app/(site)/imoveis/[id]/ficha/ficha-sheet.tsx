@@ -27,6 +27,8 @@ export function FichaSheet({
   today,
   logoUrl,
   iconUrl,
+  showIcon = true,
+  showDomain = true,
 }: {
   p: PropertyWithImages;
   orgName: string;
@@ -37,6 +39,8 @@ export function FichaSheet({
   today: string;
   logoUrl?: string;
   iconUrl?: string;
+  showIcon?: boolean;
+  showDomain?: boolean;
 }) {
   const imgs = p.images.map((i) => i.url);
   const specs = [
@@ -66,7 +70,7 @@ export function FichaSheet({
           <img src={logoUrl} alt={orgName} className="h-9 w-auto max-w-[60mm] object-contain" />
         ) : (
           <div className="flex items-center gap-3">
-            {iconUrl ? (
+            {!showIcon ? null : iconUrl ? (
               /* eslint-disable-next-line @next/next/no-img-element */
               <img src={iconUrl} alt="" className="size-8 rounded-[22%] object-cover" />
             ) : (
@@ -84,7 +88,9 @@ export function FichaSheet({
             )}
             <div>
               <p className="text-sm font-semibold tracking-tight">{orgName}</p>
-              <p className="text-[9px] uppercase tracking-[0.2em] text-neutral-500">{domain}</p>
+              {showDomain && (
+                <p className="text-[9px] uppercase tracking-[0.2em] text-neutral-500">{domain}</p>
+              )}
             </div>
           </div>
         )}
@@ -213,9 +219,11 @@ export function FichaSheet({
           <MessageCircle className="size-4 text-emerald-400" />
           <span className="font-mono text-[13px] tabular">{phone}</span>
         </div>
-        <p className="shrink-0 text-right text-[9px] uppercase tracking-[0.16em] text-neutral-400">
-          {domain}
-        </p>
+        {showDomain && (
+          <p className="shrink-0 text-right text-[9px] uppercase tracking-[0.16em] text-neutral-400">
+            {domain}
+          </p>
+        )}
       </footer>
     </article>
   );

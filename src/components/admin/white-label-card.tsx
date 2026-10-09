@@ -117,6 +117,44 @@ function BrandImageField({
   );
 }
 
+function Toggle({
+  label,
+  hint,
+  checked,
+  onChange,
+}: {
+  label: string;
+  hint: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <label className="flex cursor-pointer items-start justify-between gap-4 rounded-xl border border-hairline p-3.5 transition-colors hover:bg-soft">
+      <span>
+        <span className="block text-sm font-medium">{label}</span>
+        <span className="mt-0.5 block text-[11px] text-subtle">{hint}</span>
+      </span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        className={cn(
+          "relative mt-0.5 h-6 w-10 shrink-0 rounded-full transition-colors",
+          checked ? "bg-accent" : "bg-hairline-strong",
+        )}
+      >
+        <span
+          className={cn(
+            "absolute top-0.5 size-5 rounded-full bg-white shadow transition-all",
+            checked ? "left-[18px]" : "left-0.5",
+          )}
+        />
+      </button>
+    </label>
+  );
+}
+
 /** Prévia de como a marca aparece no cabeçalho, em fundo claro e escuro. */
 function BrandPreview({ wl }: { wl: WhiteLabel }) {
   const shortName = wl.shortName.trim() || wl.orgName.trim().split(/\s+/)[0];
@@ -293,6 +331,28 @@ export function WhiteLabelCard({ initial }: { initial: WhiteLabel }) {
             onChange={(v) => set("iconUrl", v)}
             square
           />
+        </div>
+
+        {/* Ficha */}
+        <div className="space-y-3 lg:col-span-2">
+          <p className={h3}>Ficha do imóvel</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Toggle
+              label="Mostrar ícone"
+              hint="Selo ao lado do nome, no cabeçalho da ficha"
+              checked={wl.fichaShowIcon}
+              onChange={(v) => set("fichaShowIcon", v)}
+            />
+            <Toggle
+              label="Mostrar domínio"
+              hint="Endereço do site no cabeçalho e no rodapé da ficha"
+              checked={wl.fichaShowDomain}
+              onChange={(v) => set("fichaShowDomain", v)}
+            />
+          </div>
+          <p className="text-[11px] text-subtle">
+            Com a logo principal enviada, ela substitui ícone e nome no cabeçalho da ficha.
+          </p>
         </div>
 
         {/* Contato */}

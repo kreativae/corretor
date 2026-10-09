@@ -43,6 +43,8 @@ export default async function FichaPage({
         today={today}
         logoUrl={wl.logoUrl}
         iconUrl={wl.iconUrl}
+        showIcon={wl.fichaShowIcon}
+        showDomain={wl.fichaShowDomain}
       />
     </div>
   );

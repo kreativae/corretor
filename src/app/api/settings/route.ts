@@ -13,8 +13,14 @@ export async function GET() {
 /** Mantém só campos conhecidos do white label, como texto. */
 function sanitizeWhiteLabel(input: Record<string, unknown>): WhiteLabel {
   const out = { ...WL_DEFAULTS };
+  const fields = out as Record<string, string | boolean>;
   for (const k of Object.keys(WL_DEFAULTS) as (keyof WhiteLabel)[]) {
-    if (typeof input[k] === "string") out[k] = (input[k] as string).trim().slice(0, 500);
+    const def = WL_DEFAULTS[k];
+    if (typeof def === "string" && typeof input[k] === "string") {
+      fields[k] = (input[k] as string).trim().slice(0, 500);
+    } else if (typeof def === "boolean" && typeof input[k] === "boolean") {
+      fields[k] = input[k] as boolean;
+    }
   }
   if (!/^#[0-9a-f]{6}$/i.test(out.accent)) out.accent = WL_DEFAULTS.accent;
   out.phone = out.phone.replace(/\D/g, "");

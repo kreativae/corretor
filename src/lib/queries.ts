@@ -41,6 +41,10 @@ export type WhiteLabel = {
   logoDarkUrl: string;
   /** Ícone quadrado — favicon e selo da marca */
   iconUrl: string;
+  /** Ficha do imóvel: exibir o ícone no cabeçalho */
+  fichaShowIcon: boolean;
+  /** Ficha do imóvel: exibir o domínio no cabeçalho e no rodapé */
+  fichaShowDomain: boolean;
 };
 
 export const WL_DEFAULTS: WhiteLabel = {
@@ -56,6 +60,8 @@ export const WL_DEFAULTS: WhiteLabel = {
   logoUrl: "",
   logoDarkUrl: "",
   iconUrl: "",
+  fichaShowIcon: true,
+  fichaShowDomain: true,
 };
 
 /** Nome curto da marca (cabeçalhos). */
