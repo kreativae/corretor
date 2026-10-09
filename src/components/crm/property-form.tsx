@@ -7,7 +7,8 @@ import { PhotoManager } from "./photo-manager";
 import { RuralFields } from "./rural-fields";
 import { isRuralType, normalizeRural, pricePerAlq, RURAL_TYPES, type RuralData } from "@/lib/rural";
 import { cn, formatBRL } from "@/lib/utils";
-import { ArrowLeft, Check, ImageIcon, Save } from "lucide-react";
+import { ArrowLeft, Check, ImageIcon, Save, Sparkles } from "lucide-react";
+import { generateDescription } from "@/lib/description";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -56,6 +57,38 @@ export function PropertyForm({
 
   const set = (k: string, v: string | boolean | string[]) =>
     setForm((f) => ({ ...f, [k]: v }));
+
+  // Cada clique gera um estilo diferente de texto
+  const [variant, setVariant] = useState(0);
+  function autoDescription() {
+    if (
+      form.description.trim() &&
+      !window.confirm("Substituir a descrição atual pelo texto gerado?")
+    ) {
+      return;
+    }
+    const text = generateDescription(
+      {
+        type: form.type,
+        purpose: form.purpose,
+        area: Number(form.area) || 0,
+        lotArea: form.lotArea ? Number(form.lotArea) : null,
+        bedrooms: Number(form.bedrooms) || 0,
+        suites: Number(form.suites) || 0,
+        bathrooms: Number(form.bathrooms) || 0,
+        garage: Number(form.garage) || 0,
+        neighborhood: form.neighborhood.trim(),
+        city: form.city.trim(),
+        state: form.state.trim(),
+        features: form.features,
+        rural: rural ? ruralData : undefined,
+      },
+      variant,
+    );
+    set("description", text);
+    setVariant((v) => v + 1);
+    toast.success("Descrição gerada — revise e ajuste à vontade.");
+  }
 
   const imageUrls = form.images;
   const setImages = (next: string[] | ((cur: string[]) => string[])) =>
@@ -267,9 +300,15 @@ export function PropertyForm({
 
           {/* Descrição */}
           <section className={sectionCls}>
-            <h2 className={h2Cls}>Descrição</h2>
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="font-display text-base font-semibold tracking-tight">Descrição</h2>
+              <Button type="button" variant="outline" size="sm" onClick={autoDescription}>
+                <Sparkles className="size-3.5" />
+                {variant ? "Gerar outra versão" : "Gerar descrição"}
+              </Button>
+            </div>
             <Textarea
-              rows={7}
+              rows={9}
               value={form.description}
               onChange={(e) => set("description", e.target.value)}
               placeholder={
