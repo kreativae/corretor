@@ -221,14 +221,14 @@ export default async function ImovelPage({ params }: { params: Params }) {
 
               <div className="mt-5 flex items-center gap-3 rounded-xl bg-soft p-3.5">
                 <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-ink font-mono text-xs font-semibold text-canvas">
-                  {initials(content.detail.brokerName)}
+                  {initials(content.detail.brokerName || wl.orgName)}
                 </span>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium">
-                    {content.detail.brokerName}
+                    {content.detail.brokerName || wl.orgName}
                   </p>
                   <p className="text-[11px] text-subtle">
-                    {content.detail.brokerRole}
+                    {content.detail.brokerRole || "Atendimento exclusivo"}
                   </p>
                 </div>
               </div>

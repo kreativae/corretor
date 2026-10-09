@@ -574,15 +574,20 @@ export function SiteEditor({
                   />
                 </Field>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label="Nome do corretor exibido">
+                  <Field
+                    label="Nome do corretor exibido"
+                    hint="Vazio = nome da organização. Na ficha, vale o corretor logado."
+                  >
                     <Input
                       value={c.detail.brokerName}
+                      placeholder="Nome da organização"
                       onChange={(e) => patch("detail", { brokerName: e.target.value })}
                     />
                   </Field>
                   <Field label="Cargo / CRECI">
                     <Input
                       value={c.detail.brokerRole}
+                      placeholder="Atendimento exclusivo"
                       onChange={(e) => patch("detail", { brokerRole: e.target.value })}
                     />
                   </Field>

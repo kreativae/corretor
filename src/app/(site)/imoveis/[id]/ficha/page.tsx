@@ -1,6 +1,7 @@
 import { FichaSheet } from "./ficha-sheet";
 import { PrintBar } from "./print-bar";
 import { getPropertyByCode, getWhiteLabel } from "@/lib/queries";
+import { getCurrentUser } from "@/lib/auth";
 import { getSiteContent } from "@/lib/site-content";
 import { TIME_ZONE } from "@/lib/utils";
 import type { Metadata } from "next";
@@ -23,6 +24,14 @@ export default async function FichaPage({
   ]);
   if (!p) notFound();
 
+  // Corretor logado assina a ficha; visitante vê o responsável do site
+  const user = await getCurrentUser();
+  const broker = user
+    ? { name: user.name, role: user.creci ? `Corretor · CRECI ${user.creci}` : "Corretor" }
+    : {
+        name: content.detail.brokerName || wl.orgName,
+        role: content.detail.brokerRole || "Atendimento",
+      };
   const today = new Date().toLocaleDateString("pt-BR", { timeZone: TIME_ZONE });
   const digits = wl.phone.replace(/\D/g, "");
   const phone =
@@ -38,8 +47,8 @@ export default async function FichaPage({
         orgName={wl.orgName}
         domain={wl.domain}
         phone={phone}
-        brokerName={content.detail.brokerName}
-        brokerRole={content.detail.brokerRole}
+        brokerName={broker.name}
+        brokerRole={broker.role}
         today={today}
         logoUrl={wl.logoUrl}
         iconUrl={wl.iconUrl}

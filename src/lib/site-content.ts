@@ -137,8 +137,9 @@ export const DEFAULT_CONTENT: SiteContent = {
       "Análise honesta de prós e contras",
       "Simulação de financiamento na hora",
     ],
-    brokerName: "Rafael Costa",
-    brokerRole: "Curador · CRECI 198.442-F",
+    // Vazio = usa o nome da organização (página do imóvel) ou o corretor logado (ficha)
+    brokerName: "",
+    brokerRole: "",
   },
   footer: {
     tagline: "Espaços com assinatura, escolhidos para durar.",
