@@ -336,12 +336,18 @@ export function WhiteLabelCard({ initial }: { initial: WhiteLabel }) {
         {/* Ficha */}
         <div className="space-y-3 lg:col-span-2">
           <p className={h3}>Ficha do imóvel</p>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-3">
             <Toggle
               label="Mostrar ícone"
               hint="Selo ao lado do nome, no cabeçalho da ficha"
               checked={wl.fichaShowIcon}
               onChange={(v) => set("fichaShowIcon", v)}
+            />
+            <Toggle
+              label="Mostrar nome"
+              hint="Nome da organização no cabeçalho da ficha"
+              checked={wl.fichaShowName}
+              onChange={(v) => set("fichaShowName", v)}
             />
             <Toggle
               label="Mostrar domínio"

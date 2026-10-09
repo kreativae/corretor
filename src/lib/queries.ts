@@ -43,6 +43,8 @@ export type WhiteLabel = {
   iconUrl: string;
   /** Ficha do imóvel: exibir o ícone no cabeçalho */
   fichaShowIcon: boolean;
+  /** Ficha do imóvel: exibir o nome da organização no cabeçalho */
+  fichaShowName: boolean;
   /** Ficha do imóvel: exibir o domínio no cabeçalho e no rodapé */
   fichaShowDomain: boolean;
 };
@@ -61,6 +63,7 @@ export const WL_DEFAULTS: WhiteLabel = {
   logoDarkUrl: "",
   iconUrl: "",
   fichaShowIcon: true,
+  fichaShowName: true,
   fichaShowDomain: true,
 };
 

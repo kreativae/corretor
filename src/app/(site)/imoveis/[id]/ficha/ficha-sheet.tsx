@@ -28,6 +28,7 @@ export function FichaSheet({
   logoUrl,
   iconUrl,
   showIcon = true,
+  showName = true,
   showDomain = true,
 }: {
   p: PropertyWithImages;
@@ -40,6 +41,7 @@ export function FichaSheet({
   logoUrl?: string;
   iconUrl?: string;
   showIcon?: boolean;
+  showName?: boolean;
   showDomain?: boolean;
 }) {
   const imgs = p.images.map((i) => i.url);
@@ -87,7 +89,7 @@ export function FichaSheet({
               </svg>
             )}
             <div>
-              <p className="text-sm font-semibold tracking-tight">{orgName}</p>
+              {showName && <p className="text-sm font-semibold tracking-tight">{orgName}</p>}
               {showDomain && (
                 <p className="text-[9px] uppercase tracking-[0.2em] text-neutral-500">{domain}</p>
               )}
