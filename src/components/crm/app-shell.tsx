@@ -88,7 +88,7 @@ export function AppShell({
   const sidebar = (
     <div className="flex h-full flex-col">
       <div className="flex h-16 items-center justify-between px-5">
-        <Link href="/">
+        <Link href="/crm">
           <Wordmark sub={mode === "crm" ? "CRM OPERACIONAL" : "ADMIN MASTER"} />
         </Link>
         <button

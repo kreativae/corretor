@@ -19,7 +19,7 @@ export default async function LoginPage({
     getWhiteLabel(),
     searchParams,
   ]);
-  if (user) redirect(sp.next || (user.role === "admin" ? "/admin" : "/crm"));
+  if (user) redirect(sp.next || "/crm");
 
   return (
     <div className="flex min-h-screen">

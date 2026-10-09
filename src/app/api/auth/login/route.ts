@@ -48,7 +48,8 @@ export async function POST(req: Request) {
     return NextResponse.json({
       ok: true,
       user: { name: user.name, role: user.role },
-      redirect: user.role === "admin" ? "/admin" : "/crm",
+      // CRM é a página inicial para todos; admins acessam o painel pelo menu
+      redirect: "/crm",
     });
   } catch (e) {
     console.error(e);
