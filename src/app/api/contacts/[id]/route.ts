@@ -1,6 +1,6 @@
+import { apiUser, unauthorized } from "@/lib/api-auth";
 import { db } from "@/db";
 import { activities, contacts, integrations } from "@/db/schema";
-import { requireUser } from "@/lib/auth";
 import { GoogleApiError, googleApi } from "@/lib/google";
 import { getContact, getMatchesFor, listDeals, listVisits } from "@/lib/queries";
 import { eq } from "drizzle-orm";
@@ -10,6 +10,7 @@ export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  if (!(await apiUser())) return unauthorized();
   const { id } = await params;
   const contact = await getContact(id);
   if (!contact) {
@@ -68,6 +69,7 @@ export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  if (!(await apiUser())) return unauthorized();
   try {
     const { id } = await params;
     const body = await req.json();
@@ -121,7 +123,7 @@ export async function DELETE(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  await requireUser();
+  if (!(await apiUser())) return unauthorized();
   try {
     const { id } = await params;
     const alsoGoogle = new URL(req.url).searchParams.get("google") === "1";

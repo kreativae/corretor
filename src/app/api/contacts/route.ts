@@ -1,8 +1,16 @@
 import { db } from "@/db";
 import { activities, contacts } from "@/db/schema";
+import { apiAuth, unauthorized } from "@/lib/api-auth";
 import { NextResponse } from "next/server";
 
+/**
+ * Cria contato. Usado pelo CRM (sessão) e pelo "Webhook de leads" de sistemas
+ * externos, que enviam a chave de API (escopo escrita/total) em
+ * `Authorization: Bearer <chave>` ou `x-api-key`.
+ */
 export async function POST(req: Request) {
+  const caller = await apiAuth(req, "escrita");
+  if (!caller) return unauthorized();
   try {
     const body = await req.json();
     if (!body.name?.trim() || !body.phone?.trim()) {

@@ -1,3 +1,4 @@
+import { apiUser, unauthorized } from "@/lib/api-auth";
 import { db } from "@/db";
 import { activities, contacts, deals } from "@/db/schema";
 import { DEAL_STAGE_LABELS } from "@/lib/labels";
@@ -8,6 +9,7 @@ export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  if (!(await apiUser())) return unauthorized();
   try {
     const { id } = await params;
     const body = await req.json();

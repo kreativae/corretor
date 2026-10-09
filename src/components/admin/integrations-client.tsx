@@ -574,16 +574,24 @@ export function IntegrationsClient({
           </p>
         </div>
         <div className="card-elev space-y-3 rounded-2xl border border-hairline bg-card p-5">
-          {[
-            ["Feed XML de imóveis", `https://${whiteLabel.domain}/api/feed.xml`],
-            ["Webhook de leads", `https://${whiteLabel.domain}/api/contacts`],
-            ["Healthcheck", `https://${whiteLabel.domain}/api/health`],
-          ].map(([label, url]) => (
-            <div key={label}>
-              <p className="mb-1.5 text-xs font-medium text-subtle">{label}</p>
-              <Copyable text={url} />
-            </div>
-          ))}
+          {(() => {
+            const base = origin || `https://${whiteLabel.domain}`;
+            return [
+              ["Feed XML de imóveis", `${base}/api/feed.xml`, ""],
+              [
+                "Webhook de leads (POST JSON: name, phone, email, notes…)",
+                `${base}/api/contacts`,
+                "Requer chave de API com escopo escrita ou total no cabeçalho Authorization: Bearer <chave> (ou x-api-key).",
+              ],
+              ["Healthcheck", `${base}/api/health`, ""],
+            ].map(([label, url, hint]) => (
+              <div key={label}>
+                <p className="mb-1.5 text-xs font-medium text-subtle">{label}</p>
+                <Copyable text={url} />
+                {hint && <p className="mt-1.5 text-[11px] text-subtle">{hint}</p>}
+              </div>
+            ));
+          })()}
         </div>
       </section>
 

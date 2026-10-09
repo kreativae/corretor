@@ -1,9 +1,11 @@
+import { apiUser, unauthorized } from "@/lib/api-auth";
 import { db } from "@/db";
 import { activities, contacts, deals, properties } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
+  if (!(await apiUser())) return unauthorized();
   try {
     const body = await req.json();
     if (!body.contactId) {

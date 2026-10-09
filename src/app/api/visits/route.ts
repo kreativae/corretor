@@ -2,14 +2,29 @@ import { db } from "@/db";
 import { activities, contacts, properties, visits } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { formatDate } from "@/lib/utils";
+import { apiUser, unauthorized } from "@/lib/api-auth";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
     let contactId: string | null = body.contactId ?? null;
+    // Agendar com contato existente (agenda do CRM) exige login
+    if (contactId && !(await apiUser())) return unauthorized();
 
-    // fluxo público: nome + telefone criam/reutilizam o contato
+    // fluxo público (site): nome + telefone, só para imóveis publicados
+    if (!contactId) {
+      if (!body.name?.trim() || !body.phone?.trim() || !body.propertyId) {
+        return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
+      }
+      const [prop] = await db
+        .select({ published: properties.published })
+        .from(properties)
+        .where(eq(properties.id, String(body.propertyId)));
+      if (!prop?.published) {
+        return NextResponse.json({ error: "Imóvel indisponível" }, { status: 404 });
+      }
+    }
     if (!contactId && body.name && body.phone) {
       const found = await db
         .select()
@@ -23,7 +38,7 @@ export async function POST(req: Request) {
           .values({
             name: String(body.name).trim(),
             phone: String(body.phone).trim(),
-            source: body.source ?? "site",
+            source: "site",
           })
           .returning();
         contactId = c.id;

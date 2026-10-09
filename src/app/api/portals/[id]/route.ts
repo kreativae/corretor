@@ -1,3 +1,4 @@
+import { apiUser, unauthorized } from "@/lib/api-auth";
 import { db } from "@/db";
 import { activities, portals, properties } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
@@ -6,6 +7,7 @@ import { NextResponse } from "next/server";
 type Params = { params: Promise<{ id: string }> };
 
 export async function PATCH(req: Request, { params }: Params) {
+  if (!(await apiUser())) return unauthorized();
   try {
     const { id } = await params;
     const { enabled } = await req.json();
@@ -41,6 +43,7 @@ export async function PATCH(req: Request, { params }: Params) {
 
 /** Simula um ciclo de sincronização XML com o portal */
 export async function POST(req: Request, { params }: Params) {
+  if (!(await apiUser())) return unauthorized();
   try {
     const { id } = await params;
     const body = await req.json().catch(() => ({}));

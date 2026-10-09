@@ -1,3 +1,4 @@
+import { apiUser, unauthorized } from "@/lib/api-auth";
 import { db } from "@/db";
 import { activities, properties, propertyImages } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
@@ -5,6 +6,7 @@ import { alqToM2, isRuralType, sanitizeRural } from "@/lib/rural";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
+  if (!(await apiUser())) return unauthorized();
   try {
     const body = await req.json();
     const { images = [], ...data } = body as Record<string, unknown> & {

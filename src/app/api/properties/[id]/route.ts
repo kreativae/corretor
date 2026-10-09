@@ -1,3 +1,4 @@
+import { apiUser, unauthorized } from "@/lib/api-auth";
 import { db } from "@/db";
 import { activities, deals, properties, propertyImages, visits } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -7,6 +8,7 @@ import { NextResponse } from "next/server";
 type Params = { params: Promise<{ id: string }> };
 
 export async function PATCH(req: Request, { params }: Params) {
+  if (!(await apiUser())) return unauthorized();
   try {
     const { id } = await params;
     const body = await req.json();
@@ -75,6 +77,7 @@ export async function PATCH(req: Request, { params }: Params) {
 }
 
 export async function DELETE(_req: Request, { params }: Params) {
+  if (!(await apiUser())) return unauthorized();
   try {
     const { id } = await params;
     const [prop] = await db
