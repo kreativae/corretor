@@ -7,7 +7,7 @@ import { NextResponse } from "next/server";
 /**
  * Agendador de sincronização automática.
  * Produção: configure CRON_SECRET e envie Authorization: Bearer <secret>.
- * Pode ser acionado a cada 5 minutos; cada integração respeita seu intervalo.
+ * No plano Hobby, é executado diariamente; cada integração respeita seu intervalo.
  */
 export async function POST(req: Request) {
   const cronSecret = process.env.CRON_SECRET;
