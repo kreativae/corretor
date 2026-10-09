@@ -29,7 +29,7 @@ export default async function MapaPage({ params }: { params: Promise<{ id: strin
 
   return (
     <div className="flex h-dvh flex-col bg-neutral-950 text-white">
-      <header className="flex shrink-0 flex-wrap items-center gap-3 border-b border-white/10 px-4 py-3">
+      <header className="flex shrink-0 items-center gap-3 border-b border-white/10 px-3 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-4">
         <Link
           href={`/imoveis/${p.code}`}
           aria-label="Ver anúncio"
@@ -40,21 +40,24 @@ export default async function MapaPage({ params }: { params: Promise<{ id: strin
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">{p.title}</p>
           <p className="truncate font-mono text-[11px] text-white/50">
-            {p.code} · {r.totalAlq ? `${formatAlq(r.totalAlq)} alq (${formatHa(r.totalAlq)} ha) · ` : ""}
-            {p.city}/{p.state} · {formatBRL(p.price)}
+            {r.totalAlq ? `${formatAlq(r.totalAlq)} alq (${formatHa(r.totalAlq)} ha) · ` : ""}
+            {p.city}/{p.state}
+            <span className="hidden sm:inline"> · {formatBRL(p.price)} · {p.code}</span>
           </p>
         </div>
         <a
-          href={r.kmzUrl}
+          href={`/imoveis/${p.code}/kmz`}
           download={r.kmzName || `${p.code}.kmz`}
-          className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-xs font-semibold text-neutral-900"
+          aria-label="Baixar KMZ"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-white px-3 py-2 text-xs font-semibold text-neutral-900 sm:px-4"
         >
           <Download className="size-3.5" />
-          Baixar KMZ
+          <span className="hidden sm:inline">Baixar KMZ</span>
+          <span className="sm:hidden">KMZ</span>
         </a>
       </header>
       <KmzMap url={r.kmzUrl} className="min-h-0 flex-1" />
-      <footer className="shrink-0 px-4 py-2.5 text-center text-[11px] text-white/40">
+      <footer className="hidden shrink-0 px-4 py-2.5 text-center text-[11px] text-white/40 sm:block">
         {wl.orgName} · O arquivo KMZ abre no Google Earth (celular ou computador)
       </footer>
     </div>

@@ -302,9 +302,9 @@ export function FichaSheet({
         {qrSvg && (
           <div className="flex shrink-0 items-center gap-3">
             <div className="text-right">
-              <p className="text-[11px] font-semibold leading-tight">Baixar o KMZ da propriedade</p>
+              <p className="text-[11px] font-semibold leading-tight">Veja a propriedade no mapa</p>
               <p className="mt-0.5 text-[9px] leading-snug text-neutral-400">
-                Aponte a câmera · abre no Google Earth
+                Perímetro em satélite, rota e KMZ
                 {showDomain && (
                   <>
                     <br />

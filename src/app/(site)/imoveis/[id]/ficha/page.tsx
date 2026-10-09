@@ -45,7 +45,7 @@ export default async function FichaPage({
         ? `+${digits.slice(0, 2)} (${digits.slice(2, 4)}) ${digits.slice(4, 8)}-${digits.slice(8)}`
         : digits;
 
-  // QR code → download do KMZ (link fixo), no domínio em que a ficha foi aberta
+  // QR code → mapa interativo do perímetro, no domínio em que a ficha foi aberta
   const rural = isRuralType(p.type);
   const ruralData = normalizeRural(p.rural);
   let qrSvg: string | undefined;
@@ -53,7 +53,7 @@ export default async function FichaPage({
     const h = await headers();
     const host = h.get("x-forwarded-host") ?? h.get("host");
     const proto = host?.startsWith("localhost") ? "http" : "https";
-    qrSvg = await QRCode.toString(`${proto}://${host}/imoveis/${p.code}/kmz`, {
+    qrSvg = await QRCode.toString(`${proto}://${host}/imoveis/${p.code}/mapa`, {
       type: "svg",
       margin: 0,
       errorCorrectionLevel: "M",

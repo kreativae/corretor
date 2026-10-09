@@ -2,7 +2,7 @@
 
 import "leaflet/dist/leaflet.css";
 import { ALQUEIRE_M2, formatAlq } from "@/lib/rural";
-import { Loader2, Navigation } from "lucide-react";
+import { LocateFixed, Loader2, Navigation } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 type Geo = GeoJSON.FeatureCollection;
@@ -191,6 +191,37 @@ export function KmzMap({ url, className }: { url: string; className?: string }) 
   const [info, setInfo] = useState<{ alq: number; center: [number, number] } | null>(null);
   const [detail, setDetail] = useState("");
   const [diagLines, setDiagLines] = useState<string[]>([]);
+  const mapRef = useRef<{ map: import("leaflet").Map; L: typeof import("leaflet") } | null>(null);
+  const meRef = useRef<import("leaflet").Layer | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [distanceKm, setDistanceKm] = useState<number | null>(null);
+
+  /** Mostra a posição do visitante e a distância até a propriedade. */
+  function locateMe() {
+    const ctx = mapRef.current;
+    if (!ctx || !info || !navigator.geolocation) return;
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        meRef.current?.remove();
+        meRef.current = ctx.L.circleMarker([latitude, longitude], {
+          radius: 8,
+          color: "#fff",
+          weight: 3,
+          fillColor: "#3b82f6",
+          fillOpacity: 1,
+        }).addTo(ctx.map);
+        const me = ctx.L.latLng(latitude, longitude);
+        const farm = ctx.L.latLng(info.center[0], info.center[1]);
+        setDistanceKm(me.distanceTo(farm) / 1000);
+        ctx.map.fitBounds(ctx.L.latLngBounds([me, farm]), { padding: [48, 48], maxZoom: 16 });
+        setLocating(false);
+      },
+      () => setLocating(false),
+      { enableHighAccuracy: true, timeout: 15000 },
+    );
+  }
 
   useEffect(() => {
     let map: import("leaflet").Map | null = null;
@@ -204,6 +235,7 @@ export function KmzMap({ url, className }: { url: string; className?: string }) 
         ]);
         if (cancelled || !el.current) return;
         map = L.map(el.current, { zoomControl: true, attributionControl: true });
+        mapRef.current = { map, L };
         L.tileLayer(
           "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
           { maxZoom: 19, attribution: "Imagens © Esri" },
@@ -278,21 +310,40 @@ export function KmzMap({ url, className }: { url: string; className?: string }) 
           </div>
         )}
         {info && (
-          <div className="pointer-events-none absolute bottom-4 left-4 right-4 z-[500] flex flex-wrap items-end justify-between gap-2">
-            {info.alq > 0.01 && (
-              <span className="rounded-full bg-black/70 px-3 py-1.5 font-mono text-xs text-white backdrop-blur">
-                Perímetro: ≈ {formatAlq(info.alq)} alq
-              </span>
-            )}
+          <div className="pointer-events-none absolute inset-x-3 bottom-[max(1.75rem,env(safe-area-inset-bottom))] z-[500] flex flex-wrap items-end justify-between gap-2 sm:inset-x-4">
+            <div className="flex flex-col items-start gap-1.5">
+              {info.alq > 0.01 && (
+                <span className="rounded-full bg-black/70 px-3 py-1.5 font-mono text-xs text-white backdrop-blur">
+                  Perímetro: ≈ {formatAlq(info.alq)} alq
+                </span>
+              )}
+              {distanceKm != null && (
+                <span className="rounded-full bg-blue-600/90 px-3 py-1.5 font-mono text-xs text-white backdrop-blur">
+                  Você está a {distanceKm < 1 ? `${Math.round(distanceKm * 1000)} m` : `${formatAlq(Math.round(distanceKm * 10) / 10)} km`}
+                </span>
+              )}
+            </div>
+            <div className="ml-auto flex gap-2">
+            <button
+              type="button"
+              onClick={locateMe}
+              disabled={locating}
+              aria-label="Minha localização"
+              className="pointer-events-auto inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-2.5 text-xs font-semibold text-neutral-900 shadow-lg disabled:opacity-70 sm:py-2"
+            >
+              {locating ? <Loader2 className="size-3.5 animate-spin" /> : <LocateFixed className="size-3.5" />}
+              <span className="hidden sm:inline">Minha localização</span>
+            </button>
             <a
               href={`https://www.google.com/maps/dir/?api=1&destination=${info.center[0]},${info.center[1]}`}
               target="_blank"
               rel="noreferrer"
-              className="pointer-events-auto inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-2 text-xs font-semibold text-neutral-900 shadow-lg"
+              className="pointer-events-auto inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-2.5 text-xs font-semibold text-neutral-900 shadow-lg sm:py-2"
             >
               <Navigation className="size-3.5" />
               Como chegar
             </a>
+            </div>
           </div>
         )}
       </div>
