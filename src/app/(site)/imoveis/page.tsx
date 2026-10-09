@@ -1,3 +1,4 @@
+import { isRuralType } from "@/lib/rural";
 import { ImoveisBrowser } from "@/components/site/imoveis-browser";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
@@ -26,7 +27,7 @@ export default async function ImoveisPage({
 
   return (
     <div>
-      <SiteHeader orgName={wl.orgName} />
+      <SiteHeader orgName={wl.orgName} hasRural={properties.some((x) => isRuralType(x.type))} />
       <main className="container-x pb-24 pt-28 md:pt-36">
         <p
           data-reveal

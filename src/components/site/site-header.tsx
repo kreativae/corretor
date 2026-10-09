@@ -16,7 +16,15 @@ const LINKS = [
   { href: "/#contato", label: "Contato" },
 ];
 
-export function SiteHeader({ orgName }: { orgName: string }) {
+export function SiteHeader({
+  orgName,
+  hasRural = false,
+}: {
+  orgName: string;
+  /** Exibe o link "Rurais" só quando há propriedades rurais publicadas */
+  hasRural?: boolean;
+}) {
+  const links = LINKS.filter((l) => hasRural || !l.href.includes("categoria=rurais"));
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
 
@@ -43,7 +51,7 @@ export function SiteHeader({ orgName }: { orgName: string }) {
           </Link>
 
           <nav className="hidden items-center gap-1 lg:flex">
-            {LINKS.map((l) => (
+            {links.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
@@ -97,7 +105,7 @@ export function SiteHeader({ orgName }: { orgName: string }) {
           </button>
         </div>
         <nav className="container-x mt-10 flex flex-col gap-1">
-          {LINKS.map((l, i) => (
+          {links.map((l, i) => (
             <Link
               key={l.href}
               href={l.href}

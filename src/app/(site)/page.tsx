@@ -1,3 +1,4 @@
+import { isRuralType } from "@/lib/rural";
 import { PropertyCard } from "@/components/site/property-card";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
@@ -46,7 +47,7 @@ export default async function HomePage() {
 
   return (
     <div className="bg-canvas">
-      <SiteHeader orgName={wl.orgName} />
+      <SiteHeader orgName={wl.orgName} hasRural={published.some((x) => isRuralType(x.type))} />
 
       {/* ───────────── HERO ───────────── */}
       <section className="relative flex h-[100svh] min-h-[640px] flex-col overflow-hidden">

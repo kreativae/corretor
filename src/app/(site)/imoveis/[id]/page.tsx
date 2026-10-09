@@ -96,7 +96,7 @@ export default async function ImovelPage({ params }: { params: Params }) {
   return (
     <div>
       <PropertyTracker propertyId={p.id} />
-      <SiteHeader orgName={wl.orgName} />
+      <SiteHeader orgName={wl.orgName} hasRural={published.some((x) => isRuralType(x.type))} />
       <main className="container-x pb-24 pt-24 md:pt-32">
         {/* Breadcrumb + título */}
         <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-subtle">
