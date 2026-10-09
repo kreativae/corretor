@@ -1,17 +1,34 @@
 "use client";
 
 import { Kbd } from "@/components/ui";
+import { crmPropertyPath, formatAlq, isRuralType, type RuralData } from "@/lib/rural";
 import { cn, formatCompact } from "@/lib/utils";
-import { Building2, CornerDownLeft, Loader2, Search, User } from "lucide-react";
+import { Building2, CornerDownLeft, Loader2, Search, Tractor, User } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 type Results = {
-  properties: { id: string; code: string; title: string; neighborhood: string; price: number }[];
+  properties: {
+    id: string;
+    code: string;
+    title: string;
+    neighborhood: string;
+    city: string;
+    price: number;
+    type: string;
+    rural: Partial<RuralData> | null;
+  }[];
   contacts: { id: string; name: string; phone: string; type: string }[];
 };
 
-type Item = { kind: "property" | "contact"; id: string; label: string; sub: string };
+type Group = "imoveis" | "rurais" | "contatos";
+type Item = { group: Group; href: string; id: string; label: string; sub: string };
+
+const GROUP_LABELS: Record<Group, string> = {
+  imoveis: "Imóveis",
+  rurais: "Propriedades rurais",
+  contatos: "Contatos",
+};
 
 export function CommandPalette({
   open,
@@ -53,15 +70,25 @@ export function CommandPalette({
     return () => clearTimeout(t);
   }, [q, open]);
 
-  const items: Item[] = [
-    ...results.properties.map((p) => ({
-      kind: "property" as const,
+  // Ordem fixa dos grupos: imóveis, rurais, contatos
+  const toItem = (p: Results["properties"][number]): Item => {
+    const rural = isRuralType(p.type);
+    return {
+      group: rural ? "rurais" : "imoveis",
+      href: crmPropertyPath(p),
       id: p.id,
       label: `${p.code} — ${p.title}`,
-      sub: `${p.neighborhood} · ${formatCompact(p.price)}`,
-    })),
+      sub: rural
+        ? `${p.rural?.totalAlq ? `${formatAlq(p.rural.totalAlq)} alq · ` : ""}${p.city} · ${formatCompact(p.price)}`
+        : `${p.neighborhood} · ${formatCompact(p.price)}`,
+    };
+  };
+  const items: Item[] = [
+    ...results.properties.filter((p) => !isRuralType(p.type)).map(toItem),
+    ...results.properties.filter((p) => isRuralType(p.type)).map(toItem),
     ...results.contacts.map((c) => ({
-      kind: "contact" as const,
+      group: "contatos" as const,
+      href: `/crm/contatos/${c.id}`,
       id: c.id,
       label: c.name,
       sub: c.phone,
@@ -69,7 +96,7 @@ export function CommandPalette({
   ];
 
   function go(item: Item) {
-    router.push(item.kind === "property" ? `/crm/imoveis/${item.id}` : `/crm/contatos/${item.id}`);
+    router.push(item.href);
     onClose();
   }
 
@@ -124,20 +151,16 @@ export function CommandPalette({
                 : "Comece a digitar para buscar em toda a base."}
             </p>
           )}
-          {results.properties.length > 0 && (
-            <p className="px-3 pb-1 pt-2 font-mono text-[10px] uppercase tracking-[0.18em] text-subtle">
-              Imóveis
-            </p>
-          )}
           {items.map((item, i) => {
-            const isProperty = item.kind === "property";
-            const headerCount = results.properties.length;
-            void headerCount;
+            const Icon = item.group === "rurais" ? Tractor : item.group === "imoveis" ? Building2 : User;
             return (
-              <div key={`${item.kind}-${item.id}`}>
-                {i === results.properties.length && results.contacts.length > 0 && (
-                  <p className="px-3 pb-1 pt-2 font-mono text-[10px] uppercase tracking-[0.18em] text-subtle">
-                    Contatos
+              <div key={`${item.group}-${item.id}`}>
+                {item.group !== items[i - 1]?.group && (
+                  <p className="flex items-center gap-1.5 px-3 pb-1 pt-2 font-mono text-[10px] uppercase tracking-[0.18em] text-subtle">
+                    {GROUP_LABELS[item.group]}
+                    <span className="opacity-60">
+                      {items.filter((x) => x.group === item.group).length}
+                    </span>
                   </p>
                 )}
                 <button
@@ -148,8 +171,13 @@ export function CommandPalette({
                     sel === i ? "bg-soft" : "",
                   )}
                 >
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-soft text-subtle">
-                    {isProperty ? <Building2 className="size-4" /> : <User className="size-4" />}
+                  <span
+                    className={cn(
+                      "flex size-8 shrink-0 items-center justify-center rounded-lg",
+                      item.group === "rurais" ? "bg-emerald-500/10 text-emerald-600" : "bg-soft text-subtle",
+                    )}
+                  >
+                    <Icon className="size-4" />
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium">{item.label}</span>
