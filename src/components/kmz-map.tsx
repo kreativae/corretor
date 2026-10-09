@@ -143,7 +143,8 @@ async function gunzip(bytes: Uint8Array) {
 
 /** Lê .kmz (zip, com um ou vários KML) ou .kml e devolve GeoJSON. */
 export async function loadKmz(url: string, diag?: KmzDiag): Promise<Geo> {
-  const res = await fetch(url);
+  // "reload": ignora uma cópia vazia que tenha ficado no cache do navegador
+  const res = await fetch(url, { cache: "reload" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   let bytes = new Uint8Array(await res.arrayBuffer());
   const sig = Array.from(bytes.slice(0, 4), (b) => b.toString(16).padStart(2, "0")).join(" ");

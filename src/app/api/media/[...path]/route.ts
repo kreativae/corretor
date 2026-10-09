@@ -24,7 +24,9 @@ export async function GET(
   return new Response(result.stream, {
     headers: {
       "Content-Type": result.blob.contentType,
-      "Content-Length": String(result.blob.size),
+      // Sem content-length quando o Blob responde compactado (size = 0): repassar
+      // "0" faria o navegador descartar o corpo — o KMZ chegava vazio.
+      ...(result.blob.size > 0 ? { "Content-Length": String(result.blob.size) } : {}),
       "Cache-Control": "public, max-age=31536000, s-maxage=31536000, immutable",
       // CORS: o mapa público lê o KMZ via fetch
       "Access-Control-Allow-Origin": "*",

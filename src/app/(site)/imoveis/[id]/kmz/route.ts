@@ -16,6 +16,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const target = new URL(r.kmzUrl, req.url);
   // Blob público: força download; o proxy privado (/api/media) já envia como anexo
   if (target.hostname.endsWith("blob.vercel-storage.com")) target.searchParams.set("download", "1");
+  // Escapa de respostas vazias antigas guardadas no cache do navegador
+  else target.searchParams.set("v", "2");
   return NextResponse.redirect(target, {
     status: 302,
     headers: { "Cache-Control": "no-store" },
