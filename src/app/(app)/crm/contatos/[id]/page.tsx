@@ -213,6 +213,9 @@ export default async function ContatoPage({
             properties={allProps
               .filter((p) => ["disponivel", "reservado"].includes(p.status))
               .map((p) => ({ id: p.id, code: p.code, title: p.title, price: p.price }))}
+            linkedToGoogle={!!c.googleResourceName}
+            dealsCount={myDeals.length}
+            visitsCount={myVisits.length}
           />
 
           {/* Negociações */}

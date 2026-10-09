@@ -1,5 +1,7 @@
 import { db } from "@/db";
-import { activities, contacts } from "@/db/schema";
+import { activities, contacts, integrations } from "@/db/schema";
+import { requireUser } from "@/lib/auth";
+import { GoogleApiError, googleApi } from "@/lib/google";
 import { getContact, getMatchesFor, listDeals, listVisits } from "@/lib/queries";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
@@ -111,5 +113,62 @@ export async function PATCH(
   } catch (e) {
     console.error(e);
     return NextResponse.json({ error: "Falha ao atualizar contato" }, { status: 500 });
+  }
+}
+
+/** Exclui o contato do CRM; com ?google=1 apaga também no Google Contacts. */
+export async function DELETE(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  await requireUser();
+  try {
+    const { id } = await params;
+    const alsoGoogle = new URL(req.url).searchParams.get("google") === "1";
+
+    const [contact] = await db.select().from(contacts).where(eq(contacts.id, id));
+    if (!contact) {
+      return NextResponse.json({ error: "Contato não encontrado" }, { status: 404 });
+    }
+
+    let deletedInGoogle = false;
+    if (alsoGoogle && contact.googleResourceName) {
+      const [integration] = await db
+        .select()
+        .from(integrations)
+        .where(eq(integrations.provider, "google_contacts"));
+      if (!integration?.connected) {
+        return NextResponse.json(
+          { error: "Google Contacts não está conectado. Conecte ou exclua só no CRM." },
+          { status: 400 },
+        );
+      }
+      try {
+        await googleApi(
+          integration,
+          `https://people.googleapis.com/v1/${contact.googleResourceName}:deleteContact`,
+          { method: "DELETE" },
+        );
+      } catch (e) {
+        // Já apagado no Google: segue com a exclusão no CRM
+        if (!(e instanceof GoogleApiError && e.status === 404)) throw e;
+      }
+      deletedInGoogle = true;
+    }
+
+    await db.delete(contacts).where(eq(contacts.id, id));
+
+    await db.insert(activities).values({
+      entity: "sistema",
+      entityId: null,
+      kind: "updated",
+      text: `${contact.name} foi excluído da agenda${deletedInGoogle ? " e do Google Contacts" : ""}.`,
+    });
+
+    return NextResponse.json({ ok: true, deletedInGoogle });
+  } catch (e) {
+    console.error(e);
+    const message = e instanceof Error ? e.message : "Falha ao excluir contato";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
