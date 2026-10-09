@@ -1,10 +1,13 @@
 "use client";
 
-import { cn } from "@/lib/utils";
+import { cn, formatNumber } from "@/lib/utils";
 import { Loader2, X } from "lucide-react";
 import {
   forwardRef,
   useEffect,
+  useLayoutEffect,
+  useRef,
+  type ChangeEvent,
   type ButtonHTMLAttributes,
   type InputHTMLAttributes,
   type ReactNode,
@@ -84,7 +87,59 @@ const fieldBase =
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
   function Input({ className, ...props }, ref) {
+    if (props.type === "number") {
+      return <NumberInput ref={ref} className={cn(fieldBase, "h-10", className)} {...props} />;
+    }
     return <input ref={ref} className={cn(fieldBase, "h-10", className)} {...props} />;
+  },
+);
+
+/**
+ * Inteiro com separador de milhar (1.850.000) enquanto digita.
+ * O onChange continua recebendo só os dígitos em e.target.value.
+ */
+const NumberInput = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
+  function NumberInput({ value, onChange, type: _type, min: _min, max: _max, step: _step, ...props }, ref) {
+    const inner = useRef<HTMLInputElement | null>(null);
+    const caretDigits = useRef<number | null>(null);
+    const display = formatNumber(value as string | number | undefined);
+
+    // Recoloca o cursor depois dos mesmos dígitos após inserir os pontos
+    useLayoutEffect(() => {
+      const el = inner.current;
+      const target = caretDigits.current;
+      if (!el || target == null || document.activeElement !== el) return;
+      caretDigits.current = null;
+      let pos = 0;
+      for (let seen = 0; pos < display.length && seen < target; pos += 1) {
+        if (/\d/.test(display[pos])) seen += 1;
+      }
+      el.setSelectionRange(pos, pos);
+    }, [display]);
+
+    function handleChange(e: ChangeEvent<HTMLInputElement>) {
+      const el = e.target;
+      const caret = el.selectionStart ?? el.value.length;
+      caretDigits.current = el.value.slice(0, caret).replace(/\D/g, "").length;
+      el.value = el.value.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
+      onChange?.(e);
+    }
+
+    return (
+      <input
+        ref={(el) => {
+          inner.current = el;
+          if (typeof ref === "function") ref(el);
+          else if (ref) ref.current = el;
+        }}
+        type="text"
+        inputMode="numeric"
+        autoComplete="off"
+        value={display}
+        onChange={handleChange}
+        {...props}
+      />
+    );
   },
 );
 

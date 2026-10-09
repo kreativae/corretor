@@ -12,7 +12,7 @@ import {
   listPublishedProperties,
 } from "@/lib/queries";
 import { getSiteContent } from "@/lib/site-content";
-import { cn, formatBRL, initials } from "@/lib/utils";
+import { cn, formatBRL, initials, formatNumber } from "@/lib/utils";
 import {
   BedDouble,
   Car,
@@ -38,7 +38,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   if (!p) return {};
   return {
     title: `${p.title} — ${p.neighborhood}`,
-    description: `${TYPE_LABELS[p.type]} com ${p.area} m², ${p.bedrooms} quartos em ${p.neighborhood}, ${p.city}. ${formatBRL(p.price)}.`,
+    description: `${TYPE_LABELS[p.type]} com ${formatNumber(p.area)} m², ${p.bedrooms} quartos em ${p.neighborhood}, ${p.city}. ${formatBRL(p.price)}.`,
   };
 }
 
@@ -60,7 +60,7 @@ export default async function ImovelPage({ params }: { params: Params }) {
     .slice(0, 3);
 
   const specs = [
-    { icon: Ruler, label: "Área", value: `${p.area} m²` },
+    { icon: Ruler, label: "Área", value: `${formatNumber(p.area)} m²` },
     { icon: BedDouble, label: "Quartos", value: p.bedrooms },
     { icon: ShowerHead, label: "Banheiros", value: p.bathrooms },
     { icon: Car, label: "Vagas", value: p.garage },

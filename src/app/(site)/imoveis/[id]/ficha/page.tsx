@@ -2,7 +2,7 @@ import { PrintBar } from "./print-bar";
 import { STATUS_LABELS, TYPE_LABELS } from "@/lib/labels";
 import { getPropertyByCode, getWhiteLabel } from "@/lib/queries";
 import { getSiteContent } from "@/lib/site-content";
-import { formatBRL, TIME_ZONE } from "@/lib/utils";
+import { formatBRL, TIME_ZONE, formatNumber } from "@/lib/utils";
 import {
   BedDouble,
   Car,
@@ -40,7 +40,7 @@ export default async function FichaPage({
       : wl.phone;
 
   const specs = [
-    { icon: Ruler, label: "Área construída", value: `${p.area} m²` },
+    { icon: Ruler, label: "Área construída", value: `${formatNumber(p.area)} m²` },
     { icon: BedDouble, label: "Quartos", value: String(p.bedrooms) },
     { icon: ShowerHead, label: "Banheiros", value: String(p.bathrooms) },
     { icon: Car, label: "Vagas", value: String(p.garage) },

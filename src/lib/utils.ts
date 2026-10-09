@@ -13,6 +13,15 @@ const brl = new Intl.NumberFormat("pt-BR", {
   maximumFractionDigits: 0,
 });
 
+const intFormat = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
+
+/** 1850000 → "1.850.000" */
+export function formatNumber(value: number | string | null | undefined) {
+  if (value == null || value === "") return "";
+  const n = typeof value === "number" ? value : Number(String(value).replace(/\D/g, ""));
+  return Number.isFinite(n) ? intFormat.format(n) : "";
+}
+
 export function formatBRL(value: number | null | undefined) {
   if (value == null) return "—";
   return brl.format(value);

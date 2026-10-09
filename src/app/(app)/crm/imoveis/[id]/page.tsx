@@ -17,7 +17,7 @@ import {
   listPortals,
   listVisits,
 } from "@/lib/queries";
-import { cn, formatBRL, formatDateTime, timeAgo } from "@/lib/utils";
+import { cn, formatBRL, formatDateTime, timeAgo, formatNumber } from "@/lib/utils";
 import {
   ArrowLeft,
   BedDouble,
@@ -58,7 +58,7 @@ export default async function ImovelCrmPage({
   const propertyVisits = allVisits.filter((v) => v.property?.id === p.id);
 
   const specs = [
-    { icon: Ruler, label: "Área", value: `${p.area} m²` },
+    { icon: Ruler, label: "Área", value: `${formatNumber(p.area)} m²` },
     { icon: BedDouble, label: "Quartos", value: p.bedrooms },
     { icon: ShowerHead, label: "Banheiros", value: p.bathrooms },
     { icon: Car, label: "Vagas", value: p.garage },
@@ -262,7 +262,7 @@ export default async function ImovelCrmPage({
               {[
                 ["Condomínio", p.condoFee],
                 ["IPTU /ano", p.iptu],
-                ["Terreno", p.lotArea ? `${p.lotArea} m²` : null],
+                ["Terreno", p.lotArea ? `${formatNumber(p.lotArea)} m²` : null],
                 ["Suítes", p.suites || null],
               ]
                 .filter(([, v]) => v != null)

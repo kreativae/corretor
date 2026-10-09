@@ -1,6 +1,6 @@
 import { STATUS_LABELS, TYPE_LABELS } from "@/lib/labels";
 import type { PropertyWithImages } from "@/lib/queries";
-import { cn, formatBRL } from "@/lib/utils";
+import { cn, formatBRL, formatNumber } from "@/lib/utils";
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 
@@ -73,7 +73,7 @@ export function PropertyCard({
             )}
           </p>
           <p className="mt-0.5 text-xs text-subtle">
-            {p.area} m² · {p.bedrooms} {p.bedrooms === 1 ? "quarto" : "quartos"}
+            {formatNumber(p.area)} m² · {p.bedrooms} {p.bedrooms === 1 ? "quarto" : "quartos"}
           </p>
         </div>
       </div>

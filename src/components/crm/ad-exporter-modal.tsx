@@ -2,7 +2,7 @@
 
 import { Button, Modal } from "@/components/ui";
 import type { PropertyWithImages, WhiteLabel } from "@/lib/queries";
-import { formatBRL, formatCompact } from "@/lib/utils";
+import { formatBRL, formatCompact, formatNumber } from "@/lib/utils";
 import { TYPE_LABELS } from "@/lib/labels";
 import {
   Check,
@@ -39,7 +39,7 @@ export function AdExporterModal({
   const whatsappCopy = `✨ *${p.title.toUpperCase()}* (${p.code})
 📍 *Localização:* ${p.neighborhood} — ${p.city}/${p.state}
 
-📐 *Área:* ${p.area} m² construídos
+📐 *Área:* ${formatNumber(p.area)} m² construídos
 🛏️ *Quartos:* ${p.bedrooms}${p.suites ? ` (${p.suites} suíte${p.suites > 1 ? "s" : ""})` : ""}
 🚿 *Banheiros:* ${p.bathrooms}
 🚗 *Vagas:* ${p.garage}
@@ -58,7 +58,7 @@ _Atendimento exclusivo ${wl.orgName}_`;
   const instagramCopy = `🏡 ${p.title} | ${p.neighborhood.toUpperCase()}
 
 ${p.description ? `${p.description.slice(0, 180)}...\n\n` : ""}✨ Detalhes do imóvel:
-• ${p.area} m² de área privativa
+• ${formatNumber(p.area)} m² de área privativa
 • ${p.bedrooms} dormitórios (${p.suites} suítes)
 • ${p.bathrooms} banheiros
 • ${p.garage} vagas de garagem
@@ -71,13 +71,13 @@ Código de referência: ${p.code}
 
 #imoveis #imoveisdeluxo #${p.neighborhood.toLowerCase().replace(/\s+/g, "")} #apartamentodeluxo #${p.type} #imobiliaria #${wl.orgName.toLowerCase().replace(/\s+/g, "")}`;
 
-  const classificadosCopy = `[${p.code}] ${TYPE_LABELS[p.type] || "Imóvel"} com ${p.area}m², ${p.bedrooms} quartos em ${p.neighborhood} - ${p.city}
+  const classificadosCopy = `[${p.code}] ${TYPE_LABELS[p.type] || "Imóvel"} com ${formatNumber(p.area)}m², ${p.bedrooms} quartos em ${p.neighborhood} - ${p.city}
 
 VALOR: ${formatBRL(p.price)}${p.purpose === "aluguel" ? "/mês" : ""}
 ${p.condoFee ? `Condomínio: ${formatBRL(p.condoFee)} | ` : ""}${p.iptu ? `IPTU: ${formatBRL(p.iptu)}/ano` : ""}
 
 CARACTERÍSTICAS:
-- Área: ${p.area} m²
+- Área: ${formatNumber(p.area)} m²
 - Quartos: ${p.bedrooms} (Suítes: ${p.suites})
 - Banheiros: ${p.bathrooms}
 - Vagas: ${p.garage}

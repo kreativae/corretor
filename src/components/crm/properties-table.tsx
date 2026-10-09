@@ -8,7 +8,7 @@ import {
   TYPE_LABELS,
 } from "@/lib/labels";
 import type { PropertyWithImages } from "@/lib/queries";
-import { cn, formatBRL } from "@/lib/utils";
+import { cn, formatBRL, formatNumber } from "@/lib/utils";
 import {
   ArrowUpRight,
   Building2,
@@ -192,7 +192,7 @@ export function PropertiesTable({
                   {PURPOSE_LABELS[p.purpose]}
                 </td>
                 <td className="px-4 py-3 text-right font-mono tabular text-subtle">
-                  {p.area} m²
+                  {formatNumber(p.area)} m²
                 </td>
                 <td className="px-4 py-3 text-right font-mono font-medium tabular">
                   {formatBRL(p.price)}
