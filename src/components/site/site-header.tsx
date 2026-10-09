@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 
 const LINKS = [
   { href: "/imoveis", label: "Imóveis" },
+  { href: "/imoveis?categoria=rurais", label: "Rurais" },
   { href: "/#colecao", label: "Coleção" },
   { href: "/#experiencia", label: "Experiência" },
   { href: "/#contato", label: "Contato" },
