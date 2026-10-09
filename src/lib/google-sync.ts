@@ -4,6 +4,7 @@ import { db } from "@/db";
 import {
   activities,
   contacts,
+  deals,
   integrations,
   properties,
   visits,
@@ -13,7 +14,7 @@ import {
   type Visit,
 } from "@/db/schema";
 import { GoogleApiError, googleApi } from "@/lib/google";
-import { eq } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 
 /* ─────────────────────────── Tipos Google ─────────────────────────── */
 
@@ -53,6 +54,7 @@ export type GoogleSyncResult = {
   pulled: number;
   pushed: number;
   unchanged: number;
+  removed: number;
   errors: string[];
 };
 
@@ -127,7 +129,7 @@ async function listGooglePeople(integration: Integration) {
         pageToken = data.nextPageToken;
         if (data.nextSyncToken) nextSyncToken = data.nextSyncToken;
       } while (pageToken);
-      return { people, nextSyncToken };
+      return { people, nextSyncToken, full: !useCursor };
     } catch (error) {
       if (error instanceof GoogleApiError && error.status === 410 && useCursor) {
         useCursor = false;
@@ -136,7 +138,33 @@ async function listGooglePeople(integration: Integration) {
       throw error;
     }
   }
-  return { people, nextSyncToken };
+  return { people, nextSyncToken, full: !useCursor };
+}
+
+/**
+ * Contato apagado no Google: remove do CRM, a menos que tenha negociações
+ * ou visitas — nesse caso só desfaz o vínculo para preservar o histórico.
+ * Em ambos os casos o contato não é recriado no Google.
+ */
+async function removeDeletedGoogleContact(local: Contact, syncedAt: Date) {
+  const [[d], [v]] = await Promise.all([
+    db.select({ n: count() }).from(deals).where(eq(deals.contactId, local.id)),
+    db.select({ n: count() }).from(visits).where(eq(visits.contactId, local.id)),
+  ]);
+  if (!d.n && !v.n) {
+    await db.delete(contacts).where(eq(contacts.id, local.id));
+    return true;
+  }
+  await db
+    .update(contacts)
+    .set({
+      googleResourceName: null,
+      googleEtag: null,
+      googleRemoteUpdatedAt: null,
+      googleSyncedAt: syncedAt,
+    })
+    .where(eq(contacts.id, local.id));
+  return false;
 }
 
 /** Sincronização bidirecional Google Contacts ↔ agenda do CRM. */
@@ -148,6 +176,7 @@ export async function syncGoogleContacts(
     pulled: 0,
     pushed: 0,
     unchanged: 0,
+    removed: 0,
     errors: [],
   };
   const startedAt = new Date();
@@ -166,7 +195,10 @@ export async function syncGoogleContacts(
       .map((c) => [c.email!.trim().toLowerCase(), c]),
   );
 
-  const { people, nextSyncToken } = await listGooglePeople(integration);
+  const { people, nextSyncToken, full } = await listGooglePeople(integration);
+  const remoteIds = new Set(
+    people.filter((p) => !p.metadata?.deleted).map((p) => p.resourceName),
+  );
   const handled = new Set<string>();
 
   // People API recomenda mutações sequenciais para o mesmo usuário.
@@ -181,17 +213,10 @@ export async function syncGoogleContacts(
         (values.email ? byEmail.get(values.email) : undefined);
 
       if (person.metadata?.deleted) {
-        if (local) {
-          await db
-            .update(contacts)
-            .set({
-              googleResourceName: null,
-              googleEtag: null,
-              googleRemoteUpdatedAt: null,
-              googleSyncedAt: startedAt,
-            })
-            .where(eq(contacts.id, local.id));
+        local = byResource.get(person.resourceName);
+        if (local && !handled.has(local.id)) {
           handled.add(local.id);
+          if (await removeDeletedGoogleContact(local, startedAt)) result.removed += 1;
         }
         continue;
       }
@@ -286,6 +311,20 @@ export async function syncGoogleContacts(
   for (const local of locals) {
     if (handled.has(local.id)) continue;
     try {
+      // Listagem completa: vinculado mas ausente no Google → foi apagado lá.
+      if (full && local.googleResourceName && !remoteIds.has(local.googleResourceName)) {
+        if (await removeDeletedGoogleContact(local, startedAt)) result.removed += 1;
+        continue;
+      }
+
+      // Já sincronizado e sem vínculo → foi apagado no Google; não recriar.
+      if (!local.googleResourceName && local.googleSyncedAt) {
+        if (local.source === "google" && (await removeDeletedGoogleContact(local, startedAt))) {
+          result.removed += 1;
+        }
+        continue;
+      }
+
       if (local.googleResourceName) {
         const localChanged =
           local.updatedAt.getTime() > (local.googleSyncedAt?.getTime() ?? 0) + 1000;
@@ -346,7 +385,7 @@ export async function syncGoogleContacts(
       syncCursor: nextSyncToken ?? integration.syncCursor,
       lastSyncAt: startedAt,
       lastSyncCount: processed,
-      statusMessage: `${result.pulled} recebidos · ${result.pushed} enviados${result.errors.length ? ` · ${result.errors.length} erros` : ""}.`,
+      statusMessage: `${result.pulled} recebidos · ${result.pushed} enviados${result.removed ? ` · ${result.removed} removidos` : ""}${result.errors.length ? ` · ${result.errors.length} erros` : ""}.`,
     })
     .where(eq(integrations.id, integration.id));
 
@@ -354,7 +393,7 @@ export async function syncGoogleContacts(
     entity: "sistema",
     entityId: null,
     kind: "sync",
-    text: `Google Contacts: ${result.pulled} recebidos, ${result.pushed} enviados${result.errors.length ? `, ${result.errors.length} erros` : ""}.`,
+    text: `Google Contacts: ${result.pulled} recebidos, ${result.pushed} enviados${result.removed ? `, ${result.removed} removidos` : ""}${result.errors.length ? `, ${result.errors.length} erros` : ""}.`,
   });
   return result;
 }
@@ -402,6 +441,7 @@ export async function syncGoogleCalendar(
     pulled: 0,
     pushed: 0,
     unchanged: 0,
+    removed: 0,
     errors: [],
   };
   const startedAt = new Date();

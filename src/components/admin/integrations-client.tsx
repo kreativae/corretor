@@ -159,7 +159,7 @@ function IntegrationCard({ item }: { item: IntegrationView }) {
           ? `${item.name} conectado com sucesso.`
           : action === "disconnect"
             ? `${item.name} desconectado.`
-            : `${item.name}: ${data.pulled ?? 0} recebidos · ${data.pushed ?? 0} enviados${data.errors?.length ? ` · ${data.errors.length} erros` : ""}.`,
+            : `${item.name}: ${data.pulled ?? 0} recebidos · ${data.pushed ?? 0} enviados${data.removed ? ` · ${data.removed} removidos` : ""}${data.errors?.length ? ` · ${data.errors.length} erros` : ""}.`,
       );
       router.refresh();
     } catch (err) {
