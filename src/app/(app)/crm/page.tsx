@@ -1,7 +1,8 @@
 import { StatCard } from "@/components/crm/stat-card";
 import { Timeline } from "@/components/crm/timeline";
 import { Badge } from "@/components/ui";
-import { DEAL_STAGES, VISIT_STATUS_STYLES, VISIT_STATUS_LABELS } from "@/lib/labels";
+import { DEAL_STAGES, TYPE_LABELS, VISIT_STATUS_STYLES, VISIT_STATUS_LABELS } from "@/lib/labels";
+import { formatAlq, isRuralType, normalizeRural } from "@/lib/rural";
 import {
   listActivities,
   listContacts,
@@ -25,6 +26,7 @@ import {
   Building2,
   CalendarDays,
   Columns3,
+  Tractor,
   UserPlus,
 } from "lucide-react";
 import Link from "next/link";
@@ -46,7 +48,12 @@ export default async function CrmDashboard() {
   const firstName = user?.name.trim().split(/\s+/)[0];
   const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
 
-  const active = properties.filter((p) => p.status === "disponivel").length;
+  // Portfólio separado: urbanos x rurais
+  const urbanos = properties.filter((p) => !isRuralType(p.type));
+  const rurais = properties.filter((p) => isRuralType(p.type));
+  const active = urbanos.filter((p) => p.status === "disponivel").length;
+  const activeRurais = rurais.filter((p) => p.status === "disponivel");
+  const activeRuralAlq = activeRurais.reduce((a, p) => a + (normalizeRural(p.rural).totalAlq ?? 0), 0);
   const monthAgo = new Date(now.getTime() - 30 * 864e5);
   const newLeads = contacts.filter(
     (c) => new Date(c.createdAt) >= monthAgo,
@@ -64,6 +71,29 @@ export default async function CrmDashboard() {
 
   const openDeals = deals.filter((d) => d.deal.stage !== "fechado");
   const pipelineValue = openDeals.reduce((acc, d) => acc + d.deal.value, 0);
+  const ruralDeals = openDeals.filter((d) => isRuralType(d.property?.type));
+  const ruralPipeline = ruralDeals.reduce((acc, d) => acc + d.deal.value, 0);
+
+  const portfolio = [urbanos, rurais].map((list) => {
+    const disponiveis = list.filter((p) => p.status === "disponivel");
+    const byType = Object.entries(
+      list.reduce<Record<string, number>>((acc, p) => {
+        acc[p.type] = (acc[p.type] ?? 0) + 1;
+        return acc;
+      }, {}),
+    ).sort((a, b) => b[1] - a[1]);
+    const vgv = disponiveis.reduce((a, p) => a + p.price, 0);
+    const alq = disponiveis.reduce((a, p) => a + (normalizeRural(p.rural).totalAlq ?? 0), 0);
+    return {
+      total: list.length,
+      disponiveis: disponiveis.length,
+      publicados: list.filter((p) => p.published).length,
+      byType,
+      vgv,
+      alq,
+      precoMedioAlq: alq > 0 ? Math.round(vgv / alq) : null,
+    };
+  });
 
   const upcoming = visits
     .filter(
@@ -121,18 +151,30 @@ export default async function CrmDashboard() {
           </h1>
         </div>
         <p className="max-w-xs text-right text-xs leading-relaxed text-subtle">
-          {active} imóveis ativos · {newLeads} novos leads em 30 dias ·{" "}
+          {active} imóveis ativos ·{" "}
+          {rurais.length > 0 && `${activeRurais.length} rurais ativas · `}
+          {newLeads} novos leads em 30 dias ·{" "}
           {weekVisits.length} visitas nesta semana
         </p>
       </div>
 
       {/* KPIs */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <StatCard
           label="Imóveis ativos"
           value={active}
-          caption={`${properties.length} no portfólio total`}
+          caption={`${urbanos.length} imóveis no portfólio`}
           icon={<Building2 className="size-4" />}
+        />
+        <StatCard
+          label="Rurais ativas"
+          value={activeRurais.length}
+          caption={
+            rurais.length
+              ? `${formatAlq(activeRuralAlq)} alq disponíveis · ${rurais.length} no total`
+              : "Nenhuma propriedade rural"
+          }
+          icon={<Tractor className="size-4" />}
         />
         <StatCard
           label="Novos leads"
@@ -150,9 +192,73 @@ export default async function CrmDashboard() {
           label="Pipeline aberto"
           value={pipelineValue}
           format="brl"
-          caption={`${openDeals.length} negociações em curso`}
+          caption={
+            ruralDeals.length
+              ? `${openDeals.length} negociações · ${formatCompact(ruralPipeline)} em rurais`
+              : `${openDeals.length} negociações em curso`
+          }
           icon={<Columns3 className="size-4" />}
         />
+      </div>
+
+      {/* Portfólio: imóveis x rurais */}
+      <div className="grid gap-4 md:grid-cols-2">
+        {(
+          [
+            { title: "Imóveis", href: "/crm/imoveis", icon: Building2, data: portfolio[0], rural: false },
+            { title: "Propriedades rurais", href: "/crm/propriedades", icon: Tractor, data: portfolio[1], rural: true },
+          ] as const
+        ).map((c) => (
+          <Link
+            key={c.href}
+            href={c.href}
+            className="card-elev group rounded-2xl border border-hairline bg-card p-6 transition-colors hover:border-hairline-strong"
+          >
+            <div className="flex items-center justify-between">
+              <h2 className="flex items-center gap-2 font-display text-base font-semibold tracking-tight">
+                <c.icon className="size-4 text-subtle" />
+                {c.title}
+              </h2>
+              <ArrowUpRight className="size-4 text-subtle transition-colors group-hover:text-ink" />
+            </div>
+            <div className="mt-5 grid grid-cols-3 gap-3">
+              <div>
+                <p className="font-mono text-2xl font-medium tabular">{c.data.disponiveis}</p>
+                <p className="text-[11px] text-subtle">disponíveis de {c.data.total}</p>
+              </div>
+              <div>
+                <p className="font-mono text-2xl font-medium tabular">
+                  {c.rural ? formatAlq(c.data.alq) : c.data.publicados}
+                </p>
+                <p className="text-[11px] text-subtle">
+                  {c.rural ? "alqueires disponíveis" : "publicados no site"}
+                </p>
+              </div>
+              <div>
+                <p className="font-mono text-2xl font-medium tabular">{formatCompact(c.data.vgv)}</p>
+                <p className="text-[11px] text-subtle">VGV disponível</p>
+              </div>
+            </div>
+            <div className="mt-5 flex flex-wrap items-center gap-1.5 border-t border-hairline pt-4">
+              {c.data.byType.length ? (
+                c.data.byType.map(([t, n]) => (
+                  <span key={t} className="rounded-full bg-soft px-2.5 py-1 text-[11px]">
+                    {TYPE_LABELS[t]} <span className="font-mono text-subtle">{n}</span>
+                  </span>
+                ))
+              ) : (
+                <span className="text-xs text-subtle">
+                  {c.rural ? "Cadastre a primeira fazenda, sítio ou chácara." : "Nenhum imóvel cadastrado."}
+                </span>
+              )}
+              {c.rural && c.data.precoMedioAlq && (
+                <span className="ml-auto font-mono text-[11px] text-subtle">
+                  média {formatCompact(c.data.precoMedioAlq)}/alq
+                </span>
+              )}
+            </div>
+          </Link>
+        ))}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
