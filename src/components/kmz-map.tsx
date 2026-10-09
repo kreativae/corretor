@@ -59,11 +59,11 @@ function normalizeKml(text: string) {
   );
 }
 
-/** Plano B: transforma cada <coordinates> em polígono (fechado) ou linha. */
-function rawCoordinates(dom: Document): Geo {
+/** Plano B: transforma cada bloco de coordenadas em polígono (fechado), linha ou ponto. */
+function coordsToGeo(blocks: string[]): Geo {
   const features: GeoJSON.Feature[] = [];
-  for (const el of Array.from(dom.getElementsByTagName("coordinates"))) {
-    const pts = (el.textContent ?? "")
+  for (const block of blocks) {
+    const pts = block
       .trim()
       .split(/\s+/)
       .map((t) => t.split(",").map(Number))
@@ -80,13 +80,28 @@ function rawCoordinates(dom: Document): Geo {
   return { type: "FeatureCollection", features };
 }
 
+/** Extrai <coordinates> direto do texto — funciona mesmo com XML malformado. */
+function regexCoordinates(text: string): Geo {
+  const blocks = [...text.matchAll(/<(?:[\w-]+:)?coordinates[^>]*>([\s\S]*?)<\/(?:[\w-]+:)?coordinates>/gi)].map(
+    (m) => m[1].replace(/,\s+/g, ","),
+  );
+  return coordsToGeo(blocks);
+}
+
 async function parseKml(text: string): Promise<Geo> {
-  const dom = new DOMParser().parseFromString(normalizeKml(text), "text/xml");
-  if (dom.getElementsByTagName("parsererror").length) throw new Error("KML inválido");
+  const head = text.slice(0, 500).toLowerCase();
+  if (head.includes("<!doctype html") || head.includes("<html")) {
+    throw new Error("o servidor devolveu uma página em vez do arquivo");
+  }
+  const normalized = normalizeKml(text);
+  const dom = new DOMParser().parseFromString(normalized, "text/xml");
+  // XML malformado (& sem escape, prefixo não declarado…): o Google Earth aceita,
+  // o navegador não — cai para a extração direta das coordenadas.
+  if (dom.getElementsByTagName("parsererror").length) return regexCoordinates(normalized);
   const { kml } = await import("@tmcw/togeojson");
   const geo = kml(dom) as Geo;
   geo.features = geo.features.filter((f) => f.geometry);
-  return geo.features.length ? geo : rawCoordinates(dom);
+  return geo.features.length ? geo : regexCoordinates(normalized);
 }
 
 /** Lê .kmz (zip, com um ou vários KML) ou .kml e devolve GeoJSON. */
@@ -119,6 +134,7 @@ export function KmzMap({ url, className }: { url: string; className?: string }) 
   const el = useRef<HTMLDivElement>(null);
   const [state, setState] = useState<"loading" | "ready" | "error" | "empty">("loading");
   const [info, setInfo] = useState<{ alq: number; center: [number, number] } | null>(null);
+  const [detail, setDetail] = useState("");
 
   useEffect(() => {
     let map: import("leaflet").Map | null = null;
@@ -153,7 +169,10 @@ export function KmzMap({ url, className }: { url: string; className?: string }) 
         }
       } catch (e) {
         console.error(e);
-        if (!cancelled) setState("error");
+        if (!cancelled) {
+          setDetail(e instanceof Error ? e.message : String(e));
+          setState("error");
+        }
       }
     })();
     return () => {
@@ -180,7 +199,12 @@ export function KmzMap({ url, className }: { url: string; className?: string }) 
         )}
         {state === "error" && (
           <div className="absolute inset-0 flex items-center justify-center bg-neutral-900 px-6 text-center text-sm text-white/70">
-            Não foi possível exibir o mapa aqui. Baixe o arquivo KMZ para abrir no Google Earth.
+            <span>
+              Não foi possível exibir o mapa aqui. Baixe o arquivo KMZ para abrir no Google Earth.
+              {detail && (
+                <span className="mt-2 block font-mono text-[11px] text-white/40">Detalhe: {detail}</span>
+              )}
+            </span>
           </div>
         )}
         {info && (
