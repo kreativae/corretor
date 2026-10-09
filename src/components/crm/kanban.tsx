@@ -4,23 +4,52 @@ import { LeadDrawer } from "@/components/crm/lead-drawer";
 import { Button, Field, Input, Modal, Select } from "@/components/ui";
 import { DEAL_STAGES } from "@/lib/labels";
 import type { DealFull } from "@/lib/queries";
+import { formatAlq, isRuralType, normalizeRural } from "@/lib/rural";
 import { cn, formatCompact, initials } from "@/lib/utils";
-import { Handshake, Plus } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { Building2, Handshake, Layers, Plus, Tractor } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+
+export type PipelineTab = "imoveis" | "rurais" | "todos";
+
+const isRuralDeal = (d: DealFull) => isRuralType(d.property?.type);
 
 export function Kanban({
   initialDeals,
   contacts,
   properties,
+  initialTab = "imoveis",
 }: {
   initialDeals: DealFull[];
   contacts: { id: string; name: string }[];
-  properties: { id: string; code: string; title: string; price: number }[];
+  properties: { id: string; code: string; title: string; price: number; type: string }[];
+  initialTab?: PipelineTab;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [deals, setDeals] = useState(initialDeals);
+  const [tab, setTab] = useState<PipelineTab>(initialTab);
+  // Negociações sem imóvel definido ficam junto dos imóveis urbanos
+  const visible = useMemo(
+    () =>
+      tab === "todos"
+        ? deals
+        : deals.filter((d) => (tab === "rurais" ? isRuralDeal(d) : !isRuralDeal(d))),
+    [deals, tab],
+  );
+  const counts = {
+    imoveis: deals.filter((d) => !isRuralDeal(d)).length,
+    rurais: deals.filter(isRuralDeal).length,
+    todos: deals.length,
+  };
+  const modalProperties =
+    tab === "todos" ? properties : properties.filter((p) => isRuralType(p.type) === (tab === "rurais"));
+
+  function switchTab(t: PipelineTab) {
+    setTab(t);
+    router.replace(t === "imoveis" ? pathname : `${pathname}?tipo=${t}`, { scroll: false });
+  }
   const [dragId, setDragId] = useState<string | null>(null);
   const [overStage, setOverStage] = useState<string | null>(null);
   const [previewId, setPreviewId] = useState<string | null>(null);
@@ -31,9 +60,9 @@ export function Kanban({
   const byStage = useMemo(() => {
     const map = new Map<string, DealFull[]>();
     for (const s of DEAL_STAGES) map.set(s.id, []);
-    for (const d of deals) map.get(d.deal.stage)?.push(d);
+    for (const d of visible) map.get(d.deal.stage)?.push(d);
     return map;
-  }, [deals]);
+  }, [visible]);
 
   async function move(dealId: string, stage: string) {
     const prev = deals;
@@ -90,7 +119,7 @@ export function Kanban({
             ? ({ id: contact.id, name: contact.name } as DealFull["contact"])
             : null,
           property: property
-            ? ({ id: property.id, code: property.code, title: property.title, price: property.price } as DealFull["property"])
+            ? ({ id: property.id, code: property.code, title: property.title, price: property.price, type: property.type } as DealFull["property"])
             : null,
         },
         ...arr,
@@ -108,7 +137,29 @@ export function Kanban({
 
   return (
     <div>
-      <div className="mb-4 flex justify-end">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="inline-flex rounded-full border border-hairline p-1">
+          {(
+            [
+              { id: "imoveis", label: "Imóveis", icon: Building2 },
+              { id: "rurais", label: "Rurais", icon: Tractor },
+              { id: "todos", label: "Todos", icon: Layers },
+            ] as const
+          ).map((t) => (
+            <button
+              key={t.id}
+              onClick={() => switchTab(t.id)}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium transition-all duration-300",
+                tab === t.id ? "bg-ink text-canvas" : "text-subtle hover:text-ink",
+              )}
+            >
+              <t.icon className="size-3.5" />
+              {t.label}
+              <span className="font-mono text-[10.5px] opacity-60">{counts[t.id]}</span>
+            </button>
+          ))}
+        </div>
         <Button variant="primary" onClick={() => setOpen(true)}>
           <Plus className="size-4" />
           Nova negociação
@@ -178,6 +229,14 @@ export function Kanban({
                         {contact?.name ?? "Contato removido"}
                       </p>
                     </div>
+                    {property && isRuralType(property.type) && (
+                      <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600">
+                        <Tractor className="size-3" />
+                        {normalizeRural(property.rural).totalAlq
+                          ? `${formatAlq(normalizeRural(property.rural).totalAlq ?? 0)} alq`
+                          : "Rural"}
+                      </span>
+                    )}
                     {property && (
                       <p className="mt-2 truncate text-[11.5px] text-subtle">
                         <span className="font-mono text-[10px] uppercase tracking-wider">
@@ -218,7 +277,7 @@ export function Kanban({
               ))}
             </Select>
           </Field>
-          <Field label="Imóvel de interesse">
+          <Field label={tab === "rurais" ? "Propriedade de interesse" : "Imóvel de interesse"}>
             <Select
               value={form.propertyId}
               onChange={(e) => {
@@ -228,7 +287,7 @@ export function Kanban({
               }}
             >
               <option value="">A definir…</option>
-              {properties.map((p) => (
+              {modalProperties.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.code} — {p.title} · {formatCompact(p.price)}
                 </option>
