@@ -43,9 +43,17 @@ export function PhotoManager({
         });
         onChange((cur) => [...cur, blob.url]);
       } catch (e) {
-        toast.error(
-          `${file.name}: ${e instanceof Error && e.message ? e.message : "falha no envio"}`,
-        );
+        // O erro do Blob é genérico; pergunta ao servidor o motivo real
+        const diag = await fetch("/api/uploads")
+          .then((r) => r.json())
+          .catch(() => null);
+        const reason =
+          diag && !diag.ok && diag.error
+            ? diag.error
+            : e instanceof Error && e.message
+              ? e.message
+              : "falha no envio";
+        toast.error(`${file.name}: ${reason}`);
       } finally {
         setPending((p) => p.filter((x) => x.id !== id));
       }
