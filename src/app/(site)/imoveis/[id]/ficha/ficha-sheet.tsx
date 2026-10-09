@@ -11,7 +11,7 @@ import {
   Trees,
 } from "lucide-react";
 
-const MAX_FEATURES = 14;
+const MAX_FEATURES = 24;
 
 /**
  * Ficha em uma única folha A4 (210 × 297 mm), igual na tela e na impressão.
@@ -156,7 +156,7 @@ export function FichaSheet({
       {/* Descrição + comodidades: ocupam o espaço restante */}
       <div
         className={`mt-[5mm] grid min-h-0 flex-1 gap-[7mm] ${
-          features.length ? "grid-cols-[1.55fr_1fr]" : "grid-cols-1"
+          features.length ? "grid-cols-[1.15fr_1fr]" : "grid-cols-1"
         }`}
       >
         <section className="flex min-h-0 flex-col">
@@ -172,15 +172,15 @@ export function FichaSheet({
             <h2 className="text-[9.5px] font-semibold uppercase tracking-[0.2em] text-neutral-400">
               Comodidades
             </h2>
-            <ul className="mt-2 space-y-1.5">
+            <ul className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5">
               {features.map((f) => (
-                <li key={f} className="flex items-start gap-2 text-[11px] leading-snug">
+                <li key={f} className="flex min-w-0 items-start gap-1.5 text-[10.5px] leading-snug">
                   <Check className="mt-0.5 size-3 shrink-0 text-emerald-600" />
-                  <span className="line-clamp-1">{f}</span>
+                  <span className="line-clamp-2">{f}</span>
                 </li>
               ))}
               {extraFeatures > 0 && (
-                <li className="pl-5 text-[10.5px] text-neutral-500">
+                <li className="col-span-2 pl-[18px] text-[10px] text-neutral-500">
                   + {extraFeatures} outras
                 </li>
               )}
