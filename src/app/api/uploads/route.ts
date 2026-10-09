@@ -1,13 +1,8 @@
 import { getCurrentUser } from "@/lib/auth";
+import { blobToken, MEDIA_PREFIX } from "@/lib/blob";
+import { requestPublicOrigin } from "@/lib/google";
 import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
-
-/** Token do Blob — aceita prefixo customizado (ex.: CORRETOR_BLOB_READ_WRITE_TOKEN). */
-function blobToken() {
-  if (process.env.BLOB_READ_WRITE_TOKEN) return process.env.BLOB_READ_WRITE_TOKEN;
-  const key = Object.keys(process.env).find((k) => k.endsWith("_READ_WRITE_TOKEN"));
-  return key ? process.env[key] : undefined;
-}
 
 /** Diagnóstico: o armazenamento está configurado e o usuário está logado? */
 export async function GET() {
@@ -52,13 +47,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Arquivo acima de 4 MB." }, { status: 413 });
     }
     const ext = file.type.split("/")[1].replace("jpeg", "jpg");
-    const blob = await put(`imoveis/foto.${ext}`, file, {
-      access: "public",
-      token,
-      addRandomSuffix: true,
-      contentType: file.type,
-    });
-    return NextResponse.json({ url: blob.url });
+    const pathname = `${MEDIA_PREFIX}foto.${ext}`;
+    const options = { token, addRandomSuffix: true, contentType: file.type } as const;
+    try {
+      const blob = await put(pathname, file, { ...options, access: "public" });
+      return NextResponse.json({ url: blob.url });
+    } catch (e) {
+      // Store privado: grava privado e serve pelo proxy /api/media (com cache de CDN)
+      if (!(e instanceof Error && /private/i.test(e.message))) throw e;
+      const blob = await put(pathname, file, { ...options, access: "private" });
+      return NextResponse.json({
+        url: `${requestPublicOrigin(req)}/api/media/${blob.pathname}`,
+      });
+    }
   } catch (e) {
     console.error(e);
     const message = e instanceof Error ? e.message : "Falha no upload";
