@@ -1,3 +1,4 @@
+import { LeadForm } from "@/components/site/lead-form";
 import { isRuralType } from "@/lib/rural";
 import { PropertyCard } from "@/components/site/property-card";
 import { SiteFooter } from "@/components/site/site-footer";
@@ -314,6 +315,27 @@ export default async function HomePage() {
               <p className="mt-3 text-sm leading-relaxed text-subtle">{s.body}</p>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* ───────────── FALE COM A GENTE ───────────── */}
+      <section id="fale-conosco" className="container-x scroll-mt-24 pb-20 md:pb-28">
+        <div className="grid gap-10 rounded-3xl border border-hairline bg-card p-6 md:grid-cols-[0.8fr_1.2fr] md:p-12">
+          <div data-reveal>
+            <p className="font-mono text-[11px] uppercase tracking-[0.24em] text-subtle">
+              Fale com a gente
+            </p>
+            <h2 className="mt-3 font-display text-3xl font-semibold tracking-tight md:text-4xl">
+              Conte o que você procura.
+            </h2>
+            <p className="mt-4 max-w-sm text-sm leading-relaxed text-subtle">
+              Imóvel na cidade ou propriedade rural: deixe seu contato e um corretor
+              retorna pelo WhatsApp.
+            </p>
+          </div>
+          <div data-reveal data-delay="0.1">
+            <LeadForm />
+          </div>
         </div>
       </section>
 

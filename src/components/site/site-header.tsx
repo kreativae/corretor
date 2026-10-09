@@ -13,7 +13,7 @@ const LINKS = [
   { href: "/imoveis?categoria=rurais", label: "Rurais" },
   { href: "/#colecao", label: "Coleção" },
   { href: "/#experiencia", label: "Experiência" },
-  { href: "/#contato", label: "Contato" },
+  { href: "/#fale-conosco", label: "Contato" },
 ];
 
 export function SiteHeader({
