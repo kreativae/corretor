@@ -80,11 +80,30 @@ function coordsToGeo(blocks: string[]): Geo {
   return { type: "FeatureCollection", features };
 }
 
-/** Extrai <coordinates> direto do texto — funciona mesmo com XML malformado. */
-function regexCoordinates(text: string): Geo {
-  const blocks = [...text.matchAll(/<(?:[\w-]+:)?coordinates[^>]*>([\s\S]*?)<\/(?:[\w-]+:)?coordinates>/gi)].map(
-    (m) => m[1].replace(/,\s+/g, ","),
+const tagText = (text: string, tag: string) =>
+  [...text.matchAll(new RegExp(`<(?:[\\w-]+:)?${tag}(?=[\\s>])[^>]*>([\\s\\S]*?)<\\/(?:[\\w-]+:)?${tag}>`, "gi"))].map(
+    (m) => m[1].replace(/<!\[CDATA\[|\]\]>/g, "").trim(),
   );
+
+/**
+ * Extrai geometrias direto do texto — funciona mesmo com XML malformado.
+ * Cobre <coordinates>, trajetos <gx:coord> e imagens <LatLonBox>.
+ */
+function regexCoordinates(text: string): Geo {
+  const blocks = tagText(text, "coordinates").map((c) => c.replace(/,\s+/g, ","));
+  // gx:Track: "lng lat alt" por elemento
+  const track = tagText(text, "coord")
+    .map((c) => c.split(/\s+/).slice(0, 2).join(","))
+    .join(" ");
+  if (track) blocks.push(track);
+  // GroundOverlay: retângulo north/south/east/west
+  for (const box of tagText(text, "LatLonBox")) {
+    const v = (t: string) => Number(tagText(box, t)[0]);
+    const [n, so, e, w] = [v("north"), v("south"), v("east"), v("west")];
+    if ([n, so, e, w].every(Number.isFinite)) {
+      blocks.push(`${w},${n} ${e},${n} ${e},${so} ${w},${so} ${w},${n}`);
+    }
+  }
   return coordsToGeo(blocks);
 }
 
@@ -104,29 +123,64 @@ async function parseKml(text: string): Promise<Geo> {
   return geo.features.length ? geo : regexCoordinates(normalized);
 }
 
+/** Resumo do conteúdo para a mensagem de "sem perímetro" (ajuda o suporte). */
+export type KmzDiag = { lines: string[] };
+
+function describeText(name: string, text: string) {
+  const count = (tag: string) =>
+    (text.match(new RegExp(`<(?:[\\w-]+:)?${tag}[\\s>]`, "gi")) ?? []).length;
+  const tags = ["Placemark", "Polygon", "LineString", "Point", "coordinates", "coord", "GroundOverlay", "NetworkLink"]
+    .map((t) => `${t}:${count(t)}`)
+    .join(" ");
+  const href = tagText(text, "href")[0];
+  return `${name} (${text.length} car.) ${tags}${href ? ` href=${href.slice(0, 80)}` : ""}`;
+}
+
+async function gunzip(bytes: Uint8Array) {
+  const stream = new Blob([bytes as BlobPart]).stream().pipeThrough(new DecompressionStream("gzip"));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
 /** Lê .kmz (zip, com um ou vários KML) ou .kml e devolve GeoJSON. */
-export async function loadKmz(url: string): Promise<Geo> {
+export async function loadKmz(url: string, diag?: KmzDiag): Promise<Geo> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const bytes = new Uint8Array(await res.arrayBuffer());
+  let bytes = new Uint8Array(await res.arrayBuffer());
+  const sig = Array.from(bytes.slice(0, 4), (b) => b.toString(16).padStart(2, "0")).join(" ");
+  diag?.lines.push(`${bytes.length} bytes · ${res.headers.get("content-type") ?? "?"} · início ${sig}`);
+  if (bytes[0] === 0x1f && bytes[1] === 0x8b) {
+    bytes = await gunzip(bytes);
+    diag?.lines.push(`gzip → ${bytes.length} bytes`);
+  }
   if (bytes[0] === 0x50 && bytes[1] === 0x4b) {
     const JSZip = (await import("jszip")).default;
     const zip = await JSZip.loadAsync(bytes);
+    const names = Object.values(zip.files).filter((f) => !f.dir).map((f) => f.name);
+    diag?.lines.push(`zip: ${names.slice(0, 12).join(", ")}${names.length > 12 ? "…" : ""}`);
+    if (names.some((n) => n.toLowerCase().endsWith(".shp"))) {
+      throw new Error(
+        "este arquivo é um shapefile (.shp) compactado, não um KMZ. Abra no Google Earth ou QGIS e exporte como KMZ",
+      );
+    }
     const kmls = Object.values(zip.files).filter(
       (f) => !f.dir && f.name.toLowerCase().endsWith(".kml"),
     );
     if (!kmls.length) throw new Error("KMZ sem arquivo KML");
     const all: GeoJSON.Feature[] = [];
     for (const f of kmls) {
+      const text = decodeText(await f.async("uint8array"));
+      diag?.lines.push(describeText(f.name, text));
       try {
-        all.push(...(await parseKml(decodeText(await f.async("uint8array")))).features);
+        all.push(...(await parseKml(text)).features);
       } catch (e) {
-        console.warn(`[kmz] ${f.name}:`, e);
+        diag?.lines.push(`${f.name}: ${e instanceof Error ? e.message : e}`);
       }
     }
     return { type: "FeatureCollection", features: all };
   }
-  return parseKml(decodeText(bytes));
+  const text = decodeText(bytes);
+  diag?.lines.push(describeText("arquivo", text));
+  return parseKml(text);
 }
 
 /** Mapa de satélite com o perímetro do KMZ. */
@@ -135,13 +189,18 @@ export function KmzMap({ url, className }: { url: string; className?: string }) 
   const [state, setState] = useState<"loading" | "ready" | "error" | "empty">("loading");
   const [info, setInfo] = useState<{ alq: number; center: [number, number] } | null>(null);
   const [detail, setDetail] = useState("");
+  const [diagLines, setDiagLines] = useState<string[]>([]);
 
   useEffect(() => {
     let map: import("leaflet").Map | null = null;
     let cancelled = false;
     (async () => {
       try {
-        const [L, geo] = await Promise.all([import("leaflet").then((m) => m.default), loadKmz(url)]);
+        const diag: KmzDiag = { lines: [] };
+        const [L, geo] = await Promise.all([
+          import("leaflet").then((m) => m.default),
+          loadKmz(url, diag).finally(() => setDiagLines(diag.lines)),
+        ]);
         if (cancelled || !el.current) return;
         map = L.map(el.current, { zoomControl: true, attributionControl: true });
         L.tileLayer(
@@ -195,6 +254,13 @@ export function KmzMap({ url, className }: { url: string; className?: string }) 
           <div className="absolute inset-x-4 top-4 z-[500] rounded-xl bg-black/75 px-4 py-3 text-center text-sm text-white backdrop-blur">
             O arquivo foi lido, mas não contém um perímetro reconhecível (polígono, linha ou
             ponto). Confira no Google Earth se ele mostra a área e exporte novamente como KMZ.
+            {diagLines.length > 0 && (
+              <span className="mt-2 block break-all text-left font-mono text-[10.5px] leading-relaxed text-white/50">
+                {diagLines.map((l, i) => (
+                  <span key={i} className="block">{l}</span>
+                ))}
+              </span>
+            )}
           </div>
         )}
         {state === "error" && (
@@ -204,6 +270,9 @@ export function KmzMap({ url, className }: { url: string; className?: string }) 
               {detail && (
                 <span className="mt-2 block font-mono text-[11px] text-white/40">Detalhe: {detail}</span>
               )}
+              {diagLines.map((l, i) => (
+                <span key={i} className="block break-all font-mono text-[10.5px] text-white/30">{l}</span>
+              ))}
             </span>
           </div>
         )}
