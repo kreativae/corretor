@@ -17,6 +17,32 @@ export const GOOGLE_SCOPES: Record<string, string[]> = {
   ],
 };
 
+/** Garante que os cartões do Google existam (base sem seed). */
+export async function ensureGoogleIntegrations() {
+  await db
+    .insert(integrations)
+    .values([
+      {
+        provider: "google_contacts",
+        name: "Google Contacts",
+        category: "google",
+        scopes: GOOGLE_SCOPES.google_contacts,
+        syncIntervalMin: 30,
+        statusMessage: "Configure as credenciais do Google Cloud e autorize a conta.",
+      },
+      {
+        provider: "google_calendar",
+        name: "Google Calendar",
+        category: "google",
+        calendarId: "primary",
+        scopes: GOOGLE_SCOPES.google_calendar,
+        syncIntervalMin: 15,
+        statusMessage: "Configure as credenciais do Google Cloud e autorize a conta.",
+      },
+    ])
+    .onConflictDoNothing({ target: integrations.provider });
+}
+
 export function requestPublicOrigin(req: Request) {
   const forwardedHost = req.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
   const host = forwardedHost || req.headers.get("host") || new URL(req.url).host;

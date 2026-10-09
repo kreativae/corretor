@@ -1,6 +1,7 @@
 import { IntegrationsClient } from "@/components/admin/integrations-client";
 import { db } from "@/db";
 import { apiKeys, integrations } from "@/db/schema";
+import { ensureGoogleIntegrations } from "@/lib/google";
 import { getWhiteLabel } from "@/lib/queries";
 import type { Metadata } from "next";
 
@@ -8,6 +9,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Configurações" };
 
 export default async function ConfiguracoesPage() {
+  await ensureGoogleIntegrations();
   const [ints, keys, wl] = await Promise.all([
     db.select().from(integrations).orderBy(integrations.name),
     db.select().from(apiKeys).orderBy(apiKeys.createdAt),
