@@ -1,8 +1,10 @@
 import { db } from "@/db";
 import { activities, contacts } from "@/db/schema";
 import { TYPE_LABELS } from "@/lib/labels";
+import { requestPublicOrigin } from "@/lib/google";
+import { notifyNewLead } from "@/lib/notify";
 import { sql } from "drizzle-orm";
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 
 /**
  * Formulário "Fale com a gente" do site público — sem login e sem chave.
@@ -106,6 +108,22 @@ export async function POST(req: Request) {
         ? `${existing.name} voltou a entrar em contato pelo site${interestLabel}.`
         : `${name} entrou em contato pelo formulário do site${interestLabel}.`,
     });
+
+    // E-mail de aviso depois da resposta, sem atrasar o visitante
+    const baseUrl = requestPublicOrigin(req);
+    after(() =>
+      notifyNewLead({
+        contactId,
+        name: existing?.name ?? name,
+        phone,
+        email: email || existing?.email,
+        interest: interestTypes[0],
+        message,
+        origin: "Formulário do site",
+        baseUrl,
+        returning: !!existing,
+      }),
+    );
 
     return NextResponse.json({ ok: true }, { status: 201 });
   } catch (e) {

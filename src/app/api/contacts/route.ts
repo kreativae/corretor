@@ -1,7 +1,9 @@
 import { db } from "@/db";
 import { activities, contacts } from "@/db/schema";
 import { apiAuth, unauthorized } from "@/lib/api-auth";
-import { NextResponse } from "next/server";
+import { requestPublicOrigin } from "@/lib/google";
+import { notifyNewLead } from "@/lib/notify";
+import { after, NextResponse } from "next/server";
 
 /**
  * Cria contato. Usado pelo CRM (sessão) e pelo "Webhook de leads" de sistemas
@@ -39,6 +41,23 @@ export async function POST(req: Request) {
       kind: "lead",
       text: `${created.name} entrou para a agenda (origem: ${created.source}).`,
     });
+
+    // Lead vindo de integração externa (chave de API) gera aviso por e-mail
+    if (caller.kind === "key") {
+      const baseUrl = requestPublicOrigin(req);
+      after(() =>
+        notifyNewLead({
+          contactId: created.id,
+          name: created.name,
+          phone: created.phone,
+          email: created.email,
+          interest: created.interestTypes[0],
+          message: created.notes,
+          origin: `Integração: ${caller.label}`,
+          baseUrl,
+        }),
+      );
+    }
 
     return NextResponse.json(created, { status: 201 });
   } catch (e) {

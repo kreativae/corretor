@@ -41,6 +41,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
     }
     if (key === "whiteLabel") value = sanitizeWhiteLabel(value ?? {});
+    if (key === "notifications") {
+      value = { leadEmails: String(value?.leadEmails ?? "").slice(0, 500) };
+    }
 
     const existing = await db
       .select()

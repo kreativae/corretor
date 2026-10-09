@@ -1,5 +1,7 @@
 import { IntegrationsClient } from "@/components/admin/integrations-client";
+import { NotificationsCard } from "@/components/admin/notifications-card";
 import { WhiteLabelCard } from "@/components/admin/white-label-card";
+import { emailConfigured, getNotifySettings } from "@/lib/notify";
 import { db } from "@/db";
 import { apiKeys, integrations } from "@/db/schema";
 import { ensureGoogleIntegrations } from "@/lib/google";
@@ -16,6 +18,7 @@ export default async function ConfiguracoesPage() {
     db.select().from(apiKeys).orderBy(apiKeys.createdAt),
     getWhiteLabel(),
   ]);
+  const notify = await getNotifySettings();
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -34,6 +37,11 @@ export default async function ConfiguracoesPage() {
         </p>
       </div>
       <WhiteLabelCard initial={wl} />
+      <NotificationsCard
+        initialEmails={notify.leadEmails}
+        fallbackEmail={wl.email}
+        configured={emailConfigured()}
+      />
       <IntegrationsClient
         integrations={ints.map((item) => ({
           id: item.id,

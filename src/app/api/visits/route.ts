@@ -3,12 +3,15 @@ import { activities, contacts, properties, visits } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { formatDate } from "@/lib/utils";
 import { apiUser, unauthorized } from "@/lib/api-auth";
-import { NextResponse } from "next/server";
+import { requestPublicOrigin } from "@/lib/google";
+import { notifyNewLead } from "@/lib/notify";
+import { after, NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
     let contactId: string | null = body.contactId ?? null;
+    const fromSite = !contactId;
     // Agendar com contato existente (agenda do CRM) exige login
     if (contactId && !(await apiUser())) return unauthorized();
 
@@ -79,6 +82,22 @@ export async function POST(req: Request) {
       { entity: "imovel", entityId: body.propertyId, kind: "visit", text: label },
       { entity: "contato", entityId: contactId, kind: "visit", text: label },
     ]);
+
+    if (fromSite && contact) {
+      const baseUrl = requestPublicOrigin(req);
+      after(() =>
+        notifyNewLead({
+          contactId: contact.id,
+          name: contact.name,
+          phone: contact.phone,
+          email: contact.email,
+          interest: prop?.type,
+          origin: "Visita agendada pelo site",
+          detail: `${prop?.code ?? ""} ${prop?.title ?? ""} · ${formatDate(scheduledAt)} ${time}`.trim(),
+          baseUrl,
+        }),
+      );
+    }
 
     return NextResponse.json(created, { status: 201 });
   } catch (e) {
