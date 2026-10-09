@@ -61,7 +61,7 @@ export function FichaSheet({
   showIcon?: boolean;
   showName?: boolean;
   showDomain?: boolean;
-  /** QR code (SVG) para o mapa do KMZ — propriedades rurais */
+  /** QR code (SVG) para baixar o KMZ — propriedades rurais */
   qrSvg?: string;
 }) {
   const imgs = p.images.map((i) => i.url);
@@ -246,7 +246,7 @@ export function FichaSheet({
             <h2 className="shrink-0 text-[9.5px] font-semibold uppercase tracking-[0.2em] text-neutral-400">
               A propriedade
             </h2>
-            <dl className="mt-2 min-h-0 shrink space-y-1 overflow-hidden text-[10.5px] leading-snug">
+            <dl className="mt-2 min-h-0 flex-1 space-y-1 overflow-hidden text-[10.5px] leading-snug">
               {ruralRows.map(([k, v]) => (
                 <div key={k} className="flex gap-2 border-b border-neutral-100 pb-1">
                   <dt className="w-[24mm] shrink-0 text-neutral-500">{k}</dt>
@@ -254,21 +254,6 @@ export function FichaSheet({
                 </div>
               ))}
             </dl>
-            {qrSvg && (
-              <div className="mt-[4mm] flex shrink-0 items-center gap-3 rounded-md border border-neutral-200 p-2.5">
-                <div
-                  className="size-[26mm] shrink-0 [&>svg]:size-full"
-                  dangerouslySetInnerHTML={{ __html: qrSvg }}
-                />
-                <div className="min-w-0">
-                  <p className="text-[11px] font-semibold leading-tight">Mapa da propriedade</p>
-                  <p className="mt-1 text-[9.5px] leading-snug text-neutral-500">
-                    Aponte a câmera do celular para ver o perímetro em satélite, traçar a rota e
-                    baixar o KMZ para o Google Earth.
-                  </p>
-                </div>
-              </div>
-            )}
           </section>
         )}
         {!rural && features.length > 0 && (
@@ -294,7 +279,11 @@ export function FichaSheet({
       </div>
 
       {/* Rodapé */}
-      <footer className="mt-[5mm] flex shrink-0 items-center justify-between gap-4 rounded-md bg-neutral-900 px-4 py-3 text-white">
+      <footer
+        className={`mt-[5mm] flex shrink-0 items-center justify-between gap-4 rounded-md bg-neutral-900 px-4 text-white ${
+          qrSvg ? "py-2.5" : "py-3"
+        }`}
+      >
         <div className="min-w-0">
           <p className="truncate text-[12px] font-semibold">{brokerName}</p>
           <p className="truncate text-[10px] text-neutral-400">{brokerRole}</p>
@@ -305,10 +294,30 @@ export function FichaSheet({
             <span className="font-mono text-[13px] tabular">{phone}</span>
           </div>
         )}
-        {showDomain && (
+        {showDomain && !qrSvg && (
           <p className="shrink-0 text-right text-[9px] uppercase tracking-[0.16em] text-neutral-400">
             {domain}
           </p>
+        )}
+        {qrSvg && (
+          <div className="flex shrink-0 items-center gap-3">
+            <div className="text-right">
+              <p className="text-[11px] font-semibold leading-tight">Baixar o KMZ da propriedade</p>
+              <p className="mt-0.5 text-[9px] leading-snug text-neutral-400">
+                Aponte a câmera · abre no Google Earth
+                {showDomain && (
+                  <>
+                    <br />
+                    {domain}
+                  </>
+                )}
+              </p>
+            </div>
+            <div
+              className="size-[24mm] shrink-0 rounded-[2mm] bg-white p-[1.6mm] [&>svg]:size-full"
+              dangerouslySetInnerHTML={{ __html: qrSvg }}
+            />
+          </div>
         )}
       </footer>
     </article>

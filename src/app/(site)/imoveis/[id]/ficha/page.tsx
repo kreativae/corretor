@@ -45,13 +45,15 @@ export default async function FichaPage({
         ? `+${digits.slice(0, 2)} (${digits.slice(2, 4)}) ${digits.slice(4, 8)}-${digits.slice(8)}`
         : digits;
 
-  // QR code → página pública do mapa (KMZ), no domínio em que a ficha foi aberta
+  // QR code → download do KMZ (link fixo), no domínio em que a ficha foi aberta
+  const rural = isRuralType(p.type);
+  const ruralData = normalizeRural(p.rural);
   let qrSvg: string | undefined;
-  if (isRuralType(p.type) && normalizeRural(p.rural).kmzUrl) {
+  if (rural && ruralData.kmzUrl) {
     const h = await headers();
     const host = h.get("x-forwarded-host") ?? h.get("host");
     const proto = host?.startsWith("localhost") ? "http" : "https";
-    qrSvg = await QRCode.toString(`${proto}://${host}/imoveis/${p.code}/mapa`, {
+    qrSvg = await QRCode.toString(`${proto}://${host}/imoveis/${p.code}/kmz`, {
       type: "svg",
       margin: 0,
       errorCorrectionLevel: "M",
@@ -60,7 +62,14 @@ export default async function FichaPage({
 
   return (
     <div className="ficha-page min-h-screen overflow-x-auto bg-neutral-200 py-8 pb-28 print:bg-white print:p-0">
-      <PrintBar backHref={user ? `/crm/imoveis/${p.id}` : `/imoveis/${p.code}`} />
+      <PrintBar
+        backHref={user ? `/crm/imoveis/${p.id}` : `/imoveis/${p.code}`}
+        kmz={
+          user && rural
+            ? { propertyId: p.id, type: p.type, rural: ruralData }
+            : undefined
+        }
+      />
       <FichaSheet
         p={p}
         orgName={wl.orgName}
