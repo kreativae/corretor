@@ -3,6 +3,7 @@
 import { Button, Field, Input, Select, Switch, Textarea } from "@/components/ui";
 import { FEATURES, PURPOSE_LABELS, STATUS_LABELS, TYPE_LABELS } from "@/lib/labels";
 import type { PropertyWithImages } from "@/lib/queries";
+import { PhotoManager } from "./photo-manager";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, Check, ImageIcon, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -35,17 +36,16 @@ export function PropertyForm({ initial }: { initial?: PropertyWithImages }) {
     state: initial?.state ?? "SP",
     description: initial?.description ?? "",
     features: initial?.features ?? ([] as string[]),
-    imagesText: (initial?.images ?? []).map((i) => i.url).join("\n"),
+    images: (initial?.images ?? []).map((i) => i.url),
     published: initial?.published ?? true,
   });
 
   const set = (k: string, v: string | boolean | string[]) =>
     setForm((f) => ({ ...f, [k]: v }));
 
-  const imageUrls = form.imagesText
-    .split("\n")
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const imageUrls = form.images;
+  const setImages = (next: string[] | ((cur: string[]) => string[])) =>
+    setForm((f) => ({ ...f, images: typeof next === "function" ? next(f.images) : next }));
 
   function toggleFeature(f: string) {
     setForm((cur) => ({
@@ -274,30 +274,10 @@ export function PropertyForm({ initial }: { initial?: PropertyWithImages }) {
                 {imageUrls.length} {imageUrls.length === 1 ? "foto" : "fotos"}
               </span>
             </h2>
-            <Textarea
-              rows={5}
-              value={form.imagesText}
-              onChange={(e) => set("imagesText", e.target.value)}
-              placeholder={"Uma URL por linha\nhttps://…"}
-              className="font-mono text-xs"
-            />
-            {imageUrls.length > 0 && (
-              <div className="mt-4 grid grid-cols-4 gap-2">
-                {imageUrls.slice(0, 8).map((src, i) => (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    key={i}
-                    src={src}
-                    alt=""
-                    loading="lazy"
-                    className="aspect-square w-full rounded-lg object-cover"
-                  />
-                ))}
-              </div>
-            )}
+            <PhotoManager images={form.images} onChange={setImages} />
             <p className="mt-3 flex items-center gap-1.5 text-[11px] text-subtle">
               <ImageIcon className="size-3.5" />
-              A primeira URL vira a foto de capa.
+              A primeira foto vira a capa do anúncio.
             </p>
           </section>
 
