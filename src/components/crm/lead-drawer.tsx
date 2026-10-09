@@ -28,6 +28,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { DeleteContactButton } from "./delete-contact-button";
 
 type LeadData = {
   contact: Contact;
@@ -499,12 +500,27 @@ export function LeadDrawer({
               </Button>
             </div>
           ) : (
-            <Link href={`/crm/contatos/${contactId}`} onClick={onClose}>
-              <Button variant="primary" className="w-full">
-                Abrir perfil completo
-                <ArrowUpRight className="size-4" />
-              </Button>
-            </Link>
+            <div className="space-y-2">
+              <Link href={`/crm/contatos/${contactId}`} onClick={onClose}>
+                <Button variant="primary" className="w-full">
+                  Abrir perfil completo
+                  <ArrowUpRight className="size-4" />
+                </Button>
+              </Link>
+              {c && data && (
+                <DeleteContactButton
+                  contactId={c.id}
+                  contactName={c.name}
+                  linkedToGoogle={!!c.googleResourceName}
+                  dealsCount={data.deals.length}
+                  visitsCount={data.visits.length}
+                  onDeleted={() => {
+                    onClose();
+                    router.refresh();
+                  }}
+                />
+              )}
+            </div>
           )}
         </div>
       </aside>
