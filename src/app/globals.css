@@ -188,11 +188,26 @@ html.lenis body {
 
 /* ─────────────────────────── Impressão (ficha) ─────────────────────────── */
 
+/* Descrição longa some suavemente no fim da folha */
+.ficha-fade {
+  mask-image: linear-gradient(to bottom, #000 85%, transparent);
+}
+
 @media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
   .no-print {
     display: none !important;
   }
+  html,
   body {
     background: #fff !important;
+  }
+  .ficha-sheet {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+    break-inside: avoid;
   }
 }
