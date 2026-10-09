@@ -22,8 +22,10 @@ import {
   Pencil,
   Phone,
   Sparkles,
+  Tractor,
   X,
 } from "lucide-react";
+import { isRuralType } from "@/lib/rural";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -273,25 +275,37 @@ export function LeadDrawer({
                 <span className="mb-1.5 block text-xs font-medium text-subtle">
                   Interesse em
                 </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {Object.entries(TYPE_LABELS).map(([k, v]) => {
-                    const on = form.interestTypes.includes(k);
-                    return (
-                      <button
-                        key={k}
-                        type="button"
-                        onClick={() => toggleInterest(k)}
-                        className={cn(
-                          "rounded-full border px-3 py-1.5 text-xs font-medium transition-all",
-                          on
-                            ? "border-transparent bg-accent text-on-accent"
-                            : "border-hairline text-subtle hover:text-ink",
-                        )}
-                      >
-                        {v}
-                      </button>
-                    );
-                  })}
+                {/* Interesses agrupados: imóveis urbanos e propriedades rurais */}
+                <div className="space-y-2">
+                  {[false, true].map((rural) => (
+                    <div key={String(rural)} className="flex flex-wrap items-center gap-1.5">
+                      {rural ? (
+                        <Tractor className="size-3.5 text-subtle" aria-label="Rurais" />
+                      ) : (
+                        <Building2 className="size-3.5 text-subtle" aria-label="Imóveis" />
+                      )}
+                      {Object.entries(TYPE_LABELS)
+                        .filter(([k]) => isRuralType(k) === rural)
+                        .map(([k, v]) => {
+                          const on = form.interestTypes.includes(k);
+                          return (
+                            <button
+                              key={k}
+                              type="button"
+                              onClick={() => toggleInterest(k)}
+                              className={cn(
+                                "rounded-full border px-3 py-1.5 text-xs font-medium transition-all",
+                                on
+                                  ? "border-transparent bg-accent text-on-accent"
+                                  : "border-hairline text-subtle hover:text-ink",
+                              )}
+                            >
+                              {v}
+                            </button>
+                          );
+                        })}
+                    </div>
+                  ))}
                 </div>
               </div>
               <Field label="Bairros de interesse" hint="Separados por vírgula">
@@ -363,11 +377,20 @@ export function LeadDrawer({
                 </p>
                 {(c.interestTypes.length > 0 || c.neighborhoods.length > 0) && (
                   <div className="mt-2.5 flex flex-wrap gap-1.5">
-                    {c.interestTypes.map((t) => (
-                      <Badge key={t} className="border-transparent bg-soft text-subtle">
-                        {TYPE_LABELS[t]}
-                      </Badge>
-                    ))}
+                    {[...c.interestTypes]
+                      .sort((x, y) => Number(isRuralType(x)) - Number(isRuralType(y)))
+                      .map((t) =>
+                        isRuralType(t) ? (
+                          <Badge key={t} className="gap-1 border-transparent bg-emerald-500/10 text-emerald-600">
+                            <Tractor className="size-3" />
+                            {TYPE_LABELS[t]}
+                          </Badge>
+                        ) : (
+                          <Badge key={t} className="border-transparent bg-soft text-subtle">
+                            {TYPE_LABELS[t]}
+                          </Badge>
+                        ),
+                      )}
                     {c.neighborhoods.map((n) => (
                       <Badge key={n}>{n}</Badge>
                     ))}
