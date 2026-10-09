@@ -302,7 +302,13 @@ export default async function ImovelPage({ params }: { params: Params }) {
           </section>
         )}
       </main>
-      <SiteFooter orgName={wl.orgName} phone={wl.phone} footer={content.footer} />
+      <SiteFooter
+        orgName={wl.orgName}
+        phone={wl.phone}
+        footer={content.footer}
+        email={wl.email}
+        instagram={wl.instagram}
+      />
     </div>
   );
 }

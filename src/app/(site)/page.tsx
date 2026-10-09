@@ -361,7 +361,13 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <SiteFooter orgName={wl.orgName} phone={wl.phone} footer={content.footer} />
+      <SiteFooter
+        orgName={wl.orgName}
+        phone={wl.phone}
+        footer={content.footer}
+        email={wl.email}
+        instagram={wl.instagram}
+      />
     </div>
   );
 }

@@ -7,5 +7,10 @@ export function blobToken() {
   return key ? process.env[key] : undefined;
 }
 
-/** Fotos de imóveis ficam sob este prefixo; só ele é servido por /api/media. */
-export const MEDIA_PREFIX = "imoveis/";
+/** Pastas permitidas no Blob; só elas são servidas por /api/media. */
+export const MEDIA_FOLDERS = ["imoveis", "marca"] as const;
+export type MediaFolder = (typeof MEDIA_FOLDERS)[number];
+
+export function isMediaPath(pathname: string) {
+  return MEDIA_FOLDERS.some((f) => pathname.startsWith(`${f}/`)) && !pathname.includes("..");
+}

@@ -87,10 +87,7 @@ export function AppShell({
     <div className="flex h-full flex-col">
       <div className="flex h-16 items-center justify-between px-5">
         <Link href="/">
-          <Wordmark
-            name="ImobManager"
-            sub={mode === "crm" ? "CRM OPERACIONAL" : "ADMIN MASTER"}
-          />
+          <Wordmark sub={mode === "crm" ? "CRM OPERACIONAL" : "ADMIN MASTER"} />
         </Link>
         <button
           className="rounded-full p-1.5 text-subtle hover:bg-soft lg:hidden"

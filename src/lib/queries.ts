@@ -25,19 +25,43 @@ import { count, countDistinct, desc, eq, gte, inArray, sql } from "drizzle-orm";
 
 export type WhiteLabel = {
   orgName: string;
+  /** Nome curto exibido ao lado do ícone (vazio = primeira palavra do nome) */
+  shortName: string;
+  /** Linha pequena abaixo do nome curto, ex.: IMÓVEIS */
+  brandSub: string;
   domain: string;
   accent: string;
   phone: string; // WhatsApp com DDI, ex: 5511998765432
+  email: string;
+  instagram: string; // @usuario ou URL
   tagline: string;
+  /** Logo horizontal para fundos claros (substitui ícone + nome) */
+  logoUrl: string;
+  /** Logo para fundos escuros (opcional; usa logoUrl se vazio) */
+  logoDarkUrl: string;
+  /** Ícone quadrado — favicon e selo da marca */
+  iconUrl: string;
 };
 
-const WL_DEFAULTS: WhiteLabel = {
+export const WL_DEFAULTS: WhiteLabel = {
   orgName: "NORD Imóveis",
+  shortName: "",
+  brandSub: "IMÓVEIS",
   domain: "nordimoveis.com.br",
   accent: "#10b981",
   phone: "5511998765432",
+  email: "",
+  instagram: "",
   tagline: "Imobiliária boutique",
+  logoUrl: "",
+  logoDarkUrl: "",
+  iconUrl: "",
 };
+
+/** Nome curto da marca (cabeçalhos). */
+export function brandShortName(wl: Pick<WhiteLabel, "shortName" | "orgName">) {
+  return wl.shortName.trim() || wl.orgName.trim().split(/\s+/)[0] || wl.orgName;
+}
 
 export async function getWhiteLabel(): Promise<WhiteLabel> {
   try {

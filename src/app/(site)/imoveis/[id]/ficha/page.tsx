@@ -41,6 +41,8 @@ export default async function FichaPage({
         brokerName={content.detail.brokerName}
         brokerRole={content.detail.brokerRole}
         today={today}
+        logoUrl={wl.logoUrl}
+        iconUrl={wl.iconUrl}
       />
     </div>
   );

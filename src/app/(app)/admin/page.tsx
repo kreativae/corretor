@@ -2,11 +2,9 @@ import { StatCard } from "@/components/crm/stat-card";
 import { Timeline } from "@/components/crm/timeline";
 import { db } from "@/db";
 import { integrations } from "@/db/schema";
-import { WhiteLabelCard } from "@/components/admin/white-label-card";
 import {
   getPortfolioViews,
   getTopViewedProperties,
-  getWhiteLabel,
   listActivities,
   listDeals,
   listPortals,
@@ -30,14 +28,13 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Administração" };
 
 export default async function AdminPage() {
-  const [users, properties, portals, deals, activities, wl, ints, views, topViewed] =
+  const [users, properties, portals, deals, activities, ints, views, topViewed] =
     await Promise.all([
       listUsers(),
       listProperties(),
       listPortals(),
       listDeals(),
       listActivities(12),
-      getWhiteLabel(),
       db.select().from(integrations),
       getPortfolioViews(),
       getTopViewedProperties(5),
@@ -214,16 +211,13 @@ export default async function AdminPage() {
         </div>
       </section>
 
-      {/* White label + atividade */}
-      <div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
-        <WhiteLabelCard initial={wl} />
-        <section className="card-elev rounded-2xl border border-hairline bg-card p-6">
-          <h2 className="mb-6 font-display text-base font-semibold tracking-tight">
-            Auditoria recente
-          </h2>
-          <Timeline items={activities} />
-        </section>
-      </div>
+      {/* Atividade */}
+      <section className="card-elev rounded-2xl border border-hairline bg-card p-6">
+        <h2 className="mb-6 font-display text-base font-semibold tracking-tight">
+          Auditoria recente
+        </h2>
+        <Timeline items={activities} />
+      </section>
     </div>
   );
 }

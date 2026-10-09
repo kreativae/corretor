@@ -1,5 +1,5 @@
 import { getCurrentUser } from "@/lib/auth";
-import { blobToken, MEDIA_PREFIX } from "@/lib/blob";
+import { blobToken, MEDIA_FOLDERS, type MediaFolder } from "@/lib/blob";
 import { requestPublicOrigin } from "@/lib/google";
 import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
@@ -47,7 +47,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Arquivo acima de 4 MB." }, { status: 413 });
     }
     const ext = file.type.split("/")[1].replace("jpeg", "jpg");
-    const pathname = `${MEDIA_PREFIX}foto.${ext}`;
+    const requested = String(form.get("folder") ?? "imoveis");
+    const folder: MediaFolder = (MEDIA_FOLDERS as readonly string[]).includes(requested)
+      ? (requested as MediaFolder)
+      : "imoveis";
+    const pathname = `${folder}/${folder === "marca" ? "logo" : "foto"}.${ext}`;
     const options = { token, addRandomSuffix: true, contentType: file.type } as const;
     try {
       const blob = await put(pathname, file, { ...options, access: "public" });

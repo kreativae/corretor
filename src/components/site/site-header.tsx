@@ -38,7 +38,7 @@ export function SiteHeader({ orgName }: { orgName: string }) {
       >
         <div className="container-x flex h-16 items-center justify-between md:h-20">
           <Link href="/" aria-label={orgName}>
-            <Wordmark name={orgName.split(" ")[0]} sub="IMÓVEIS" />
+            <Wordmark />
           </Link>
 
           <nav className="hidden items-center gap-1 lg:flex">
@@ -86,7 +86,7 @@ export function SiteHeader({ orgName }: { orgName: string }) {
         )}
       >
         <div className="container-x flex h-16 items-center justify-between">
-          <Wordmark name={orgName.split(" ")[0]} sub="IMÓVEIS" />
+          <Wordmark />
           <button
             onClick={() => setOpen(false)}
             aria-label="Fechar menu"

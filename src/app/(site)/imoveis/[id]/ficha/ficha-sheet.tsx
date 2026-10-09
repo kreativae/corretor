@@ -25,6 +25,8 @@ export function FichaSheet({
   brokerName,
   brokerRole,
   today,
+  logoUrl,
+  iconUrl,
 }: {
   p: PropertyWithImages;
   orgName: string;
@@ -33,6 +35,8 @@ export function FichaSheet({
   brokerName: string;
   brokerRole: string;
   today: string;
+  logoUrl?: string;
+  iconUrl?: string;
 }) {
   const imgs = p.images.map((i) => i.url);
   const specs = [
@@ -57,23 +61,33 @@ export function FichaSheet({
     <article className="ficha-sheet mx-auto flex h-[297mm] w-[210mm] flex-col overflow-hidden bg-white px-[13mm] pb-[10mm] pt-[12mm] text-neutral-900 shadow-sm print:shadow-none">
       {/* Cabeçalho */}
       <header className="flex shrink-0 items-center justify-between border-b border-neutral-200 pb-[4mm]">
-        <div className="flex items-center gap-3">
-          <svg viewBox="0 0 64 64" className="size-8">
-            <rect width="64" height="64" rx="14" fill="#0A0A0A" />
-            <path
-              d="M20 46V18l24 28V18"
-              fill="none"
-              stroke="#10B981"
-              strokeWidth="5.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-          <div>
-            <p className="text-sm font-semibold tracking-tight">{orgName}</p>
-            <p className="text-[9px] uppercase tracking-[0.2em] text-neutral-500">{domain}</p>
+        {logoUrl ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img src={logoUrl} alt={orgName} className="h-9 w-auto max-w-[60mm] object-contain" />
+        ) : (
+          <div className="flex items-center gap-3">
+            {iconUrl ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img src={iconUrl} alt="" className="size-8 rounded-[22%] object-cover" />
+            ) : (
+              <svg viewBox="0 0 64 64" className="size-8">
+                <rect width="64" height="64" rx="14" fill="#0A0A0A" />
+                <path
+                  d="M20 46V18l24 28V18"
+                  fill="none"
+                  stroke="#10B981"
+                  strokeWidth="5.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            )}
+            <div>
+              <p className="text-sm font-semibold tracking-tight">{orgName}</p>
+              <p className="text-[9px] uppercase tracking-[0.2em] text-neutral-500">{domain}</p>
+            </div>
           </div>
-        </div>
+        )}
         <div className="text-right font-mono text-[10px] uppercase tracking-wider text-neutral-500">
           <p>Ref. {p.code}</p>
           <p>{today}</p>

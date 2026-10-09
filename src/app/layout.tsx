@@ -2,7 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import type { CSSProperties, ReactNode } from "react";
 import { MotionFX, SmoothScroll } from "@/components/motion";
-import { getWhiteLabel } from "@/lib/queries";
+import { BrandProvider } from "@/components/brand";
+import { brandShortName, getWhiteLabel } from "@/lib/queries";
 import { getSiteContent } from "@/lib/site-content";
 import { hexToRgbTriplet } from "@/lib/utils";
 import "./globals.css";
@@ -16,6 +17,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     metadataBase: new URL(base),
     title: { default: content.seo.title, template: `%s · ${wl.orgName}` },
+    ...(wl.iconUrl ? { icons: { icon: wl.iconUrl, apple: wl.iconUrl } } : {}),
     description: content.seo.description,
     openGraph: {
       title: content.seo.title,
@@ -51,7 +53,18 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       >
         <SmoothScroll />
         <MotionFX />
-        {children}
+        <BrandProvider
+          value={{
+            orgName: wl.orgName,
+            shortName: brandShortName(wl),
+            sub: wl.brandSub,
+            logoUrl: wl.logoUrl,
+            logoDarkUrl: wl.logoDarkUrl,
+            iconUrl: wl.iconUrl,
+          }}
+        >
+          {children}
+        </BrandProvider>
       </body>
     </html>
   );

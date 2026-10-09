@@ -1,4 +1,5 @@
 import { IntegrationsClient } from "@/components/admin/integrations-client";
+import { WhiteLabelCard } from "@/components/admin/white-label-card";
 import { db } from "@/db";
 import { apiKeys, integrations } from "@/db/schema";
 import { ensureGoogleIntegrations } from "@/lib/google";
@@ -21,17 +22,18 @@ export default async function ConfiguracoesPage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-subtle">
-            Governança · Integrações
+            Governança · Marca e integrações
           </p>
           <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight">
             Configurações
           </h1>
         </div>
         <p className="max-w-sm text-right text-xs leading-relaxed text-subtle">
-          Tokens, chaves de API e conexões reais com Google Contacts e Google
-          Calendar. Segredos permanecem exclusivamente no servidor.
+          Identidade da marca, tokens, chaves de API e conexões com Google
+          Contacts e Calendar. Segredos permanecem exclusivamente no servidor.
         </p>
       </div>
+      <WhiteLabelCard initial={wl} />
       <IntegrationsClient
         integrations={ints.map((item) => ({
           id: item.id,

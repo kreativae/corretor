@@ -1,8 +1,8 @@
-import { blobToken, MEDIA_PREFIX } from "@/lib/blob";
+import { blobToken, isMediaPath } from "@/lib/blob";
 import { get } from "@vercel/blob";
 
 /**
- * Serve fotos de um Blob Store privado. Os nomes têm sufixo aleatório e
+ * Serve fotos e logos de um Blob Store privado. Os nomes têm sufixo aleatório e
  * nunca mudam, então a resposta é cacheada por 1 ano no navegador e na CDN.
  */
 export async function GET(
@@ -11,7 +11,7 @@ export async function GET(
 ) {
   const { path } = await params;
   const pathname = path.map(decodeURIComponent).join("/");
-  if (!pathname.startsWith(MEDIA_PREFIX) || pathname.includes("..")) {
+  if (!isMediaPath(pathname)) {
     return new Response("Not found", { status: 404 });
   }
   const token = blobToken();

@@ -30,17 +30,17 @@ export default async function LoginPage({
           <Mark className="size-9 [&>rect]:fill-white/10" />
           <div className="leading-none">
             <p className="font-display text-base font-semibold text-canvas">
-              ImobManager
+              {wl.orgName}
             </p>
             <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.24em] text-canvas/40">
-              Plataforma SaaS imobiliária
+              {wl.tagline}
             </p>
           </div>
         </div>
 
         <div className="relative">
           <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-canvas/40">
-            {wl.orgName}
+            Área do corretor
           </p>
           <h1 className="mt-5 max-w-md font-display text-5xl font-semibold leading-[1.05] tracking-[-0.03em] text-canvas">
             Todo o seu negócio, em um só lugar.

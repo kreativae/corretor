@@ -7,11 +7,16 @@ export function SiteFooter({
   orgName,
   phone,
   footer,
+  email,
+  instagram,
 }: {
   orgName: string;
   phone: string;
   footer: SiteContent["footer"];
+  email?: string;
+  instagram?: string;
 }) {
+  const igHandle = instagram?.replace(/^https?:\/\/(www\.)?instagram\.com\//, "").replace(/[/@]/g, "");
   const year = new Date().getFullYear();
   const first = orgName.split(" ")[0];
 
@@ -63,7 +68,19 @@ export function SiteFooter({
               +{phone.slice(0, 2)} ({phone.slice(2, 4)}) {phone.slice(4, 9)}-
               {phone.slice(9)}
             </li>
-            <li>{footer.email}</li>
+            <li>{email || footer.email}</li>
+            {igHandle && (
+              <li>
+                <a
+                  href={`https://instagram.com/${igHandle}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="transition-colors hover:text-ink"
+                >
+                  @{igHandle}
+                </a>
+              </li>
+            )}
             <li className="whitespace-pre-line">{footer.address}</li>
           </ul>
         </div>
