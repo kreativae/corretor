@@ -100,8 +100,24 @@ export function CommandPalette({
     onClose();
   }
 
+  // Esc fecha a busca mesmo com o foco fora do campo
+  useEffect(() => {
+    if (!open) return;
+    const onEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", onEsc);
+    return () => window.removeEventListener("keydown", onEsc);
+  }, [open, onClose]);
+
   function onKey(e: React.KeyboardEvent) {
-    if (e.key === "ArrowDown") {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      onClose();
+    } else if (e.key === "ArrowDown") {
       e.preventDefault();
       setSel((s) => Math.min(s + 1, items.length - 1));
     } else if (e.key === "ArrowUp") {
