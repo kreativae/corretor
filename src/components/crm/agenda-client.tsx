@@ -9,6 +9,7 @@ import {
 } from "@/components/crm/agenda-filters";
 import { ActiveChips, FilterButton, FilterSheet } from "@/components/crm/filter-sheet";
 import { MobileCollapse } from "@/components/crm/mobile-collapse";
+import { LeadDrawer } from "@/components/crm/lead-drawer";
 import { StatCard } from "@/components/crm/stat-card";
 import { StatsGrid } from "@/components/crm/stats-grid";
 import { Button, Field, Input, Modal, Select } from "@/components/ui";
@@ -26,6 +27,7 @@ import {
   Tractor,
   Check,
   Cloud,
+  MessageCircle,
   ChevronLeft,
   ChevronRight,
   RotateCcw,
@@ -88,6 +90,9 @@ export function AgendaClient({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [overDay, setOverDay] = useState<number | null>(null);
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  // Dia escolhido no celular (null = hoje, se estiver na semana, senão segunda)
+  const [mobileDay, setMobileDay] = useState<number | null>(null);
   const [form, setForm] = useState({
     contactId: "",
     propertyId: "",
@@ -102,6 +107,9 @@ export function AgendaClient({
       return d;
     });
   }, [offset]);
+
+  const todayIdx = week.findIndex((d) => d.toDateString() === new Date().toDateString());
+  const activeMobileDay = mobileDay ?? (todayIdx >= 0 ? todayIdx : 0);
 
   const weekLabel = `${week[0].getDate()} ${MONTHS[week[0].getMonth()]} — ${week[6].getDate()} ${MONTHS[week[6].getMonth()]} ${week[6].getFullYear()}`;
 
@@ -311,27 +319,46 @@ export function AgendaClient({
       {/* Navegação da semana */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={() => setOffset((o) => o - 1)} aria-label="Semana anterior">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => {
+              setOffset((o) => o - 1);
+              setMobileDay(null);
+            }}
+            aria-label="Semana anterior"
+          >
             <ChevronLeft className="size-4" />
           </Button>
           <Button
             variant="outline"
             size="icon"
-            onClick={() => setOffset(0)}
+            onClick={() => {
+              setOffset(0);
+              setMobileDay(null);
+            }}
             aria-label="Semana atual"
             className="w-auto px-3 text-xs"
           >
             <RotateCcw className="size-3.5" />
             Hoje
           </Button>
-          <Button variant="outline" size="icon" onClick={() => setOffset((o) => o + 1)} aria-label="Próxima semana">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => {
+              setOffset((o) => o + 1);
+              setMobileDay(null);
+            }}
+            aria-label="Próxima semana"
+          >
             <ChevronRight className="size-4" />
           </Button>
-          <p className="ml-2 font-mono text-sm tabular text-subtle">{weekLabel}</p>
+          <p className="ml-1 font-mono text-xs tabular text-subtle sm:ml-2 sm:text-sm">{weekLabel}</p>
         </div>
         <Button variant="accent" onClick={() => setOpen(true)}>
           <CalendarPlus className="size-4" />
-          Nova visita
+          Nova<span className="hidden sm:inline"> visita</span>
         </Button>
       </div>
 
@@ -432,11 +459,181 @@ export function AgendaClient({
         {upcomingElsewhere > 0 && (
           <> · {upcomingElsewhere} {upcomingElsewhere === 1 ? "outra" : "outras"} nas próximas semanas</>
         )}
-        {" "}· arraste os cartões entre os dias para reagendar
+        <span className="hidden md:inline"> · arraste os cartões entre os dias para reagendar</span>
       </p>
 
-      {/* Grade da semana */}
-      <div className="mt-5 grid gap-2.5 overflow-x-auto md:grid-cols-7">
+      {/* Celular: faixa de dias + lista do dia com ações (arrastar não funciona no toque) */}
+      <div className="mt-5 md:hidden">
+        <div className="grid grid-cols-7 gap-1">
+          {week.map((day, i) => {
+            const n = visitsFor(day).filter((v) => v.visit.status !== "cancelada").length;
+            const isToday = day.toDateString() === new Date().toDateString();
+            const on = activeMobileDay === i;
+            return (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setMobileDay(i)}
+                className={cn(
+                  "flex flex-col items-center rounded-xl border py-2 transition-colors",
+                  on ? "border-transparent bg-ink text-canvas" : "border-hairline bg-card",
+                )}
+              >
+                <span
+                  className={cn(
+                    "font-mono text-[9.5px] uppercase tracking-wider",
+                    on ? "opacity-70" : isToday ? "font-semibold text-accent" : "text-subtle",
+                  )}
+                >
+                  {DAY_NAMES[i]}
+                </span>
+                <span className={cn("font-mono text-base tabular", !on && isToday && "font-semibold text-accent")}>
+                  {day.getDate()}
+                </span>
+                <span
+                  className={cn(
+                    "mt-0.5 size-1.5 rounded-full",
+                    n ? (on ? "bg-canvas" : "bg-accent") : "bg-transparent",
+                  )}
+                />
+              </button>
+            );
+          })}
+        </div>
+
+        {(() => {
+          const day = week[activeMobileDay];
+          const list = visitsFor(day);
+          return (
+            <div className="mt-4 space-y-3">
+              <p className="font-mono text-[10.5px] uppercase tracking-[0.16em] text-subtle">
+                {day.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })} ·{" "}
+                {list.length} {list.length === 1 ? "visita" : "visitas"}
+              </p>
+              {list.length === 0 && (
+                <p className="rounded-2xl border border-hairline bg-card py-12 text-center text-sm text-subtle">
+                  Dia livre.
+                </p>
+              )}
+              {list.map((v) => {
+                const open = ["agendada", "confirmada"].includes(v.visit.status);
+                const digits = v.contact?.phone?.replace(/\D/g, "") ?? "";
+                const wa = digits.length >= 10 ? (digits.startsWith("55") ? digits : `55${digits}`) : null;
+                return (
+                  <div
+                    key={v.visit.id}
+                    className={cn(
+                      "rounded-2xl border border-hairline border-l-4 bg-card p-3.5",
+                      STATUS_BORDER[v.visit.status],
+                    )}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => v.contact && setPreviewId(v.contact.id)}
+                      className="flex w-full items-start gap-3 text-left"
+                    >
+                      <span className="w-14 shrink-0">
+                        <span className="block font-mono text-base font-semibold tabular">
+                          {new Date(v.visit.scheduledAt).toLocaleTimeString("pt-BR", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                        <span className="block text-[10.5px] text-subtle">
+                          {VISIT_STATUS_LABELS[v.visit.status]}
+                        </span>
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-1.5">
+                          <span className="truncate text-[15px] font-medium leading-tight">
+                            {v.contact?.name ?? "—"}
+                          </span>
+                          {v.visit.googleEventId && (
+                            <Cloud className="size-3.5 shrink-0 text-blue-500" aria-label="Google Calendar" />
+                          )}
+                        </span>
+                        <span className="mt-0.5 flex items-center gap-1 truncate text-xs text-subtle">
+                          {isRuralVisit(v) && <Tractor className="size-3 shrink-0 text-emerald-600" />}
+                          <span className="truncate">
+                            {v.property ? `${v.property.code} · ${v.property.title}` : "—"}
+                          </span>
+                        </span>
+                      </span>
+                    </button>
+                    {(open || wa) && (
+                    <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-hairline pt-3">
+                      {v.visit.status === "agendada" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={busyId === v.visit.id}
+                          onClick={() => setStatus(v, "confirmada")}
+                        >
+                          <Check className="size-3.5 text-emerald-500" />
+                          Confirmar
+                        </Button>
+                      )}
+                      {open && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={busyId === v.visit.id}
+                          onClick={() => setStatus(v, "realizada")}
+                        >
+                          <CheckCheck className="size-3.5" />
+                          Realizada
+                        </Button>
+                      )}
+                      {open && (
+                        <label className="relative">
+                          <span className="inline-flex h-8 items-center gap-1.5 rounded-full border border-hairline px-3 text-xs font-medium">
+                            <CalendarDays className="size-3.5" />
+                            Reagendar
+                          </span>
+                          <input
+                            type="date"
+                            aria-label="Reagendar para"
+                            className="absolute inset-0 opacity-0"
+                            onChange={(e) => {
+                              if (!e.target.value) return;
+                              const [y, m, d] = e.target.value.split("-").map(Number);
+                              reschedule(v, new Date(y, m - 1, d));
+                            }}
+                          />
+                        </label>
+                      )}
+                      <div className="ml-auto flex items-center gap-0.5">
+                        {wa && (
+                          <a href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer" aria-label="WhatsApp">
+                            <Button variant="ghost" size="icon">
+                              <MessageCircle className="size-4 text-emerald-600" />
+                            </Button>
+                          </a>
+                        )}
+                        {open && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Cancelar visita"
+                            disabled={busyId === v.visit.id}
+                            onClick={() => setStatus(v, "cancelada")}
+                          >
+                            <X className="size-4 text-red-400" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
+      </div>
+
+      {/* Grade da semana (tablet e computador) */}
+      <div className="mt-5 hidden gap-2.5 overflow-x-auto md:grid md:grid-cols-7">
         {week.map((day, i) => {
           const isToday = day.toDateString() === new Date().toDateString();
           const dayVisits = visitsFor(day);
@@ -562,6 +759,8 @@ export function AgendaClient({
           );
         })}
       </div>
+
+      <LeadDrawer contactId={previewId} onClose={() => setPreviewId(null)} />
 
       {/* Nova visita */}
       <Modal open={open} onClose={() => setOpen(false)} title="Agendar visita">
