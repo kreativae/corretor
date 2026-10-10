@@ -10,7 +10,7 @@ import { useState, type ReactNode } from "react";
 
 type Tab = "venda" | "aluguel" | "rurais";
 
-const PRICES: Record<Tab, { v: string; label: string }[]> = {
+const PRICES: Record<Exclude<Tab, "rurais">, { v: string; label: string }[]> = {
   venda: [
     { v: "300000", label: "R$ 300 mil" },
     { v: "500000", label: "R$ 500 mil" },
@@ -26,14 +26,17 @@ const PRICES: Record<Tab, { v: string; label: string }[]> = {
     { v: "8000", label: "R$ 8 mil" },
     { v: "15000", label: "R$ 15 mil" },
   ],
-  rurais: [
-    { v: "1000000", label: "R$ 1 milhão" },
-    { v: "3000000", label: "R$ 3 milhões" },
-    { v: "5000000", label: "R$ 5 milhões" },
-    { v: "10000000", label: "R$ 10 milhões" },
-    { v: "20000000", label: "R$ 20 milhões" },
-  ],
 };
+
+/** Rurais buscam por tamanho, em alqueires ("min-max"; vazio = sem limite) */
+const SIZES = [
+  { v: "-10", label: "Até 10 alq" },
+  { v: "10-50", label: "De 10 a 50 alq" },
+  { v: "50-100", label: "De 50 a 100 alq" },
+  { v: "100-300", label: "De 100 a 300 alq" },
+  { v: "300-1000", label: "De 300 a 1.000 alq" },
+  { v: "1000-", label: "Acima de 1.000 alq" },
+];
 
 const norm = (s: string) =>
   s
@@ -71,7 +74,7 @@ function Box({
 }
 
 const control =
-  "w-full min-w-0 appearance-none bg-transparent py-0.5 text-[15px] text-white outline-none placeholder:text-white/45 [&>option]:bg-[#111110] [&>option]:text-white";
+  "w-full min-w-0 appearance-none truncate bg-transparent py-0.5 pr-5 text-[15px] text-white outline-none placeholder:text-white/45 [&>option]:bg-[#111110] [&>option]:text-white";
 
 export function HomeSearch({
   urbanTypes,
@@ -127,7 +130,9 @@ export function HomeSearch({
         bairro,
         cidade,
         q: !bairro && !cidade ? where.trim() : "",
-        precoMax: preco,
+        precoMax: tab === "rurais" ? "" : preco,
+        areaMin: tab === "rurais" ? preco.split("-")[0] : "",
+        areaMax: tab === "rurais" ? preco.split("-")[1] ?? "" : "",
         quartos,
       }),
     );
@@ -195,10 +200,10 @@ export function HomeSearch({
           <ChevronDown className="pointer-events-none absolute bottom-3 right-3 size-4 text-white/50" />
         </Box>
 
-        <Box label="Preço até">
+        <Box label={tab === "rurais" ? "Tamanho" : "Preço até"}>
           <select value={preco} onChange={(e) => setPreco(e.target.value)} className={control}>
             <option value="">Qualquer</option>
-            {PRICES[tab].map((p) => (
+            {(tab === "rurais" ? SIZES : PRICES[tab]).map((p) => (
               <option key={p.v} value={p.v}>
                 {p.label}
               </option>

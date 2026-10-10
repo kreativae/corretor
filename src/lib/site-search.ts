@@ -25,6 +25,8 @@ export function filtersFromSearch(sp: SiteSearchParams): Partial<PropertyFilters
     cities: list(sp.cidade),
     priceFrom: digits(one(sp.precoMin)),
     priceTo: digits(one(sp.precoMax)),
+    areaFrom: digits(one(sp.areaMin)),
+    areaTo: digits(one(sp.areaMax)),
     bedrooms: quartos,
     garage: vagas,
     features: list(sp.caracteristica),
@@ -38,6 +40,9 @@ export function searchHref(p: {
   bairro?: string;
   cidade?: string;
   precoMax?: string;
+  /** Área mínima/máxima (m² nos urbanos, alqueires nos rurais) */
+  areaMin?: string;
+  areaMax?: string;
   quartos?: number;
   caracteristica?: string;
   q?: string;
