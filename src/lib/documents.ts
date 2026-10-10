@@ -36,8 +36,23 @@ export const DOC_EXTENSIONS: Record<string, string> = {
   dwg: "application/acad",
 };
 
-/** Limite de corpo das funções da Vercel (4,5 MB) com folga */
+/** Até aqui o arquivo passa pelo servidor (limite de 4,5 MB das funções da Vercel) */
 export const DOC_MAX_BYTES = 4 * 1024 * 1024;
+/** Acima de DOC_MAX_BYTES, vai direto do navegador para o Blob, até este limite */
+export const DOC_DIRECT_MAX_BYTES = 100 * 1024 * 1024;
+
+/** Nome seguro para o caminho no Blob (sem acentos/espaços) */
+export function safeDocName(name: string) {
+  const ext = docExtension(name);
+  return (
+    name
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9._-]+/g, "-")
+      .replace(/-+/g, "-")
+      .slice(-80) || `documento.${ext}`
+  );
+}
 
 export function docExtension(name: string) {
   return name.toLowerCase().split(".").pop() ?? "";

@@ -4,10 +4,12 @@ import { Button, Modal, Select } from "@/components/ui";
 import type { PropertyDocument } from "@/db/schema";
 import {
   DOC_CATEGORIES,
+  DOC_DIRECT_MAX_BYTES,
   DOC_EXTENSIONS,
   DOC_MAX_BYTES,
   docExtension,
   formatBytes,
+  safeDocName,
   type DocCategory,
 } from "@/lib/documents";
 import { cn, timeAgo } from "@/lib/utils";
@@ -23,6 +25,7 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
+import { upload as blobUpload } from "@vercel/blob/client";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -66,6 +69,50 @@ function upload(propertyId: string, file: File, category: string, onProgress: (p
   });
 }
 
+/**
+ * Arquivo acima de 4 MB: vai direto do navegador ao Blob (sem passar pelo
+ * limite das funções da Vercel) e depois é registrado no imóvel.
+ */
+async function uploadDirect(
+  propertyId: string,
+  file: File,
+  category: string,
+  onProgress: (p: number) => void,
+) {
+  const contentType = DOC_EXTENSIONS[docExtension(file.name)];
+  const options = {
+    handleUploadUrl: `/api/properties/${propertyId}/documents/upload`,
+    contentType,
+    multipart: file.size > 8 * 1024 * 1024,
+    onUploadProgress: ({ percentage }: { percentage: number }) => onProgress(percentage),
+  };
+  const pathname = `documentos/${propertyId}/${safeDocName(file.name)}`;
+  let blob: { pathname: string; url: string };
+  let isPublic = false;
+  try {
+    // Store privado (o normal aqui): o arquivo só sai pelo sistema, com login
+    blob = await blobUpload(pathname, file, { ...options, access: "private" });
+  } catch (e) {
+    if (!(e instanceof Error && /public/i.test(e.message))) throw e;
+    blob = await blobUpload(pathname, file, { ...options, access: "public" });
+    isPublic = true;
+  }
+  const res = await fetch(`/api/properties/${propertyId}/documents`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      pathname: blob.pathname,
+      url: blob.url,
+      public: isPublic,
+      name: file.name,
+      category,
+    }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.id) throw new Error(data.error || `Falha ao registrar (HTTP ${res.status}).`);
+  return data as PropertyDocument;
+}
+
 /** Documentos internos do imóvel — visíveis só para a equipe logada. */
 export function PropertyDocuments({
   propertyId,
@@ -94,15 +141,17 @@ export function PropertyDocuments({
         toast.error(`${file.name}: formato não aceito.`);
         continue;
       }
-      if (file.size > DOC_MAX_BYTES) {
-        toast.error(`${file.name}: acima de 4 MB. Comprima o PDF ou divida em partes.`);
+      if (file.size > DOC_DIRECT_MAX_BYTES) {
+        toast.error(`${file.name}: acima de 100 MB. Comprima o arquivo ou divida em partes.`);
         continue;
       }
       try {
         setProgress({ name: file.name, pct: 0 });
-        const doc = await upload(propertyId, file, category, (pct) =>
-          setProgress({ name: file.name, pct }),
-        );
+        const onProgress = (pct: number) => setProgress({ name: file.name, pct });
+        const doc =
+          file.size > DOC_MAX_BYTES
+            ? await uploadDirect(propertyId, file, category, onProgress)
+            : await upload(propertyId, file, category, onProgress);
         setDocs((arr) => [doc, ...arr]);
         ok += 1;
       } catch (e) {
@@ -211,7 +260,7 @@ export function PropertyDocuments({
           >
             <Upload className="size-5" />
             Arraste arquivos aqui ou clique para anexar
-            <span className="text-[11px]">PDF, imagens, Word, Excel, KMZ ou ZIP · até 4 MB cada</span>
+            <span className="text-[11px]">PDF, imagens, Word, Excel, KMZ ou ZIP · até 100 MB cada</span>
           </button>
         ) : (
           <ul className="divide-y divide-hairline">
@@ -255,7 +304,7 @@ export function PropertyDocuments({
             ))}
             {docs.length > 0 && (
               <li className="px-4 py-2.5 text-center text-[11px] text-subtle">
-                Arraste mais arquivos aqui · até 4 MB cada
+                Arraste mais arquivos aqui · até 100 MB cada
               </li>
             )}
           </ul>

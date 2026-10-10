@@ -7,10 +7,11 @@ import {
   DOC_EXTENSIONS,
   DOC_MAX_BYTES,
   docExtension,
+  safeDocName,
   type DocCategory,
 } from "@/lib/documents";
 import { listPropertyDocuments } from "@/lib/queries";
-import { put } from "@vercel/blob";
+import { head, put } from "@vercel/blob";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
@@ -42,6 +43,42 @@ export async function POST(req: Request, { params }: Params) {
       .where(eq(properties.id, id));
     if (!prop) return NextResponse.json({ error: "Imóvel não encontrado" }, { status: 404 });
 
+    // Arquivo grande já enviado direto ao Blob pelo navegador: só registra
+    if (req.headers.get("content-type")?.includes("application/json")) {
+      const body = (await req.json()) as {
+        pathname?: string;
+        url?: string;
+        public?: boolean;
+        name?: string;
+        category?: string;
+      };
+      const pathname = String(body.pathname ?? "");
+      if (!pathname.startsWith(`documentos/${id}/`) || pathname.includes("..")) {
+        return NextResponse.json({ error: "Arquivo inválido." }, { status: 400 });
+      }
+      const info = await head(body.public && body.url ? body.url : pathname, { token }).catch(
+        () => null,
+      );
+      if (!info) {
+        return NextResponse.json({ error: "Arquivo não encontrado no armazenamento." }, { status: 400 });
+      }
+      const name = String(body.name ?? pathname.split("/").pop()).slice(0, 200);
+      const cat = String(body.category ?? "outro");
+      const category: DocCategory = cat in DOC_CATEGORIES ? (cat as DocCategory) : "outro";
+      return NextResponse.json(
+        await register({
+          id,
+          name,
+          category,
+          pathname: info.pathname,
+          url: body.public ? info.url : "",
+          size: info.size,
+          contentType: DOC_EXTENSIONS[docExtension(name)] ?? info.contentType,
+          user: user.name,
+        }),
+      );
+    }
+
     const form = await req.formData();
     const file = form.get("file");
     if (!(file instanceof File)) {
@@ -64,13 +101,7 @@ export async function POST(req: Request, { params }: Params) {
     const requested = String(form.get("category") ?? "outro");
     const category: DocCategory = requested in DOC_CATEGORIES ? (requested as DocCategory) : "outro";
     const name = file.name.slice(0, 200);
-    const safe =
-      name
-        .normalize("NFD")
-        .replace(/[̀-ͯ]/g, "")
-        .replace(/[^a-zA-Z0-9._-]+/g, "-")
-        .replace(/-+/g, "-")
-        .slice(-80) || `documento.${ext}`;
+    const safe = safeDocName(name);
 
     const options = { token, addRandomSuffix: true, contentType } as const;
     let pathname: string;
@@ -87,29 +118,45 @@ export async function POST(req: Request, { params }: Params) {
       url = blob.url;
     }
 
-    const [doc] = await db
-      .insert(propertyDocuments)
-      .values({
-        propertyId: id,
-        name,
-        category,
-        pathname,
-        url,
-        size: file.size,
-        contentType,
-        uploadedBy: user.name,
-      })
-      .returning();
-    await db.insert(activities).values({
-      entity: "imovel",
-      entityId: id,
-      kind: "updated",
-      text: `Documento interno anexado: ${name} (${DOC_CATEGORIES[category]}) por ${user.name}.`,
-    });
-    return NextResponse.json(doc);
+    return NextResponse.json(
+      await register({ id, name, category, pathname, url, size: file.size, contentType, user: user.name }),
+    );
   } catch (e) {
     console.error(e);
     const message = e instanceof Error ? e.message : "Falha no envio";
     return NextResponse.json({ error: message }, { status: 500 });
   }
+}
+
+/** Grava o documento e registra na linha do tempo do imóvel. */
+async function register(d: {
+  id: string;
+  name: string;
+  category: DocCategory;
+  pathname: string;
+  url: string;
+  size: number;
+  contentType: string;
+  user: string;
+}) {
+  const [doc] = await db
+    .insert(propertyDocuments)
+    .values({
+      propertyId: d.id,
+      name: d.name,
+      category: d.category,
+      pathname: d.pathname,
+      url: d.url,
+      size: d.size,
+      contentType: d.contentType,
+      uploadedBy: d.user,
+    })
+    .returning();
+  await db.insert(activities).values({
+    entity: "imovel",
+    entityId: d.id,
+    kind: "updated",
+    text: `Documento interno anexado: ${d.name} (${DOC_CATEGORIES[d.category]}) por ${d.user}.`,
+  });
+  return doc;
 }
