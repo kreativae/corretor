@@ -9,6 +9,7 @@ import {
 } from "@/components/crm/agenda-filters";
 import { ActiveChips, FilterButton, FilterSheet } from "@/components/crm/filter-sheet";
 import { StatCard } from "@/components/crm/stat-card";
+import { StatsGrid } from "@/components/crm/stats-grid";
 import { Button, Field, Input, Modal, Select } from "@/components/ui";
 import { VISIT_STATUS_LABELS } from "@/lib/labels";
 import type { Contact, Property, Visit } from "@/db/schema";
@@ -371,7 +372,7 @@ export function AgendaClient({
       <ActiveChips chips={chips} onClear={patch} onClearAll={resetFilters} />
 
       {/* Indicadores */}
-      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <StatsGrid className="mt-5" gridClassName="gap-3 lg:grid-cols-5">
         <StatCard
           label="Visitas na semana"
           value={stats.ativas}
@@ -410,7 +411,7 @@ export function AgendaClient({
           caption="Na semana exibida"
           icon={<X className="size-4" />}
         />
-      </div>
+      </StatsGrid>
 
       <FilterSheet
         open={showFilters}

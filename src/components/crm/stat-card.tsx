@@ -17,14 +17,14 @@ export function StatCard({
   icon?: ReactNode;
 }) {
   return (
-    <div className="card-elev rounded-2xl border border-hairline bg-card p-5 transition-colors duration-300 hover:border-hairline-strong">
+    <div className="card-elev rounded-2xl border border-hairline bg-card p-4 transition-colors md:p-5 duration-300 hover:border-hairline-strong">
       <div className="flex items-center justify-between">
         <p className="font-mono text-[10.5px] uppercase tracking-[0.18em] text-subtle">
           {label}
         </p>
         {icon && <span className="text-subtle">{icon}</span>}
       </div>
-      <p className="mt-4 font-mono text-[28px] font-medium leading-none tabular tracking-tight">
+      <p className="mt-3 whitespace-nowrap font-mono text-[22px] font-medium leading-none tabular tracking-tight md:mt-4 md:text-[28px]">
         <CountUp value={value} kind={format} />
         {suffix}
       </p>

@@ -1,4 +1,5 @@
 import { StatCard } from "@/components/crm/stat-card";
+import { StatsGrid } from "@/components/crm/stats-grid";
 import { Timeline } from "@/components/crm/timeline";
 import { db } from "@/db";
 import { integrations } from "@/db/schema";
@@ -85,7 +86,7 @@ export default async function AdminPage() {
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <StatsGrid gridClassName="gap-4 xl:grid-cols-4">
         <StatCard
           label="Usuários ativos"
           value={users.filter((u) => u.active).length}
@@ -111,7 +112,7 @@ export default async function AdminPage() {
           caption={`${closed} de ${deals.length} negociações`}
           icon={<TrendingUp className="size-4" />}
         />
-      </div>
+      </StatsGrid>
 
       {/* Atalhos */}
       <section>

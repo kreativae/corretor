@@ -9,6 +9,7 @@ import {
 } from "@/components/crm/deal-filters";
 import { ActiveChips, FilterButton, FilterSheet } from "@/components/crm/filter-sheet";
 import { LeadDrawer } from "@/components/crm/lead-drawer";
+import { StatsGrid } from "@/components/crm/stats-grid";
 import { Badge, Input, Select } from "@/components/ui";
 import { PURPOSE_LABELS, SOURCE_LABELS, TYPE_LABELS } from "@/lib/labels";
 import type { DealFull } from "@/lib/queries";
@@ -141,7 +142,7 @@ export function ClosedDealsClient({
       </div>
 
       {/* Indicadores do recorte filtrado */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <StatsGrid gridClassName="gap-3 md:grid-cols-4">
         {[
           { label: "Negócios", value: formatNumber(filtered.length) },
           { label: "Volume vendido", value: formatCompact(total) },
@@ -153,7 +154,7 @@ export function ClosedDealsClient({
             <p className="mt-2 font-mono text-2xl font-medium tabular">{k.value}</p>
           </div>
         ))}
-      </div>
+      </StatsGrid>
 
       <div className="mt-5 flex flex-wrap items-center gap-3">
         <div className="relative min-w-56 flex-1">

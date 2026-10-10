@@ -1,5 +1,6 @@
 import { OverviewFiltersBar } from "@/components/crm/overview-filters-bar";
 import { StatCard } from "@/components/crm/stat-card";
+import { StatsGrid } from "@/components/crm/stats-grid";
 import { Timeline } from "@/components/crm/timeline";
 import { Badge } from "@/components/ui";
 import { DEAL_STAGES, TYPE_LABELS, VISIT_STATUS_STYLES, VISIT_STATUS_LABELS } from "@/lib/labels";
@@ -274,9 +275,9 @@ export default async function CrmDashboard({
       />
 
       {/* KPIs */}
-      <div
-        className={cn(
-          "grid gap-4 sm:grid-cols-2 lg:grid-cols-3",
+      <StatsGrid
+        gridClassName={cn(
+          "gap-4 lg:grid-cols-3",
           features.closedDeals ? "xl:grid-cols-6" : "xl:grid-cols-5",
         )}
       >
@@ -388,7 +389,7 @@ export default async function CrmDashboard({
           icon={<Handshake className="size-4" />}
         />
         )}
-      </div>
+      </StatsGrid>
 
       {/* Portfólio: imóveis x rurais */}
       <div className="grid gap-4 md:grid-cols-2">

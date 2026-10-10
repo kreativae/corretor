@@ -10,6 +10,7 @@ import {
 import { ActiveChips, FilterButton, FilterSheet } from "@/components/crm/filter-sheet";
 import { LeadDrawer } from "@/components/crm/lead-drawer";
 import { StatCard } from "@/components/crm/stat-card";
+import { StatsGrid } from "@/components/crm/stats-grid";
 import { Button, Field, Input, Modal, Select } from "@/components/ui";
 import { DEAL_STAGES } from "@/lib/labels";
 import type { DealFull } from "@/lib/queries";
@@ -270,7 +271,7 @@ export function Kanban({
       <ActiveChips chips={chips} onClear={patch} onClearAll={resetFilters} />
 
       {/* Indicadores */}
-      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <StatsGrid className="mt-5" gridClassName="gap-3 lg:grid-cols-5">
         <StatCard
           label="Negociações abertas"
           value={stats.abertas}
@@ -303,7 +304,7 @@ export function Kanban({
           caption={`${stats.fechadas} ${stats.fechadas === 1 ? "fechada" : "fechadas"} · ${formatCompact(stats.valorFechado)}`}
           icon={<Handshake className="size-4" />}
         />
-      </div>
+      </StatsGrid>
       <p className="mb-3 mt-4 font-mono text-[11px] uppercase tracking-[0.16em] text-subtle">
         {filtered.length} de {visible.length} negociações · {formatCompact(totalValue)}
       </p>

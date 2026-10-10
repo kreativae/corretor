@@ -9,6 +9,7 @@ import {
   type PropertyFilters,
 } from "@/components/crm/property-filters";
 import { StatCard } from "@/components/crm/stat-card";
+import { StatsGrid } from "@/components/crm/stats-grid";
 import { Badge, Button, Input, Modal, Select, Switch } from "@/components/ui";
 import {
   PURPOSE_LABELS,
@@ -201,7 +202,7 @@ export function PropertiesTable({
       <ActiveChips chips={chips} onClear={patch} onClearAll={resetFilters} />
 
       {/* Indicadores */}
-      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <StatsGrid className="mt-5" gridClassName="gap-3 lg:grid-cols-5">
         <StatCard
           label={rural ? "Propriedades" : "Imóveis"}
           value={stats.total}
@@ -247,7 +248,7 @@ export function PropertiesTable({
           caption={stats.top ? `Mais visto: ${stats.top}` : "Nenhuma visualização ainda"}
           icon={<Eye className="size-4" />}
         />
-      </div>
+      </StatsGrid>
       <FilterSheet
         open={showFilters}
         onClose={closeFilters}

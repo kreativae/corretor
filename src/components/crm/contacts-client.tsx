@@ -12,6 +12,7 @@ import {
 } from "@/components/crm/contact-filters";
 import { ActiveChips, FilterButton, FilterSheet } from "@/components/crm/filter-sheet";
 import { StatCard } from "@/components/crm/stat-card";
+import { StatsGrid } from "@/components/crm/stats-grid";
 import { LeadDrawer } from "@/components/crm/lead-drawer";
 import { Badge, Button, Field, Input, Modal, Select, Textarea } from "@/components/ui";
 import {
@@ -311,7 +312,7 @@ export function ContactsClient({
       <ActiveChips chips={chips} onClear={patch} onClearAll={resetFilters} />
 
       {/* Indicadores */}
-      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <StatsGrid className="mt-5" gridClassName="gap-3 lg:grid-cols-5">
         <StatCard
           label="Contatos"
           value={stats.total}
@@ -347,7 +348,7 @@ export function ContactsClient({
           }
           icon={<Wallet className="size-4" />}
         />
-      </div>
+      </StatsGrid>
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
         <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-subtle">
