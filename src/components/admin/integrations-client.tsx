@@ -382,6 +382,7 @@ export function IntegrationsClient({
   const [revealed, setRevealed] = useState<string | null>(null);
   const [origin, setOrigin] = useState("");
   // Google fica recolhido (sanfona); abre sozinho na volta do OAuth
+  const [endpointsOpen, setEndpointsOpen] = useState(false);
   const [googleOpen, setGoogleOpen] = useState(
     () => !!(searchParams.get("connected") || searchParams.get("error")),
   );
@@ -618,33 +619,60 @@ export function IntegrationsClient({
         </div>
       </section>
 
-      {/* Endpoints */}
-      <section>
-        <div className="mb-4">
-          <h2 className={sectionTitle}>Endpoints públicos</h2>
-          <p className="mt-1 text-xs text-subtle">
-            URLs para configurar nos portais e serviços externos.
-          </p>
-        </div>
-        <div className="card-elev space-y-3 rounded-2xl border border-hairline bg-card p-5">
-          {(() => {
-            const base = origin || `https://${whiteLabel.domain}`;
-            return [
-              ["Feed XML de imóveis", `${base}/api/feed.xml`, ""],
-              [
-                "Webhook de leads (POST JSON: name, phone, email, notes…)",
-                `${base}/api/contacts`,
-                "Requer chave de API com escopo escrita ou total no cabeçalho Authorization: Bearer <chave> (ou x-api-key).",
-              ],
-              ["Healthcheck", `${base}/api/health`, ""],
-            ].map(([label, url, hint]) => (
-              <div key={label}>
-                <p className="mb-1.5 text-xs font-medium text-subtle">{label}</p>
-                <Copyable text={url} />
-                {hint && <p className="mt-1.5 text-[11px] text-subtle">{hint}</p>}
-              </div>
-            ));
-          })()}
+      {/* Endpoints — sanfona */}
+      <section className="card-elev rounded-2xl border border-hairline bg-card">
+        <button
+          type="button"
+          onClick={() => setEndpointsOpen((v) => !v)}
+          aria-expanded={endpointsOpen}
+          className="flex w-full items-center gap-3 p-6 text-left"
+        >
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-soft text-subtle">
+            <Link2 className="size-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className={cn(sectionTitle, "block")}>Endpoints públicos</span>
+            <span className="mt-1 block text-xs text-subtle">
+              {endpointsOpen
+                ? "URLs para configurar nos portais e serviços externos."
+                : "Feed XML de imóveis, webhook de leads e healthcheck — clique para ver as URLs"}
+            </span>
+          </span>
+          <ChevronDown
+            className={cn(
+              "size-4 shrink-0 text-subtle transition-transform duration-300",
+              endpointsOpen && "rotate-180",
+            )}
+          />
+        </button>
+        <div
+          className={cn(
+            "grid transition-[grid-template-rows] duration-500 ease-expo",
+            endpointsOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+          )}
+        >
+          <div className="min-h-0 overflow-hidden" inert={!endpointsOpen}>
+            <div className="space-y-3 border-t border-hairline p-6">
+              {(() => {
+                const base = origin || `https://${whiteLabel.domain}`;
+                return [
+                  ["Feed XML de imóveis", `${base}/api/feed.xml`, ""],
+                  [
+                    "Webhook de leads (POST JSON: name, phone, email, notes…)",
+                    `${base}/api/contacts`,
+                    "Requer chave de API com escopo escrita ou total no cabeçalho Authorization: Bearer <chave> (ou x-api-key).",
+                  ],
+                  ["Healthcheck", `${base}/api/health`, ""],
+                ].map(([label, url, hint]) => (
+                  <div key={label}>
+                    <p className="mb-1.5 text-xs font-medium text-subtle">{label}</p>
+                    <Copyable text={url} />
+                    {hint && <p className="mt-1.5 text-[11px] text-subtle">{hint}</p>}
+                  </div>
+                ));
+              })()}
+            </div>
+          </div>
         </div>
       </section>
 
