@@ -29,6 +29,7 @@ import {
   Cloud,
   MessageCircle,
   ChevronLeft,
+  ChevronDown,
   ChevronRight,
   RotateCcw,
   Search,
@@ -84,6 +85,10 @@ export function AgendaClient({
   const pathname = usePathname();
   const [tab, setTab] = useState<AgendaTab>(initialTab);
   const [offset, setOffset] = useState(0);
+  // Visão: semana (padrão) ou mês inteiro
+  const [view, setView] = useState<"semana" | "mes">("semana");
+  const [monthOffset, setMonthOffset] = useState(0);
+  const [todayMenu, setTodayMenu] = useState(false);
   const [visits, setVisits] = useState(initialVisits);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -110,6 +115,49 @@ export function AgendaClient({
 
   const todayIdx = week.findIndex((d) => d.toDateString() === new Date().toDateString());
   const activeMobileDay = mobileDay ?? (todayIdx >= 0 ? todayIdx : 0);
+
+  // Mês exibido: 6 semanas (seg–dom) cobrindo o mês
+  const month = useMemo(() => {
+    const now = new Date();
+    const first = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
+    const start = new Date(first);
+    start.setDate(1 - ((first.getDay() + 6) % 7));
+    const days = Array.from({ length: 42 }, (_, i) => {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      return d;
+    });
+    const next = new Date(first.getFullYear(), first.getMonth() + 1, 1);
+    return { first, next, days };
+  }, [monthOffset]);
+  const monthName = month.first.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+  const monthLabel = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+
+  /** Abre a semana de um dia (a partir do mês) */
+  function openWeekOf(day: Date) {
+    const monday = new Date(day);
+    monday.setHours(0, 0, 0, 0);
+    monday.setDate(day.getDate() - ((day.getDay() + 6) % 7));
+    setOffset(Math.round((monday.getTime() - mondayOf(0).getTime()) / (7 * 864e5)));
+    setMobileDay((day.getDay() + 6) % 7);
+    setView("semana");
+  }
+
+  function goToday(v: "semana" | "mes") {
+    setView(v);
+    setOffset(0);
+    setMonthOffset(0);
+    setMobileDay(null);
+    setTodayMenu(false);
+  }
+
+  function step(dir: 1 | -1) {
+    if (view === "mes") setMonthOffset((o) => o + dir);
+    else {
+      setOffset((o) => o + dir);
+      setMobileDay(null);
+    }
+  }
 
   const weekLabel = `${week[0].getDate()} ${MONTHS[week[0].getMonth()]} — ${week[6].getDate()} ${MONTHS[week[6].getMonth()]} ${week[6].getFullYear()}`;
 
@@ -150,14 +198,16 @@ export function AgendaClient({
     () => visits.filter((v) => tab === "todas" || isRuralVisit(v) === (tab === "rurais")),
     [visits, tab],
   );
+  // Visitas do período exibido (semana ou mês)
   const weekVisits = useMemo(() => {
-    const start = week[0].getTime();
-    const end = start + 7 * 864e5;
+    const start = view === "mes" ? month.first.getTime() : week[0].getTime();
+    const end = view === "mes" ? month.next.getTime() : start + 7 * 864e5;
     return inTab.filter((v) => {
       const t = new Date(v.visit.scheduledAt).getTime();
       return t >= start && t < end;
     });
-  }, [inTab, week]);
+  }, [inTab, week, view, month]);
+  const periodWord = view === "mes" ? "no mês" : "na semana";
   const filtered = useMemo(() => applyAgendaFilters(inTab, filters), [inTab, filters]);
   const weekFiltered = useMemo(() => applyAgendaFilters(weekVisits, filters), [weekVisits, filters]);
 
@@ -206,7 +256,7 @@ export function AgendaClient({
     (id) => inTab.find((v) => v.property?.id === id)?.property?.code ?? "Imóvel",
   );
   // Visitas filtradas nas semanas seguintes à exibida
-  const weekEnd = week[0].getTime() + 7 * 864e5;
+  const weekEnd = view === "mes" ? month.next.getTime() : week[0].getTime() + 7 * 864e5;
   const upcomingElsewhere = chips.length || filters.q
     ? filtered.filter((v) => new Date(v.visit.scheduledAt).getTime() >= weekEnd).length
     : 0;
@@ -322,39 +372,81 @@ export function AgendaClient({
           <Button
             variant="outline"
             size="icon"
-            onClick={() => {
-              setOffset((o) => o - 1);
-              setMobileDay(null);
-            }}
-            aria-label="Semana anterior"
+            onClick={() => step(-1)}
+            aria-label={view === "mes" ? "Mês anterior" : "Semana anterior"}
           >
             <ChevronLeft className="size-4" />
           </Button>
+          {/* Hoje: escolhe voltar para a semana atual ou ver o mês inteiro */}
+          <div className="relative">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setTodayMenu((v) => !v)}
+              aria-expanded={todayMenu}
+              aria-label="Ir para hoje"
+              className="w-auto px-3 text-xs"
+            >
+              <RotateCcw className="size-3.5" />
+              Hoje
+              <ChevronDown className={cn("size-3 transition-transform", todayMenu && "rotate-180")} />
+            </Button>
+            {todayMenu && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => setTodayMenu(false)} />
+                <div className="absolute left-0 top-full z-40 mt-2 w-48 overflow-hidden rounded-xl border border-hairline bg-card p-1 shadow-xl">
+                  {(
+                    [
+                      { v: "semana", label: "Semana atual", hint: "7 dias" },
+                      { v: "mes", label: "Mês atual", hint: "calendário" },
+                    ] as const
+                  ).map((o) => (
+                    <button
+                      key={o.v}
+                      type="button"
+                      onClick={() => goToday(o.v)}
+                      className={cn(
+                        "flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-soft",
+                        view === o.v && "font-medium",
+                      )}
+                    >
+                      {o.label}
+                      <span className="font-mono text-[10px] uppercase tracking-wider text-subtle">
+                        {view === o.v ? "atual" : o.hint}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
           <Button
             variant="outline"
             size="icon"
-            onClick={() => {
-              setOffset(0);
-              setMobileDay(null);
-            }}
-            aria-label="Semana atual"
-            className="w-auto px-3 text-xs"
-          >
-            <RotateCcw className="size-3.5" />
-            Hoje
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => {
-              setOffset((o) => o + 1);
-              setMobileDay(null);
-            }}
-            aria-label="Próxima semana"
+            onClick={() => step(1)}
+            aria-label={view === "mes" ? "Próximo mês" : "Próxima semana"}
           >
             <ChevronRight className="size-4" />
           </Button>
-          <p className="ml-1 font-mono text-xs tabular text-subtle sm:ml-2 sm:text-sm">{weekLabel}</p>
+          <p className="ml-1 font-mono text-xs tabular text-subtle sm:ml-2 sm:text-sm">
+            {view === "mes" ? monthLabel : weekLabel}
+          </p>
+          {/* Alternar visão */}
+          <div className="ml-1 hidden rounded-full border border-hairline p-0.5 sm:inline-flex">
+            {(["semana", "mes"] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setView(v)}
+                className={cn(
+                  "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                  view === v ? "bg-ink text-canvas" : "text-subtle hover:text-ink",
+                )}
+              >
+                {v === "mes" ? "Mês" : "Semana"}
+              </button>
+            ))}
+          </div>
         </div>
         <Button variant="accent" onClick={() => setOpen(true)}>
           <CalendarPlus className="size-4" />
@@ -404,7 +496,7 @@ export function AgendaClient({
       {/* Indicadores */}
       <StatsGrid className="mt-5" gridClassName="gap-3 lg:grid-cols-5">
         <StatCard
-          label="Visitas na semana"
+          label={view === "mes" ? "Visitas no mês" : "Visitas na semana"}
           value={stats.ativas}
           caption={`${stats.clientes} ${stats.clientes === 1 ? "cliente" : "clientes"} · sem canceladas`}
           icon={<CalendarDays className="size-4" />}
@@ -438,7 +530,7 @@ export function AgendaClient({
         <StatCard
           label="Canceladas"
           value={stats.canceladas}
-          caption="Na semana exibida"
+          caption={view === "mes" ? "No mês exibido" : "Na semana exibida"}
           icon={<X className="size-4" />}
         />
       </StatsGrid>
@@ -449,21 +541,103 @@ export function AgendaClient({
         onReset={resetFilters}
         title="Filtrar agenda"
         activeCount={chips.length}
-        resultLabel={`Ver ${weekFiltered.length} ${weekFiltered.length === 1 ? "visita" : "visitas"} na semana`}
+        resultLabel={`Ver ${weekFiltered.length} ${weekFiltered.length === 1 ? "visita" : "visitas"} ${periodWord}`}
       >
         <AgendaFiltersPanel value={filters} onChange={patch} visits={inTab} weekVisits={weekVisits} />
       </FilterSheet>
 
       <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.16em] text-subtle">
-        {weekFiltered.length} de {weekVisits.length} visitas nesta semana
+        {weekFiltered.length} de {weekVisits.length} visitas {view === "mes" ? "neste mês" : "nesta semana"}
         {upcomingElsewhere > 0 && (
-          <> · {upcomingElsewhere} {upcomingElsewhere === 1 ? "outra" : "outras"} nas próximas semanas</>
+          <>
+            {" "}· {upcomingElsewhere} {upcomingElsewhere === 1 ? "outra" : "outras"}{" "}
+            {view === "mes" ? "nos próximos meses" : "nas próximas semanas"}
+          </>
         )}
-        <span className="hidden md:inline"> · arraste os cartões entre os dias para reagendar</span>
+        <span className="hidden md:inline">
+          {view === "mes"
+            ? " · clique num dia para abrir a semana"
+            : " · arraste os cartões entre os dias para reagendar"}
+        </span>
       </p>
 
+      {/* Visão de mês */}
+      {view === "mes" && (
+        <div className="mt-5">
+          <div className="grid grid-cols-7 gap-1 pb-2 md:gap-2">
+            {DAY_NAMES.map((n) => (
+              <p key={n} className="text-center font-mono text-[10px] uppercase tracking-[0.16em] text-subtle">
+                {n}
+              </p>
+            ))}
+          </div>
+          <div className="grid grid-cols-7 gap-1 md:gap-2">
+            {month.days.map((day) => {
+              const inMonth = day.getMonth() === month.first.getMonth();
+              const isToday = day.toDateString() === new Date().toDateString();
+              const list = visitsFor(day);
+              const active = list.filter((v) => v.visit.status !== "cancelada");
+              return (
+                <button
+                  key={day.toISOString()}
+                  type="button"
+                  onClick={() => openWeekOf(day)}
+                  title={active.length ? `${active.length} visita(s) — abrir a semana` : "Abrir a semana"}
+                  className={cn(
+                    "flex min-h-14 flex-col rounded-lg border p-1 text-left transition-colors hover:border-hairline-strong md:min-h-28 md:rounded-xl md:p-2",
+                    isToday
+                      ? "border-[rgb(var(--accent))/0.5] bg-soft/70"
+                      : "border-hairline bg-card",
+                    !inMonth && "opacity-40",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "font-mono text-xs tabular md:text-sm",
+                      isToday ? "font-semibold text-accent" : "text-ink",
+                    )}
+                  >
+                    {day.getDate()}
+                  </span>
+                  {/* Celular: pontinhos; computador: horário e cliente */}
+                  {active.length > 0 && (
+                    <span className="mt-auto flex flex-wrap gap-0.5 md:hidden">
+                      {active.slice(0, 4).map((v) => (
+                        <span key={v.visit.id} className="size-1.5 rounded-full bg-accent" />
+                      ))}
+                    </span>
+                  )}
+                  <span className="mt-1 hidden w-full space-y-1 md:block">
+                    {list.slice(0, 3).map((v) => (
+                      <span
+                        key={v.visit.id}
+                        className={cn(
+                          "block truncate rounded border-l-2 bg-canvas px-1.5 py-0.5 text-[10.5px]",
+                          STATUS_BORDER[v.visit.status],
+                        )}
+                      >
+                        <span className="font-mono tabular">
+                          {new Date(v.visit.scheduledAt).toLocaleTimeString("pt-BR", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>{" "}
+                        {v.contact?.name?.split(" ")[0] ?? "—"}
+                      </span>
+                    ))}
+                    {list.length > 3 && (
+                      <span className="block text-[10px] text-subtle">+{list.length - 3} mais</span>
+                    )}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Celular: faixa de dias + lista do dia com ações (arrastar não funciona no toque) */}
-      <div className="mt-5 md:hidden">
+      <div className={cn("mt-5 md:hidden", view === "mes" && "hidden")}>
         <div className="grid grid-cols-7 gap-1">
           {week.map((day, i) => {
             const n = visitsFor(day).filter((v) => v.visit.status !== "cancelada").length;
@@ -633,7 +807,7 @@ export function AgendaClient({
       </div>
 
       {/* Grade da semana (tablet e computador) */}
-      <div className="mt-5 hidden gap-2.5 overflow-x-auto md:grid md:grid-cols-7">
+      <div className={cn("mt-5 hidden gap-2.5 overflow-x-auto md:grid-cols-7", view === "semana" && "md:grid")}>
         {week.map((day, i) => {
           const isToday = day.toDateString() === new Date().toDateString();
           const dayVisits = visitsFor(day);
