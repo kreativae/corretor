@@ -66,7 +66,7 @@ export function FilterSheet({
           </button>
         </div>
 
-        <div className="flex-1 space-y-7 overflow-y-auto px-6 py-6">{children}</div>
+        <div data-lenis-prevent className="min-h-0 flex-1 space-y-7 overflow-y-auto overscroll-contain px-6 py-6">{children}</div>
 
         <div className="flex shrink-0 items-center justify-between gap-3 border-t border-hairline px-6 py-4">
           <button
