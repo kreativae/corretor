@@ -15,6 +15,7 @@ import {
   listDealClosedDates,
   listDeals,
   listProperties,
+  listPropertyViewTotals,
   listVisits,
 } from "@/lib/queries";
 import type { Contact, Property } from "@/db/schema";
@@ -34,8 +35,14 @@ import {
   ArrowUpRight,
   Building2,
   CalendarDays,
+  CheckCheck,
   Columns3,
+  Eye,
   Handshake,
+  Hourglass,
+  Percent,
+  UserX,
+  Wallet,
   Tractor,
   UserPlus,
 } from "lucide-react";
@@ -92,6 +99,7 @@ export default async function CrmDashboard({
   const visits = allVisits.filter((v) => propOk(v.property) && sourceOk(v.contact));
 
   const [rangeFrom, rangeTo] = overviewRange(f, now.getTime());
+  const viewTotals = await listPropertyViewTotals({ from: rangeFrom, to: rangeTo });
   const inRange = (d: Date | string) => {
     const t = new Date(d).getTime();
     return (rangeFrom == null || t >= rangeFrom) && (rangeTo == null || t <= rangeTo);
@@ -104,6 +112,42 @@ export default async function CrmDashboard({
   const visitsInPeriod = visits.filter(
     (v) => v.visit.status !== "cancelada" && inRange(v.visit.scheduledAt),
   ).length;
+
+  // ── Indicadores de desempenho do período ──
+  const periodVisits = visits.filter((v) => inRange(v.visit.scheduledAt));
+  const realizadas = periodVisits.filter((v) => v.visit.status === "realizada").length;
+  const canceladas = periodVisits.filter((v) => v.visit.status === "cancelada").length;
+  const comparecimento =
+    realizadas + canceladas ? Math.round((realizadas / (realizadas + canceladas)) * 100) : null;
+  const withDeal = new Set(allDeals.map((d) => d.deal.contactId));
+  const foraDoFunil = contacts.filter((c) => !withDeal.has(c.id));
+  const foraDoFunilNovos = foraDoFunil.filter((c) => inRange(c.createdAt)).length;
+  const staleLimit = now.getTime() - 15 * 864e5;
+  const paradas = deals.filter(
+    (d) => d.deal.stage !== "fechado" && new Date(d.deal.updatedAt).getTime() < staleLimit,
+  );
+  const visibleIds = new Set(properties.map((p) => p.id));
+  const viewsPeriod = Object.entries(viewTotals)
+    .filter(([id]) => visibleIds.has(id))
+    .reduce((a, [, v]) => ({ total: a.total + v.total, unique: a.unique + v.unique }), {
+      total: 0,
+      unique: 0,
+    });
+  const topViewed = Object.entries(viewTotals)
+    .filter(([id]) => visibleIds.has(id))
+    .sort((a, b) => b[1].total - a[1].total)[0];
+  const topViewedCode = topViewed
+    ? properties.find((p) => p.id === topViewed[0])?.code
+    : undefined;
+  const budgets = contacts
+    .map((c) => c.budgetMax ?? c.budgetMin ?? 0)
+    .filter((b) => b > 0);
+  const avgBudget = budgets.length
+    ? Math.round(budgets.reduce((a, b) => a + b, 0) / budgets.length)
+    : 0;
+  const conversion = deals.length
+    ? Math.round((deals.filter((d) => d.deal.stage === "fechado").length / deals.length) * 100)
+    : 0;
 
   const tally = (vals: string[]) =>
     [...new Set(vals.filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
@@ -233,7 +277,7 @@ export default async function CrmDashboard({
       <div
         className={cn(
           "grid gap-4 sm:grid-cols-2 lg:grid-cols-3",
-          !features.closedDeals && "xl:grid-cols-5",
+          features.closedDeals ? "xl:grid-cols-6" : "xl:grid-cols-5",
         )}
       >
         <StatCard
@@ -275,6 +319,66 @@ export default async function CrmDashboard({
           }
           icon={<Columns3 className="size-4" />}
         />
+        <StatCard
+          label="Visitas realizadas"
+          value={realizadas}
+          caption={
+            comparecimento != null
+              ? `${comparecimento}% de comparecimento · ${periodLabel}`
+              : `Nenhuma visita encerrada · ${periodLabel}`
+          }
+          icon={<CheckCheck className="size-4" />}
+        />
+        <StatCard
+          label="Leads fora do funil"
+          value={foraDoFunil.length}
+          caption={
+            foraDoFunilNovos
+              ? `${foraDoFunilNovos} novos no período sem negociação`
+              : "Contatos sem negociação aberta"
+          }
+          icon={<UserX className="size-4" />}
+        />
+        <StatCard
+          label="Paradas +15 dias"
+          value={paradas.length}
+          caption={
+            paradas.length
+              ? `${formatCompact(paradas.reduce((a, d) => a + d.deal.value, 0))} sem movimentação`
+              : "Pipeline em movimento"
+          }
+          icon={<Hourglass className="size-4" />}
+        />
+        <StatCard
+          label="Visualizações no site"
+          value={viewsPeriod.total}
+          caption={
+            viewsPeriod.total
+              ? `${topViewedCode ? `Mais visto: ${topViewedCode} · ` : ""}${periodLabel}`
+              : `Nenhuma visualização · ${periodLabel}`
+          }
+          icon={<Eye className="size-4" />}
+        />
+        <StatCard
+          label="Orçamento médio"
+          value={avgBudget}
+          format="brl"
+          caption={
+            budgets.length
+              ? `${budgets.length} de ${contacts.length} leads informaram`
+              : "Nenhum lead informou orçamento"
+          }
+          icon={<Wallet className="size-4" />}
+        />
+        {features.closedDeals && (
+        <StatCard
+          label="Conversão"
+          value={conversion}
+          format="pct"
+          caption="Negociações fechadas sobre o total"
+          icon={<Percent className="size-4" />}
+        />
+        )}
         {features.closedDeals && (
         <StatCard
           label="Negócios fechados"

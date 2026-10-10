@@ -19,7 +19,7 @@ import {
   type User,
   type Visit,
 } from "@/db/schema";
-import { and, count, countDistinct, desc, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, count, countDistinct, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 
 /* ─────────────────────── White label ─────────────────────── */
 
@@ -297,9 +297,15 @@ export async function getPropertyViewStats(
 }
 
 /** Totais por imóvel para a coluna da tabela de portfólio. */
-export async function listPropertyViewTotals(): Promise<
-  Record<string, { total: number; unique: number }>
-> {
+/** Visualizações por imóvel; com `range`, só as do período (ms, limites opcionais). */
+export async function listPropertyViewTotals(range?: {
+  from?: number | null;
+  to?: number | null;
+}): Promise<Record<string, { total: number; unique: number }>> {
+  const conds = [
+    range?.from != null ? gte(propertyViews.createdAt, new Date(range.from)) : undefined,
+    range?.to != null ? lte(propertyViews.createdAt, new Date(range.to)) : undefined,
+  ].filter(Boolean);
   const rows = await db
     .select({
       propertyId: propertyViews.propertyId,
@@ -307,6 +313,7 @@ export async function listPropertyViewTotals(): Promise<
       unique: countDistinct(propertyViews.visitorId),
     })
     .from(propertyViews)
+    .where(conds.length ? and(...conds) : undefined)
     .groupBy(propertyViews.propertyId);
   return Object.fromEntries(
     rows.map((r) => [
