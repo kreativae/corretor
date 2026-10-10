@@ -16,7 +16,7 @@ import { Button, Field, Input, Modal, Select } from "@/components/ui";
 import { DEAL_STAGES } from "@/lib/labels";
 import type { DealFull } from "@/lib/queries";
 import { formatAlq, isRuralType, normalizeRural } from "@/lib/rural";
-import { cn, formatCompact, initials } from "@/lib/utils";
+import { cn, formatCompact, initials, timeAgo } from "@/lib/utils";
 import {
   ArrowUpRight,
   Building2,
@@ -24,7 +24,9 @@ import {
   Flag,
   Handshake,
   Hourglass,
+  Eye,
   Layers,
+  MessageCircle,
   Plus,
   Search,
   Tractor,
@@ -82,6 +84,7 @@ export function Kanban({
   const [dragId, setDragId] = useState<string | null>(null);
   const [overStage, setOverStage] = useState<string | null>(null);
   const [previewId, setPreviewId] = useState<string | null>(null);
+  const [mobileStage, setMobileStage] = useState<string>("novo");
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ contactId: "", propertyId: "", value: "", stage: "novo" });
@@ -135,6 +138,11 @@ export function Kanban({
   const stages = filters.stages.length
     ? DEAL_STAGES.filter((s) => filters.stages.includes(s.id))
     : DEAL_STAGES;
+
+  // Etapa exibida no celular (cai na primeira visível se o filtro a esconder)
+  const activeMobileStage = stages.some((st) => st.id === mobileStage)
+    ? mobileStage
+    : stages[0]?.id;
 
   const byStage = useMemo(() => {
     const map = new Map<string, DealFull[]>();
@@ -241,7 +249,7 @@ export function Kanban({
         </div>
         <Button variant="primary" onClick={() => setOpen(true)}>
           <Plus className="size-4" />
-          Nova negociação
+          Nova<span className="hidden sm:inline"> negociação</span>
         </Button>
       </div>
 
@@ -323,7 +331,122 @@ export function Kanban({
         <DealFiltersPanel value={filters} onChange={patch} deals={visible} />
       </FilterSheet>
 
-      <div className="flex gap-3 overflow-x-auto pb-4">
+      {/* Celular: uma etapa por vez, cartões largos e "mover para" (arrastar não funciona no toque) */}
+      <div className="md:hidden">
+        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-3 [scrollbar-width:none]">
+          {stages.map((st) => {
+            const n = byStage.get(st.id)?.length ?? 0;
+            const on = activeMobileStage === st.id;
+            return (
+              <button
+                key={st.id}
+                type="button"
+                onClick={() => setMobileStage(st.id)}
+                className={cn(
+                  "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                  on ? "border-transparent bg-ink text-canvas" : "border-hairline text-subtle",
+                )}
+              >
+                <span className="size-1.5 rounded-full" style={{ background: st.dot }} />
+                {st.label}
+                <span className="font-mono text-[10px] opacity-60">{n}</span>
+              </button>
+            );
+          })}
+        </div>
+        {(() => {
+          const current = stages.find((st) => st.id === activeMobileStage);
+          const items = current ? byStage.get(current.id) ?? [] : [];
+          const sum = items.reduce((a, d) => a + d.deal.value, 0);
+          return (
+            <div className="space-y-3">
+              <p className="font-mono text-[10.5px] uppercase tracking-[0.16em] text-subtle">
+                {items.length} {items.length === 1 ? "negociação" : "negociações"} · {formatCompact(sum)}
+              </p>
+              {items.length === 0 && (
+                <p className="rounded-2xl border border-hairline bg-card py-12 text-center text-sm text-subtle">
+                  Nenhuma negociação em “{current?.label}”.
+                </p>
+              )}
+              {items.map(({ deal, contact, property }) => {
+                const digits = contact?.phone?.replace(/\D/g, "") ?? "";
+                const wa = digits.length >= 10 ? (digits.startsWith("55") ? digits : `55${digits}`) : null;
+                return (
+                  <div key={deal.id} className="rounded-2xl border border-hairline bg-card p-3.5">
+                    <button
+                      type="button"
+                      onClick={() => contact && setPreviewId(contact.id)}
+                      className="flex w-full items-center gap-3 text-left"
+                    >
+                      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-soft font-mono text-[10.5px] font-semibold text-subtle">
+                        {contact ? initials(contact.name) : "—"}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[15px] font-medium leading-tight">
+                          {contact?.name ?? "Contato removido"}
+                        </span>
+                        <span className="mt-0.5 block truncate text-xs text-subtle">
+                          {property ? (
+                            <>
+                              <span className="font-mono text-[10.5px] uppercase tracking-wider">{property.code}</span> ·{" "}
+                              {property.title}
+                            </>
+                          ) : (
+                            "Imóvel a definir"
+                          )}
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-right font-mono text-sm font-medium tabular">
+                        {deal.value ? formatCompact(deal.value) : "—"}
+                      </span>
+                    </button>
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-subtle">
+                      {property && isRuralType(property.type) && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 font-medium text-emerald-600">
+                          <Tractor className="size-3" />
+                          {normalizeRural(property.rural).totalAlq
+                            ? `${formatAlq(normalizeRural(property.rural).totalAlq ?? 0)} alq`
+                            : "Rural"}
+                        </span>
+                      )}
+                      <span>Atualizada {timeAgo(deal.updatedAt)}</span>
+                    </div>
+                    <div className="mt-3 flex items-center gap-2 border-t border-hairline pt-3">
+                      <Select
+                        value={deal.stage}
+                        onChange={(e) => move(deal.id, e.target.value)}
+                        aria-label="Mover para"
+                        className="h-9 min-w-0 flex-1 text-xs"
+                      >
+                        {DEAL_STAGES.map((st) => (
+                          <option key={st.id} value={st.id}>
+                            {st.id === deal.stage ? `Em: ${st.label}` : `Mover para ${st.label}`}
+                          </option>
+                        ))}
+                      </Select>
+                      {wa && (
+                        <a href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer" aria-label="WhatsApp">
+                          <Button variant="ghost" size="icon">
+                            <MessageCircle className="size-4 text-emerald-600" />
+                          </Button>
+                        </a>
+                      )}
+                      {contact && (
+                        <Button variant="ghost" size="icon" aria-label="Visão rápida" onClick={() => setPreviewId(contact.id)}>
+                          <Eye className="size-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
+      </div>
+
+      {/* Quadro (tablet e computador) */}
+      <div className="hidden gap-3 overflow-x-auto pb-4 md:flex">
         {stages.map((stage) => {
           const items = byStage.get(stage.id) ?? [];
           const sum = items.reduce((a, d) => a + d.deal.value, 0);
