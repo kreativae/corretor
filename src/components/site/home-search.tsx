@@ -74,7 +74,7 @@ function Box({
 }
 
 const control =
-  "w-full min-w-0 appearance-none truncate bg-transparent py-0.5 pr-5 text-[15px] text-white outline-none placeholder:text-white/45 [&>option]:bg-[#111110] [&>option]:text-white";
+  "w-full min-w-0 appearance-none truncate bg-transparent py-0.5 pr-5 text-[15px] text-white outline-none placeholder:text-white/45 [&>option]:bg-[#18183a] [&>option]:text-white";
 
 export function HomeSearch({
   urbanTypes,
@@ -141,7 +141,7 @@ export function HomeSearch({
   return (
     <form
       onSubmit={submit}
-      className="w-full rounded-2xl border border-white/15 bg-black/45 p-2.5 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-3"
+      className="w-full rounded-2xl border border-white/15 bg-[#11112a]/60 p-2.5 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-3"
     >
       <div className="mb-2.5 flex gap-1" role="tablist" aria-label="O que você procura">
         {tabs.map((t) => (
@@ -166,7 +166,7 @@ export function HomeSearch({
           "grid grid-cols-2 gap-2",
           tab === "rurais"
             ? "md:grid-cols-[1.7fr_1fr_1fr_auto]"
-            : "md:grid-cols-[1.5fr_1fr_1fr_1.15fr_auto]",
+            : "md:grid-cols-[1.3fr_1fr_1fr_1.35fr_auto]",
         )}
       >
         <Box label="Onde" className="col-span-2 md:col-span-1">

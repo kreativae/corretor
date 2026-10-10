@@ -1,0 +1,28 @@
+import { cn } from "@/lib/utils";
+
+/** Monograma "CA" (vetor da identidade visual): C e A em `fill`, triângulo no laranja. */
+const MONOGRAM = ["M 110.2 99.75 L 117.61 115.59 C 114.07 119.3 110.11 122.61 105.81 125.44 C 105.56 125.61 105.31 125.78 105.05 125.94 C 94.5 132.71 81.96 136.63 68.52 136.63 C 57.46 136.63 46.99 133.96 37.75 129.24 L 44.47 114.8 C 51.67 118.58 59.86 120.72 68.52 120.72 C 76.97 120.72 84.95 118.7 92 115.1 C 93.55 114.31 95.06 113.45 96.51 112.52 C 96.67 112.42 96.83 112.31 96.98 112.21 C 102.09 108.86 106.56 104.63 110.2 99.75", "M 111.57 16.32 L 104.57 31.37 C 101.54 28.44 98.15 25.88 94.48 23.76 C 86.84 19.33 77.97 16.8 68.52 16.8 C 39.87 16.8 16.55 40.11 16.55 68.76 C 16.55 78.84 19.45 88.27 24.45 96.25 L 16.54 112.36 C 6.62 100.56 0.64 85.35 0.64 68.76 C 0.64 31.33 31.09 0.88 68.52 0.88 C 80.37 0.88 91.52 3.93 101.22 9.29 C 104.89 11.31 108.36 13.67 111.57 16.32", "M 108.23 95.53 C 104.48 101.27 99.53 106.17 93.74 109.86 L 68.52 54.23 L 42.48 110.2 L 32.55 131.54 L 31.98 132.77 L 11.39 132.77 L 17.5 120.08 L 28.56 97.16 L 59.18 33.65 L 79.29 33.65 Z M 108.23 95.53"] as const;
+const MONOGRAM_TIP = "M 125.65 132.77 L 104.12 132.77 L 103.47 131.33 C 109.28 127.98 114.58 123.84 119.23 119.05 Z M 125.65 132.77";
+
+export const BRAND_NAVY = "#2B2B5D";
+export const BRAND_ORANGE = "#F47525";
+
+/** Monograma puro, sem fundo — cores explícitas (ex.: ficha impressa, e-mails) */
+export function Monogram({
+  className,
+  color = "currentColor",
+  tip = BRAND_ORANGE,
+}: {
+  className?: string;
+  color?: string;
+  tip?: string;
+}) {
+  return (
+    <svg viewBox="0 0 127 138" className={cn("shrink-0", className)} aria-hidden>
+      {MONOGRAM.map((d) => (
+        <path key={d.slice(0, 12)} d={d} fill={color} />
+      ))}
+      <path d={MONOGRAM_TIP} fill={tip} />
+    </svg>
+  );
+}

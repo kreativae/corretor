@@ -55,12 +55,12 @@ export type SiteContent = {
 
 export const DEFAULT_CONTENT: SiteContent = {
   seo: {
-    title: "NORD Imóveis — Casas, apartamentos e imóveis rurais",
+    title: "Carlos Amâncio Imóveis — Casas, apartamentos e imóveis rurais",
     description:
       "Encontre casas, apartamentos e propriedades rurais à venda e para alugar. Busque por bairro, tipo e preço.",
   },
   hero: {
-    eyebrow: "São Paulo, Brasil",
+    eyebrow: "Negócios imobiliários",
     title: "Encontre a casa ideal.",
     subtitle:
       "Apartamentos, casas e propriedades rurais à venda e para alugar. Busque pelo bairro, tipo e preço — e fale direto com um corretor.",
@@ -143,10 +143,10 @@ export const DEFAULT_CONTENT: SiteContent = {
   },
   footer: {
     tagline: "Imóveis à venda e para alugar, com atendimento direto do corretor.",
-    address: "Rua Oscar Freire, 1200\nJardins, São Paulo — SP",
-    email: "contato@nordimoveis.com.br",
-    creci: "CRECI 24.315-J",
-    coords: "23°33′S 46°38′W — São Paulo",
+    address: "",
+    email: "",
+    creci: "CRECI F27617",
+    coords: "",
   },
 };
 
@@ -171,6 +171,12 @@ const LEGACY_DEFAULTS: Record<string, string> = {
   "Tour guiado por um curador sênior": "Visita acompanhada por um corretor",
   "Espaços com assinatura, escolhidos para durar.": DEFAULT_CONTENT.footer.tagline,
   "Portfólio completo": DEFAULT_CONTENT.listing.eyebrow,
+  "NORD Imóveis — Casas, apartamentos e imóveis rurais": DEFAULT_CONTENT.seo.title,
+  "São Paulo, Brasil": DEFAULT_CONTENT.hero.eyebrow,
+  "Rua Oscar Freire, 1200\nJardins, São Paulo — SP": DEFAULT_CONTENT.footer.address,
+  "contato@nordimoveis.com.br": DEFAULT_CONTENT.footer.email,
+  "CRECI 24.315-J": DEFAULT_CONTENT.footer.creci,
+  "23°33′S 46°38′W — São Paulo": DEFAULT_CONTENT.footer.coords,
 };
 
 function upgrade<T>(v: T): T {

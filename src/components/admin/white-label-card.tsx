@@ -11,6 +11,7 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 const ACCENTS = [
+  { name: "Laranja da marca", value: "#F47525" },
   { name: "Esmeralda", value: "#10b981" },
   { name: "Azul elétrico", value: "#4f7cff" },
   { name: "Laranja queimado", value: "#f26a1b" },
@@ -164,7 +165,7 @@ function BrandPreview({ wl }: { wl: WhiteLabel }) {
       <div
         className={cn(
           "flex h-16 items-center rounded-xl border px-4",
-          dark ? "border-white/10 bg-neutral-950 text-white" : "border-neutral-200 bg-white text-neutral-900",
+          dark ? "border-white/10 bg-[#11112a] text-white" : "border-neutral-200 bg-white text-neutral-900",
         )}
       >
         {logo ? (
@@ -173,7 +174,7 @@ function BrandPreview({ wl }: { wl: WhiteLabel }) {
           <span className="flex items-center gap-2.5">
             <Mark
               src={wl.iconUrl || undefined}
-              className={dark ? "[&>rect]:fill-white/10" : "[&>rect]:fill-neutral-900"}
+              className={dark ? "text-white" : "text-[#2B2B5D]"}
             />
             <span className="flex flex-col leading-none">
               <span className="font-display text-[17px] font-semibold tracking-tight">{shortName}</span>
@@ -192,7 +193,7 @@ function BrandPreview({ wl }: { wl: WhiteLabel }) {
         )}
         <span
           className="ml-auto rounded-full px-3 py-1.5 text-[11px] font-semibold"
-          style={{ background: wl.accent, color: "#0a0a0a" }}
+          style={{ background: wl.accent, color: "#1c1c45" }}
         >
           Agendar visita
         </span>

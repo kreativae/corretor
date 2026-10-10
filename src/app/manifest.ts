@@ -9,7 +9,7 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
     description: "Casas, apartamentos e imóveis rurais à venda e para alugar.",
     start_url: "/",
     display: "standalone",
-    background_color: "#0a0a0a",
+    background_color: "#11112a",
     theme_color: wl.accent,
     icons: [
       ...(wl.iconUrl ? [{ src: wl.iconUrl, sizes: "512x512", purpose: "any" as const }] : []),

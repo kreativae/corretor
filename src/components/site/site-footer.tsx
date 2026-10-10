@@ -18,13 +18,14 @@ export function SiteFooter({
 }) {
   const igHandle = instagram?.replace(/^https?:\/\/(www\.)?instagram\.com\//, "").replace(/[/@]/g, "");
   const year = new Date().getFullYear();
-  const first = orgName.split(" ")[0];
+  // Nome da marca sem o "Imóveis" (ex.: CARLOS AMÂNCIO)
+  const brandName = orgName.replace(/\s+(im[óo]veis|imobili[áa]ria)$/i, "");
 
   return (
     <footer id="contato" className="border-t border-hairline">
       <div className="container-x grid gap-14 py-16 md:grid-cols-[1.4fr_1fr_1fr] md:py-24">
         <div>
-          <Mark className="size-10" />
+          <Mark className="size-12" />
           <p className="mt-6 max-w-xs font-display text-2xl font-medium leading-snug tracking-tight">
             {footer.tagline}
           </p>
@@ -71,7 +72,7 @@ export function SiteFooter({
                 {phone.slice(9)}
               </li>
             )}
-            <li>{email || footer.email}</li>
+            {(email || footer.email) && <li>{email || footer.email}</li>}
             {igHandle && (
               <li>
                 <a
@@ -84,7 +85,7 @@ export function SiteFooter({
                 </a>
               </li>
             )}
-            <li className="whitespace-pre-line">{footer.address}</li>
+            {footer.address && <li className="whitespace-pre-line">{footer.address}</li>}
           </ul>
         </div>
       </div>
@@ -92,9 +93,9 @@ export function SiteFooter({
       <div className="container-x overflow-hidden pb-8">
         <p
           aria-hidden
-          className="text-outline select-none text-center font-display text-[18vw] font-bold leading-[0.85] tracking-tight md:text-[13vw]"
+          className="text-outline select-none whitespace-nowrap text-center font-brand text-[10vw] font-extrabold uppercase leading-[0.9] tracking-tight md:text-[8.5vw]"
         >
-          {first.toUpperCase()}®
+          {brandName}
         </p>
       </div>
 
@@ -103,7 +104,7 @@ export function SiteFooter({
           <p>
             © {year} {orgName} — {footer.creci}
           </p>
-          <p className="font-mono uppercase tracking-[0.18em]">{footer.coords}</p>
+          {footer.coords && <p className="font-mono uppercase tracking-[0.18em]">{footer.coords}</p>}
           <p>
             Plataforma <span className="text-ink">ImobManager</span>
           </p>

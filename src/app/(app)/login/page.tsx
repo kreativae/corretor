@@ -27,7 +27,7 @@ export default async function LoginPage({
       <div className="relative hidden w-1/2 flex-col justify-between overflow-hidden bg-ink p-12 lg:flex">
         <div className="grid-bg pointer-events-none absolute inset-0 opacity-[0.07]" />
         <div className="relative flex items-center gap-3">
-          <Mark className="size-9 [&>rect]:fill-white/10" />
+          <Mark className="size-9 text-white" />
           <div className="leading-none">
             <p className="font-display text-base font-semibold text-canvas">
               {wl.orgName}

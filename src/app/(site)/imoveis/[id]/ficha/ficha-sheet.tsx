@@ -1,3 +1,4 @@
+import { BRAND_NAVY, Monogram } from "@/components/monogram";
 import {
   ACESSO_LABELS,
   APTIDAO_LABELS,
@@ -137,17 +138,7 @@ export function FichaSheet({
               /* eslint-disable-next-line @next/next/no-img-element */
               <img src={iconUrl} alt="" className="size-8 rounded-[22%] object-cover" />
             ) : (
-              <svg viewBox="0 0 64 64" className="size-8">
-                <rect width="64" height="64" rx="14" fill="#0A0A0A" />
-                <path
-                  d="M20 46V18l24 28V18"
-                  fill="none"
-                  stroke="#10B981"
-                  strokeWidth="5.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+              <Monogram className="size-9" color={BRAND_NAVY} />
             )}
             <div>
               {showName && <p className="text-sm font-semibold tracking-tight">{orgName}</p>}

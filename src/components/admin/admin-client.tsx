@@ -11,6 +11,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 const ACCENTS = [
+  { name: "Laranja da marca", value: "#F47525" },
   { name: "Esmeralda", value: "#10b981" },
   { name: "Azul elétrico", value: "#4f7cff" },
   { name: "Laranja queimado", value: "#f26a1b" },

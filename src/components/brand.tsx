@@ -1,5 +1,6 @@
 "use client";
 
+import { Monogram } from "@/components/monogram";
 import { cn } from "@/lib/utils";
 import { createContext, useContext, type ReactNode } from "react";
 
@@ -30,7 +31,7 @@ export function useBrand() {
   return useContext(BrandContext);
 }
 
-/** Selo da marca — ícone enviado no white label ou o "N" padrão. */
+/** Selo da marca — ícone enviado no white label ou o monograma da identidade. */
 export function Mark({ className, src }: { className?: string; src?: string }) {
   const brand = useBrand();
   const icon = src ?? brand.iconUrl;
@@ -45,19 +46,7 @@ export function Mark({ className, src }: { className?: string; src?: string }) {
       />
     );
   }
-  return (
-    <svg viewBox="0 0 64 64" className={cn("size-7 shrink-0", className)} aria-hidden>
-      <rect width="64" height="64" rx="14" className="fill-ink" />
-      <path
-        d="M20 46V18l24 28V18"
-        fill="none"
-        stroke="rgb(var(--accent))"
-        strokeWidth="5.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
+  return <Monogram className={cn("size-7 text-ink", className)} tip="rgb(var(--accent))" />;
 }
 
 /** Logo horizontal; alterna a versão para fundo escuro no tema dark. */
@@ -120,15 +109,18 @@ export function Wordmark({
     );
   }
   const subtitle = sub ?? brand.sub;
+  const [first, ...rest] = (name ?? brand.shortName).trim().split(/\s+/);
   return (
     <span className={cn("flex items-center gap-2.5", className)}>
-      <Mark className={invert ? "[&>rect]:fill-white" : undefined} />
+      <Mark className={cn("size-8", invert && "text-white")} />
       <span className="flex flex-col leading-none">
-        <span className="font-display text-[17px] font-semibold tracking-tight">
-          {name ?? brand.shortName}
+        {/* Como no logotipo: primeiro nome fino, sobrenome pesado */}
+        <span className="whitespace-nowrap font-brand text-[16px] uppercase tracking-[0.01em]">
+          <span className="font-extralight">{first}</span>
+          {rest.length > 0 && <span className="font-extrabold"> {rest.join(" ")}</span>}
         </span>
         {subtitle && (
-          <span className="mt-0.5 text-[9.5px] font-medium uppercase tracking-[0.22em] text-subtle">
+          <span className="mt-1 text-[8.5px] font-medium uppercase tracking-[0.34em] text-subtle">
             {subtitle}
           </span>
         )}

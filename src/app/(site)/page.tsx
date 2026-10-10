@@ -137,7 +137,7 @@ export default async function HomePage() {
               <source src={content.hero.videoUrl} type="video/mp4" />
             </video>
           )}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/45 to-black/75" />
+          <div className="absolute inset-0 bg-gradient-to-b from-[#11112a]/80 via-[#11112a]/50 to-[#11112a]/90" />
         </div>
 
         <div className="container-x relative z-10 flex min-h-[640px] flex-col justify-center pb-10 pt-28 text-white md:min-h-[78svh] md:pb-16 md:pt-32">

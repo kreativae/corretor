@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono, Montserrat } from "next/font/google";
 import type { CSSProperties, ReactNode } from "react";
 import { MotionFX, SmoothScroll } from "@/components/motion";
 import { BrandProvider } from "@/components/brand";
@@ -10,6 +10,8 @@ import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const jetbrains = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains" });
+// Substituta livre da Nexa (tipografia da marca): geométrica, do fino ao pesado
+const montserrat = Montserrat({ subsets: ["latin"], variable: "--font-montserrat" });
 
 export async function generateMetadata(): Promise<Metadata> {
   const [wl, content] = await Promise.all([getWhiteLabel(), getSiteContent()]);
@@ -35,12 +37,12 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export const viewport: Viewport = {
-  themeColor: "#0a0a0a",
+  themeColor: "#11112a",
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const wl = await getWhiteLabel();
-  const accent = hexToRgbTriplet(wl.accent) ?? "16 185 129";
+  const accent = hexToRgbTriplet(wl.accent) ?? "244 117 37";
 
   return (
     <html
@@ -49,7 +51,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       style={{ "--accent": accent } as CSSProperties}
     >
       <body
-        className={`${inter.variable} ${jetbrains.variable} bg-canvas font-sans text-ink antialiased`}
+        className={`${inter.variable} ${jetbrains.variable} ${montserrat.variable} bg-canvas font-sans text-ink antialiased`}
       >
         <SmoothScroll />
         <MotionFX />

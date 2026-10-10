@@ -100,7 +100,7 @@ function leadHtml(n: LeadNotice, orgName: string, accent: string) {
   </table>
   ${n.message ? `<div style="margin:16px 24px;padding:14px;background:#f4f4f5;border-radius:12px;font-size:14px;line-height:1.5;white-space:pre-wrap">${esc(n.message)}</div>` : ""}
   <div style="padding:16px 24px 24px">
-    <a href="${n.baseUrl}/crm/contatos/${n.contactId}" style="display:inline-block;background:${accent};color:#0a0a0a;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:999px;margin:0 8px 8px 0">Abrir no CRM</a>
+    <a href="${n.baseUrl}/crm/contatos/${n.contactId}" style="display:inline-block;background:${accent};color:#1c1c45;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:999px;margin:0 8px 8px 0">Abrir no CRM</a>
     <a href="${wa}" style="display:inline-block;background:#18181b;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:999px">Responder no WhatsApp</a>
   </div>
 </div>

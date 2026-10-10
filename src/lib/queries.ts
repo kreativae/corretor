@@ -52,15 +52,15 @@ export type WhiteLabel = {
 };
 
 export const WL_DEFAULTS: WhiteLabel = {
-  orgName: "NORD Imóveis",
-  shortName: "",
+  orgName: "Carlos Amâncio Imóveis",
+  shortName: "Carlos Amâncio",
   brandSub: "IMÓVEIS",
-  domain: "nordimoveis.com.br",
-  accent: "#10b981",
+  domain: "kreativae-corretor.vercel.app",
+  accent: "#F47525",
   phone: "",
   email: "",
   instagram: "",
-  tagline: "Imobiliária boutique",
+  tagline: "Negócios imobiliários",
   logoUrl: "",
   logoDarkUrl: "",
   iconUrl: "",
@@ -71,7 +71,11 @@ export const WL_DEFAULTS: WhiteLabel = {
 
 /** Nome curto da marca (cabeçalhos). */
 export function brandShortName(wl: Pick<WhiteLabel, "shortName" | "orgName">) {
-  return wl.shortName.trim() || wl.orgName.trim().split(/\s+/)[0] || wl.orgName;
+  return (
+    wl.shortName.trim() ||
+    wl.orgName.trim().replace(/\s+(im[óo]veis|imobili[áa]ria)$/i, "") ||
+    wl.orgName
+  );
 }
 
 export async function getWhiteLabel(): Promise<WhiteLabel> {
@@ -81,7 +85,22 @@ export async function getWhiteLabel(): Promise<WhiteLabel> {
       .from(settings)
       .where(eq(settings.key, "whiteLabel"));
     const v = (rows[0]?.value ?? {}) as Partial<WhiteLabel>;
-    return { ...WL_DEFAULTS, ...v };
+    // Valores do modelo antigo (NORD) ainda salvos dão lugar à identidade atual
+    const legacy: Partial<Record<keyof WhiteLabel, string[]>> = {
+      orgName: ["NORD Imóveis"],
+      shortName: ["NORD"],
+      domain: ["nordimoveis.com.br"],
+      accent: ["#10b981", "#10B981"],
+      tagline: ["Imobiliária boutique"],
+    };
+    // Só enquanto a marca salva ainda é a antiga — depois disso, vale o que foi escolhido
+    const isLegacy = !v.orgName || v.orgName === "NORD Imóveis";
+    const clean = Object.fromEntries(
+      Object.entries(v).filter(
+        ([k, x]) => !isLegacy || !legacy[k as keyof WhiteLabel]?.includes(String(x)),
+      ),
+    ) as Partial<WhiteLabel>;
+    return { ...WL_DEFAULTS, ...clean };
   } catch {
     return WL_DEFAULTS;
   }
