@@ -1,5 +1,7 @@
 import { IntegrationsClient } from "@/components/admin/integrations-client";
+import { FeaturesCard } from "@/components/admin/features-card";
 import { NotificationsCard } from "@/components/admin/notifications-card";
+import { getFeatures } from "@/lib/features";
 import { WhiteLabelCard } from "@/components/admin/white-label-card";
 import { emailConfigured, getNotifySettings } from "@/lib/notify";
 import { db } from "@/db";
@@ -18,7 +20,7 @@ export default async function ConfiguracoesPage() {
     db.select().from(apiKeys).orderBy(apiKeys.createdAt),
     getWhiteLabel(),
   ]);
-  const notify = await getNotifySettings();
+  const [notify, features] = await Promise.all([getNotifySettings(), getFeatures()]);
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -37,6 +39,7 @@ export default async function ConfiguracoesPage() {
         </p>
       </div>
       <WhiteLabelCard initial={wl} />
+      <FeaturesCard initial={features} />
       <NotificationsCard
         initialEmails={notify.leadEmails}
         fallbackEmail={wl.email}

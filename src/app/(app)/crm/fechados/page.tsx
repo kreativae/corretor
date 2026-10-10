@@ -1,5 +1,7 @@
 import { ClosedDealsClient } from "@/components/crm/closed-deals-client";
+import { getFeatures } from "@/lib/features";
 import { listDealClosedDates, listDeals } from "@/lib/queries";
+import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
@@ -10,6 +12,8 @@ export default async function FechadosPage({
 }: {
   searchParams: Promise<{ tipo?: string }>;
 }) {
+  // Página opcional — ativada em Configurações › Módulos do CRM
+  if (!(await getFeatures()).closedDeals) redirect("/crm/pipeline");
   const { tipo } = await searchParams;
   const [deals, closedDates] = await Promise.all([listDeals(), listDealClosedDates()]);
   const closed = deals.filter((d) => d.deal.stage === "fechado");

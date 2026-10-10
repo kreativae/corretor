@@ -1,4 +1,5 @@
 import { Kanban } from "@/components/crm/kanban";
+import { getFeatures } from "@/lib/features";
 import { listContacts, listDeals, listProperties } from "@/lib/queries";
 import type { Metadata } from "next";
 
@@ -11,10 +12,11 @@ export default async function PipelinePage({
   searchParams: Promise<{ tipo?: string }>;
 }) {
   const { tipo } = await searchParams;
-  const [deals, contacts, properties] = await Promise.all([
+  const [deals, contacts, properties, features] = await Promise.all([
     listDeals(),
     listContacts(),
     listProperties(),
+    getFeatures(),
   ]);
 
   return (
@@ -39,6 +41,7 @@ export default async function PipelinePage({
         properties={properties
           .filter((p) => ["disponivel", "reservado"].includes(p.status))
           .map((p) => ({ id: p.id, code: p.code, title: p.title, price: p.price, type: p.type }))}
+        showClosedLink={features.closedDeals}
         initialTab={tipo === "rurais" || tipo === "todos" ? tipo : "imoveis"}
       />
     </div>

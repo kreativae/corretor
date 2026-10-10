@@ -31,11 +31,14 @@ export function Kanban({
   contacts,
   properties,
   initialTab = "imoveis",
+  showClosedLink = false,
 }: {
   initialDeals: DealFull[];
   contacts: { id: string; name: string }[];
   properties: { id: string; code: string; title: string; price: number; type: string }[];
   initialTab?: PipelineTab;
+  /** Atalho para /crm/fechados (módulo opcional) */
+  showClosedLink?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -278,7 +281,7 @@ export function Kanban({
                 <span className="ml-auto font-mono text-[10.5px] tabular text-subtle">
                   {formatCompact(sum)}
                 </span>
-                {stage.id === "fechado" && (
+                {stage.id === "fechado" && showClosedLink && (
                   <Link
                     href="/crm/fechados"
                     title="Ver todos os negócios fechados"

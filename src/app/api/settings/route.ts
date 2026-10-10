@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { activities, settings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { requireAdmin } from "@/lib/auth";
+import { sanitizeFeatures } from "@/lib/features";
 import { getWhiteLabel, WL_DEFAULTS, type WhiteLabel } from "@/lib/queries";
 import { NextResponse } from "next/server";
 
@@ -41,6 +42,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
     }
     if (key === "whiteLabel") value = sanitizeWhiteLabel(value ?? {});
+    if (key === "features") value = sanitizeFeatures(value ?? {});
     if (key === "notifications") {
       value = { leadEmails: String(value?.leadEmails ?? "").slice(0, 500) };
     }

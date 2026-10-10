@@ -32,7 +32,7 @@ const CRM_NAV = [
   { href: "/crm/imoveis", label: "Imóveis", icon: Building2 },
   { href: "/crm/propriedades", label: "Propriedades rurais", icon: Tractor },
   { href: "/crm/pipeline", label: "Pipeline", icon: Columns3 },
-  { href: "/crm/fechados", label: "Negócios fechados", icon: Handshake },
+  { href: "/crm/fechados", label: "Negócios fechados", icon: Handshake, feature: "closedDeals" as const },
   { href: "/crm/contatos", label: "Contatos", icon: Users },
   { href: "/crm/agenda", label: "Agenda", icon: CalendarDays },
 ];
@@ -56,10 +56,13 @@ export function AppShell({
   children,
   mode = "crm",
   user,
+  features,
 }: {
   children: ReactNode;
   mode?: "crm" | "admin";
   user: ShellUser;
+  /** Módulos opcionais ligados em Configurações */
+  features?: { closedDeals: boolean };
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -85,7 +88,10 @@ export function AppShell({
     return () => window.removeEventListener("keydown", fn);
   }, []);
 
-  const nav = mode === "crm" ? CRM_NAV : ADMIN_NAV;
+  const nav =
+    mode === "crm"
+      ? CRM_NAV.filter((i) => !("feature" in i && i.feature) || features?.[i.feature])
+      : ADMIN_NAV;
 
   const sidebar = (
     <div className="flex h-full flex-col">
