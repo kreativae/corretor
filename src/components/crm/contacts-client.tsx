@@ -31,6 +31,10 @@ import {
   Cloud,
   Columns3,
   Download,
+  Eye,
+  Mail,
+  MessageCircle,
+  Phone,
   Layers,
   Plus,
   Search,
@@ -58,6 +62,14 @@ export type ContactsTab = "todos" | "imoveis" | "rurais";
 type Segment = { urbano: boolean; rural: boolean };
 
 const FILTERS_KEY = "crm-contact-filters";
+
+/** Faixa de orçamento em texto curto */
+function budgetLabel(c: Contact) {
+  if (c.budgetMin && c.budgetMax) return `${formatCompact(c.budgetMin)} – ${formatCompact(c.budgetMax)}`;
+  if (c.budgetMax) return `até ${formatCompact(c.budgetMax)}`;
+  if (c.budgetMin) return `a partir de ${formatCompact(c.budgetMin)}`;
+  return "sem orçamento";
+}
 
 /** Segmento de um contato recém-criado (sem negociações): pelo interesse. */
 function segmentOf(c: Contact, segments: Record<string, Segment>): Segment {
@@ -292,7 +304,7 @@ export function ContactsClient({
         </MobileCollapse>
         <Button variant="primary" onClick={() => setOpen(true)}>
           <Plus className="size-4" />
-          Novo contato
+          Novo<span className="hidden sm:inline"> contato</span>
         </Button>
       </div>
 
@@ -367,7 +379,97 @@ export function ContactsClient({
         </button>
       </div>
 
-      <div className="mt-3 overflow-x-auto rounded-2xl border border-hairline bg-card">
+      {/* Celular: cartões com ações sempre visíveis */}
+      <div className="mt-3 space-y-3 md:hidden">
+        {filtered.map((c) => {
+          const digits = c.phone.replace(/\D/g, "");
+          const wa = digits.length >= 10 ? (digits.startsWith("55") ? digits : `55${digits}`) : null;
+          return (
+            <div key={c.id} className="rounded-2xl border border-hairline bg-card p-3.5">
+              <button
+                type="button"
+                onClick={() => setPreviewId(c.id)}
+                className="flex w-full items-center gap-3 text-left"
+              >
+                <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-soft font-mono text-[11px] font-semibold text-subtle">
+                  {initials(c.name)}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-1.5">
+                    <span className="truncate text-[15px] font-medium leading-tight">{c.name}</span>
+                    {segmentOf(c, segments).rural && (
+                      <Tractor className="size-3.5 shrink-0 text-emerald-600" aria-label="Rural" />
+                    )}
+                    {c.googleResourceName && (
+                      <Cloud className="size-3.5 shrink-0 text-blue-500" aria-label="Google Contacts" />
+                    )}
+                  </span>
+                  <span className="mt-0.5 block truncate font-mono text-[11px] tabular text-subtle">
+                    {c.phone}
+                    {c.email ? ` · ${c.email}` : ""}
+                  </span>
+                </span>
+              </button>
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-subtle">
+                <Badge className={cn("border", SOURCE_STYLES[c.source])}>{SOURCE_LABELS[c.source]}</Badge>
+                <span>{CONTACT_TYPE_LABELS[c.type]}</span>
+                <span className="font-mono tabular">· {budgetLabel(c)}</span>
+                <span className="ml-auto font-mono text-[10.5px]">{timeAgo(c.createdAt)}</span>
+              </div>
+              {c.interestTypes.length > 0 && (
+                <p className="mt-1.5 truncate text-xs text-subtle">
+                  Interesse: {c.interestTypes.map((t) => TYPE_LABELS[t] ?? t).join(", ")}
+                </p>
+              )}
+              <div className="mt-3 flex items-center gap-1 border-t border-hairline pt-3">
+                {wa && (
+                  <a href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer" aria-label="WhatsApp">
+                    <Button variant="ghost" size="icon">
+                      <MessageCircle className="size-4 text-emerald-600" />
+                    </Button>
+                  </a>
+                )}
+                {digits && (
+                  <a href={`tel:${digits}`} aria-label="Ligar">
+                    <Button variant="ghost" size="icon">
+                      <Phone className="size-4" />
+                    </Button>
+                  </a>
+                )}
+                {c.email && (
+                  <a href={`mailto:${c.email}`} aria-label="E-mail">
+                    <Button variant="ghost" size="icon">
+                      <Mail className="size-4" />
+                    </Button>
+                  </a>
+                )}
+                <div className="ml-auto flex items-center gap-1">
+                  <Button variant="ghost" size="icon" aria-label="Visão rápida" onClick={() => setPreviewId(c.id)}>
+                    <Eye className="size-4" />
+                  </Button>
+                  <Link href={`/crm/contatos/${c.id}`} aria-label={`Abrir perfil de ${c.name}`}>
+                    <Button variant="ghost" size="icon">
+                      <ArrowUpRight className="size-4" />
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        {filtered.length === 0 && (
+          <p className="rounded-2xl border border-hairline bg-card py-14 text-center text-sm text-subtle">
+            {tab === "rurais"
+              ? "Nenhum contato rural — marque interesse em fazenda, sítio ou chácara."
+              : chips.length || filters.q
+                ? "Nenhum contato com esses filtros."
+                : "Nenhum contato encontrado."}
+          </p>
+        )}
+      </div>
+
+      {/* Tabela (tablet e computador) */}
+      <div className="mt-3 hidden overflow-x-auto rounded-2xl border border-hairline bg-card md:block">
         <table className="w-full min-w-[860px] text-left text-sm">
           <thead>
             <tr className="border-b border-hairline font-mono text-[10px] uppercase tracking-[0.16em] text-subtle">
@@ -440,13 +542,7 @@ export function ContactsClient({
                     : "—"}
                 </td>
                 <td className="px-4 py-3 text-right font-mono text-xs tabular text-subtle">
-                  {c.budgetMin && c.budgetMax
-                    ? `${formatCompact(c.budgetMin)} – ${formatCompact(c.budgetMax)}`
-                    : c.budgetMax
-                      ? `até ${formatCompact(c.budgetMax)}`
-                      : c.budgetMin
-                        ? `a partir de ${formatCompact(c.budgetMin)}`
-                        : "—"}
+                  {budgetLabel(c)}
                 </td>
                 <td className="px-4 py-3 text-right font-mono text-xs text-subtle">
                   {timeAgo(c.createdAt)}
