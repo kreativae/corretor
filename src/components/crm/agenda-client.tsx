@@ -8,6 +8,7 @@ import {
   type AgendaFilters,
 } from "@/components/crm/agenda-filters";
 import { ActiveChips, FilterButton, FilterSheet } from "@/components/crm/filter-sheet";
+import { MobileCollapse } from "@/components/crm/mobile-collapse";
 import { StatCard } from "@/components/crm/stat-card";
 import { StatsGrid } from "@/components/crm/stats-grid";
 import { Button, Field, Input, Modal, Select } from "@/components/ui";
@@ -358,16 +359,18 @@ export function AgendaClient({
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
-        <div className="relative min-w-56 flex-1">
-          <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-subtle" />
-          <Input
-            value={filters.q}
-            onChange={(e) => patch({ q: e.target.value })}
-            placeholder="Buscar por cliente, código ou imóvel…"
-            className="pl-10"
-          />
-        </div>
-        <FilterButton count={chips.length} onClick={() => setShowFilters(true)} />
+        <MobileCollapse count={chips.length + (filters.q ? 1 : 0)}>
+          <div className="relative min-w-56 flex-1">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-subtle" />
+            <Input
+              value={filters.q}
+              onChange={(e) => patch({ q: e.target.value })}
+              placeholder="Buscar por cliente, código ou imóvel…"
+              className="pl-10"
+            />
+          </div>
+          <FilterButton count={chips.length} onClick={() => setShowFilters(true)} />
+        </MobileCollapse>
       </div>
       <ActiveChips chips={chips} onClear={patch} onClearAll={resetFilters} />
 

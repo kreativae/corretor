@@ -11,6 +11,7 @@ import {
   type ContactMeta,
 } from "@/components/crm/contact-filters";
 import { ActiveChips, FilterButton, FilterSheet } from "@/components/crm/filter-sheet";
+import { MobileCollapse } from "@/components/crm/mobile-collapse";
 import { StatCard } from "@/components/crm/stat-card";
 import { StatsGrid } from "@/components/crm/stats-grid";
 import { LeadDrawer } from "@/components/crm/lead-drawer";
@@ -265,28 +266,30 @@ export function ContactsClient({
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative min-w-56 flex-1">
-          <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-subtle" />
-          <Input
-            value={filters.q}
-            onChange={(e) => patch({ q: e.target.value })}
-            placeholder="Buscar por nome, telefone, e-mail, bairro ou observação…"
-            className="pl-10"
-          />
-        </div>
-        <FilterButton count={chips.length} onClick={() => setShowFilters(true)} />
-        <Select
-          value={filters.sort}
-          onChange={(e) => patch({ sort: e.target.value as ContactFilters["sort"] })}
-          className="w-auto"
-          aria-label="Ordenar"
-        >
-          <option value="recent">Mais recentes</option>
-          <option value="oldest">Mais antigos</option>
-          <option value="name">Nome (A–Z)</option>
-          <option value="budget_desc">Maior orçamento</option>
-          <option value="budget_asc">Menor orçamento</option>
-        </Select>
+        <MobileCollapse count={chips.length + (filters.q ? 1 : 0)}>
+          <div className="relative min-w-56 flex-1">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-subtle" />
+            <Input
+              value={filters.q}
+              onChange={(e) => patch({ q: e.target.value })}
+              placeholder="Buscar por nome, telefone, e-mail, bairro ou observação…"
+              className="pl-10"
+            />
+          </div>
+          <FilterButton count={chips.length} onClick={() => setShowFilters(true)} />
+          <Select
+            value={filters.sort}
+            onChange={(e) => patch({ sort: e.target.value as ContactFilters["sort"] })}
+            className="w-auto"
+            aria-label="Ordenar"
+          >
+            <option value="recent">Mais recentes</option>
+            <option value="oldest">Mais antigos</option>
+            <option value="name">Nome (A–Z)</option>
+            <option value="budget_desc">Maior orçamento</option>
+            <option value="budget_asc">Menor orçamento</option>
+          </Select>
+        </MobileCollapse>
         <Button variant="primary" onClick={() => setOpen(true)}>
           <Plus className="size-4" />
           Novo contato

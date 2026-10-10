@@ -8,6 +8,7 @@ import {
   FilterSheet,
   type ActiveChip,
 } from "@/components/crm/filter-sheet";
+import { MobileCollapse } from "@/components/crm/mobile-collapse";
 import { Input } from "@/components/ui";
 import { PURPOSE_LABELS, SOURCE_LABELS, TYPE_LABELS } from "@/lib/labels";
 import {
@@ -119,23 +120,25 @@ export function OverviewFiltersBar({
           ))}
         </div>
 
-        <div className="inline-flex flex-wrap rounded-full border border-hairline p-1">
-          {OVERVIEW_PERIODS.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => (p.id === "custom" ? setOpen(true) : set({ periodo: p.id }))}
-              className={cn(
-                "rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-300",
-                value.periodo === p.id ? "bg-ink text-canvas" : "text-subtle hover:text-ink",
-              )}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
+        <MobileCollapse label="Período e filtros" count={chips.length + (value.periodo !== "30" ? 1 : 0)}>
+          <div className="inline-flex flex-wrap rounded-full border border-hairline p-1">
+            {OVERVIEW_PERIODS.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => (p.id === "custom" ? setOpen(true) : set({ periodo: p.id }))}
+                className={cn(
+                  "rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-300",
+                  value.periodo === p.id ? "bg-ink text-canvas" : "text-subtle hover:text-ink",
+                )}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
 
-        <FilterButton count={chips.length} onClick={() => setOpen(true)} />
-        {pending && <Loader2 className="size-4 animate-spin text-subtle" aria-label="Atualizando" />}
+          <FilterButton count={chips.length} onClick={() => setOpen(true)} />
+          {pending && <Loader2 className="size-4 animate-spin text-subtle" aria-label="Atualizando" />}
+        </MobileCollapse>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">

@@ -1,6 +1,7 @@
 "use client";
 
 import { ActiveChips, FilterButton, FilterSheet } from "@/components/crm/filter-sheet";
+import { MobileCollapse } from "@/components/crm/mobile-collapse";
 import {
   activePropertyChips,
   applyPropertyFilters,
@@ -165,32 +166,34 @@ export function PropertiesTable({
     <div>
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative min-w-56 flex-1">
-          <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-subtle" />
-          <Input
-            value={filters.q}
-            onChange={(e) => patch({ q: e.target.value })}
-            placeholder={rural ? "Buscar por código, título, região ou cultura…" : "Buscar por código, título, bairro ou rua…"}
-            className="pl-10"
-          />
-        </div>
-        <FilterButton count={chips.length} onClick={() => setShowFilters(true)} />
-        <Select
-          value={filters.sort}
-          onChange={(e) => patch({ sort: e.target.value as PropertyFilters["sort"] })}
-          className="w-auto"
-          aria-label="Ordenar"
-        >
-          <option value="recent">Mais recentes</option>
-          <option value="oldest">Mais antigos</option>
-          <option value="price_desc">Maior preço</option>
-          <option value="price_asc">Menor preço</option>
-          <option value="area_desc">Maior área</option>
-          <option value="views_desc">Mais vistos</option>
-          {rural && <option value="ppa_asc">Menor R$/alqueire</option>}
-          {rural && <option value="ppa_desc">Maior R$/alqueire</option>}
-          <option value="title">Título (A–Z)</option>
-        </Select>
+        <MobileCollapse count={chips.length + (filters.q ? 1 : 0)}>
+          <div className="relative min-w-56 flex-1">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-subtle" />
+            <Input
+              value={filters.q}
+              onChange={(e) => patch({ q: e.target.value })}
+              placeholder={rural ? "Buscar por código, título, região ou cultura…" : "Buscar por código, título, bairro ou rua…"}
+              className="pl-10"
+            />
+          </div>
+          <FilterButton count={chips.length} onClick={() => setShowFilters(true)} />
+          <Select
+            value={filters.sort}
+            onChange={(e) => patch({ sort: e.target.value as PropertyFilters["sort"] })}
+            className="w-auto"
+            aria-label="Ordenar"
+          >
+            <option value="recent">Mais recentes</option>
+            <option value="oldest">Mais antigos</option>
+            <option value="price_desc">Maior preço</option>
+            <option value="price_asc">Menor preço</option>
+            <option value="area_desc">Maior área</option>
+            <option value="views_desc">Mais vistos</option>
+            {rural && <option value="ppa_asc">Menor R$/alqueire</option>}
+            {rural && <option value="ppa_desc">Maior R$/alqueire</option>}
+            <option value="title">Título (A–Z)</option>
+          </Select>
+        </MobileCollapse>
         <Link href={rural ? "/crm/propriedades/nova" : "/crm/imoveis/novo"}>
           <Button variant="primary" size="md">
             <Plus className="size-4" />
