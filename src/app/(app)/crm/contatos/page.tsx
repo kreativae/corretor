@@ -10,9 +10,9 @@ export const metadata: Metadata = { title: "Contatos" };
 export default async function ContatosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tipo?: string }>;
+  searchParams: Promise<{ tipo?: string; novo?: string }>;
 }) {
-  const { tipo } = await searchParams;
+  const { tipo, novo } = await searchParams;
   const [contacts, deals, visits] = await Promise.all([listContacts(), listDeals(), listVisits()]);
 
   // Contato é "rural" se tem interesse em fazenda/sítio/chácara ou negociação/visita
@@ -58,6 +58,7 @@ export default async function ContatosPage({
         segments={segments}
         meta={meta}
         initialTab={tipo === "imoveis" || tipo === "rurais" ? tipo : "todos"}
+        openNew={!!novo}
       />
     </div>
   );

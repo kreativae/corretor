@@ -83,11 +83,14 @@ export function ContactsClient({
   segments = {},
   meta = {},
   initialTab = "todos",
+  openNew = false,
 }: {
   initial: Contact[];
   segments?: Record<string, Segment>;
   meta?: Record<string, ContactMeta>;
   initialTab?: ContactsTab;
+  /** /crm/contatos?novo=1 (atalho do topo): abre o formulário de novo contato */
+  openNew?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -112,7 +115,18 @@ export function ContactsClient({
       localStorage.setItem(FILTERS_KEY, JSON.stringify(filters));
     } catch {}
   }, [filters]);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(openNew);
+
+  // Tira o ?novo=1 da URL para o formulário não reabrir ao recarregar
+  useEffect(() => {
+    if (!openNew) return;
+    // Também quando já estava na página e clicou no atalho do topo
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setOpen(true);
+    router.replace(pathname, { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openNew]);
+
   const [saving, setSaving] = useState(false);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [form, setForm] = useState({

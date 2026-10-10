@@ -4,6 +4,7 @@ import { Wordmark } from "@/components/brand";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button, Kbd } from "@/components/ui";
 import { CommandPalette } from "@/components/crm/command-palette";
+import { HeaderActions } from "@/components/crm/header-actions";
 import { cn, initials } from "@/lib/utils";
 import {
   Building2,
@@ -251,14 +252,7 @@ export function AppShell({
             </button>
           </div>
           <div className="flex items-center gap-2.5">
-            {mode === "crm" && (
-              <Link href="/crm/imoveis/novo">
-                <Button variant="accent" size="sm" className="h-9">
-                  <Plus className="size-4" />
-                  <span className="hidden sm:inline">Novo imóvel</span>
-                </Button>
-              </Link>
-            )}
+            {mode === "crm" && <HeaderActions />}
           </div>
         </header>
         <main className="flex-1 px-4 py-8 md:px-8">{children}</main>
