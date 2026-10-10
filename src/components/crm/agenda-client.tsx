@@ -95,6 +95,8 @@ export function AgendaClient({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [overDay, setOverDay] = useState<number | null>(null);
+  // Dia do mês sob o cursor ao arrastar (visão de mês)
+  const [overDate, setOverDate] = useState<string | null>(null);
   const [previewId, setPreviewId] = useState<string | null>(null);
   // Dia escolhido no celular (null = hoje, se estiver na semana, senão segunda)
   const [mobileDay, setMobileDay] = useState<number | null>(null);
@@ -556,7 +558,7 @@ export function AgendaClient({
         )}
         <span className="hidden md:inline">
           {view === "mes"
-            ? " · clique num dia para abrir a semana"
+            ? " · arraste as visitas entre os dias · clique num dia para abrir a semana"
             : " · arraste os cartões entre os dias para reagendar"}
         </span>
       </p>
@@ -578,16 +580,39 @@ export function AgendaClient({
               const list = visitsFor(day);
               const active = list.filter((v) => v.visit.status !== "cancelada");
               return (
-                <button
+                <div
                   key={day.toISOString()}
-                  type="button"
+                  role="button"
+                  tabIndex={0}
                   onClick={() => openWeekOf(day)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      openWeekOf(day);
+                    }
+                  }}
+                  // Soltar uma visita aqui reagenda para este dia (mesmo horário)
+                  onDragOver={(e) => {
+                    if (!dragId) return;
+                    e.preventDefault();
+                    setOverDate(day.toDateString());
+                  }}
+                  onDragLeave={() => setOverDate((d) => (d === day.toDateString() ? null : d))}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const v = visits.find((x) => x.visit.id === dragId);
+                    if (v) reschedule(v, day);
+                    setDragId(null);
+                    setOverDate(null);
+                  }}
                   title={active.length ? `${active.length} visita(s) — abrir a semana` : "Abrir a semana"}
                   className={cn(
-                    "flex min-h-14 flex-col rounded-lg border p-1 text-left transition-colors hover:border-hairline-strong md:min-h-28 md:rounded-xl md:p-2",
-                    isToday
-                      ? "border-[rgb(var(--accent))/0.5] bg-soft/70"
-                      : "border-hairline bg-card",
+                    "flex min-h-14 cursor-pointer flex-col rounded-lg border p-1 text-left transition-colors hover:border-hairline-strong md:min-h-28 md:rounded-xl md:p-2",
+                    overDate === day.toDateString() && dragId
+                      ? "border-[rgb(var(--accent))/0.6] bg-soft ring-2 ring-[rgb(var(--accent))/0.2]"
+                      : isToday
+                        ? "border-[rgb(var(--accent))/0.5] bg-soft/70"
+                        : "border-hairline bg-card",
                     !inMonth && "opacity-40",
                   )}
                 >
@@ -599,7 +624,7 @@ export function AgendaClient({
                   >
                     {day.getDate()}
                   </span>
-                  {/* Celular: pontinhos; computador: horário e cliente */}
+                  {/* Celular: pontinhos; computador: horário e cliente (arrastáveis) */}
                   {active.length > 0 && (
                     <span className="mt-auto flex flex-wrap gap-0.5 md:hidden">
                       {active.slice(0, 4).map((v) => (
@@ -608,28 +633,49 @@ export function AgendaClient({
                     </span>
                   )}
                   <span className="mt-1 hidden w-full space-y-1 md:block">
-                    {list.slice(0, 3).map((v) => (
-                      <span
-                        key={v.visit.id}
-                        className={cn(
-                          "block truncate rounded border-l-2 bg-canvas px-1.5 py-0.5 text-[10.5px]",
-                          STATUS_BORDER[v.visit.status],
-                        )}
-                      >
-                        <span className="font-mono tabular">
-                          {new Date(v.visit.scheduledAt).toLocaleTimeString("pt-BR", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </span>{" "}
-                        {v.contact?.name?.split(" ")[0] ?? "—"}
-                      </span>
-                    ))}
+                    {list.slice(0, 3).map((v) => {
+                      const movable = ["agendada", "confirmada"].includes(v.visit.status);
+                      return (
+                        <span
+                          key={v.visit.id}
+                          draggable={movable}
+                          onClick={(e) => e.stopPropagation()}
+                          onDragStart={(e) => {
+                            e.stopPropagation();
+                            e.dataTransfer.effectAllowed = "move";
+                            setDragId(v.visit.id);
+                          }}
+                          onDragEnd={() => {
+                            setDragId(null);
+                            setOverDate(null);
+                          }}
+                          title={
+                            movable
+                              ? `${v.contact?.name ?? ""} — arraste para outro dia`
+                              : v.contact?.name ?? undefined
+                          }
+                          className={cn(
+                            "block truncate rounded border-l-2 bg-canvas px-1.5 py-0.5 text-[10.5px]",
+                            STATUS_BORDER[v.visit.status],
+                            movable && "cursor-grab hover:shadow-sm active:cursor-grabbing",
+                            dragId === v.visit.id && "opacity-40",
+                          )}
+                        >
+                          <span className="font-mono tabular">
+                            {new Date(v.visit.scheduledAt).toLocaleTimeString("pt-BR", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>{" "}
+                          {v.contact?.name?.split(" ")[0] ?? "—"}
+                        </span>
+                      );
+                    })}
                     {list.length > 3 && (
                       <span className="block text-[10px] text-subtle">+{list.length - 3} mais</span>
                     )}
                   </span>
-                </button>
+                </div>
               );
             })}
           </div>
