@@ -483,7 +483,8 @@ export function IntegrationsClient({
         </div>
       </section>
 
-      {/* Outras integrações */}
+      {/* Outras integrações — só aparece quando existe alguma cadastrada */}
+      {others.length > 0 && (
       <section>
         <div className="mb-4">
           <h2 className={sectionTitle}>Mensageria & infraestrutura</h2>
@@ -497,6 +498,7 @@ export function IntegrationsClient({
           ))}
         </div>
       </section>
+      )}
 
       {/* Chaves de API */}
       <section>
