@@ -14,7 +14,8 @@ import { DEAL_STAGES } from "@/lib/labels";
 import type { DealFull } from "@/lib/queries";
 import { formatAlq, isRuralType, normalizeRural } from "@/lib/rural";
 import { cn, formatCompact, initials } from "@/lib/utils";
-import { Building2, Handshake, Layers, Plus, Search, Tractor } from "lucide-react";
+import { ArrowUpRight, Building2, Handshake, Layers, Plus, Search, Tractor } from "lucide-react";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -277,6 +278,15 @@ export function Kanban({
                 <span className="ml-auto font-mono text-[10.5px] tabular text-subtle">
                   {formatCompact(sum)}
                 </span>
+                {stage.id === "fechado" && (
+                  <Link
+                    href="/crm/fechados"
+                    title="Ver todos os negócios fechados"
+                    className="rounded-full p-1 text-subtle transition-colors hover:bg-soft hover:text-ink"
+                  >
+                    <ArrowUpRight className="size-3.5" />
+                  </Link>
+                )}
               </div>
 
               <div className="flex min-h-24 flex-1 flex-col gap-2">

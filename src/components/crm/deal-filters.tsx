@@ -83,7 +83,12 @@ const norm = (s: string) =>
   s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 const time = (d: Date | string) => new Date(d).getTime();
 
-export function applyDealFilters(list: DealFull[], f: DealFilters): DealFull[] {
+export function applyDealFilters(
+  list: DealFull[],
+  f: DealFilters,
+  /** Data usada no filtro de período e na ordenação (padrão: abertura) */
+  dateOf: (d: DealFull) => number = (d) => time(d.deal.createdAt),
+): DealFull[] {
   const term = norm(f.q);
   const from = f.valueFrom ? Number(f.valueFrom) : null;
   const to = f.valueTo ? Number(f.valueTo) : null;
@@ -133,9 +138,9 @@ export function applyDealFilters(list: DealFull[], f: DealFilters): DealFull[] {
     if (f.sources.length && !f.sources.includes(contact?.source ?? "")) return false;
     if (f.contactTypes.length && !f.contactTypes.includes(contact?.type ?? "")) return false;
 
-    const created = time(deal.createdAt);
-    if (since != null && created < since) return false;
-    if (until != null && created > until) return false;
+    const when = dateOf({ deal, contact, property });
+    if (since != null && when < since) return false;
+    if (until != null && when > until) return false;
 
     if (f.stale !== "all" && now - time(deal.updatedAt) < Number(f.stale) * DAY) return false;
 
@@ -144,7 +149,7 @@ export function applyDealFilters(list: DealFull[], f: DealFilters): DealFull[] {
 
   switch (f.sort) {
     case "oldest":
-      return out.sort((a, b) => time(a.deal.createdAt) - time(b.deal.createdAt));
+      return out.sort((a, b) => dateOf(a) - dateOf(b));
     case "value_desc":
       return out.sort((a, b) => b.deal.value - a.deal.value);
     case "value_asc":
@@ -152,11 +157,11 @@ export function applyDealFilters(list: DealFull[], f: DealFilters): DealFull[] {
     case "stale":
       return out.sort((a, b) => time(a.deal.updatedAt) - time(b.deal.updatedAt));
     default:
-      return out.sort((a, b) => time(b.deal.createdAt) - time(a.deal.createdAt));
+      return out.sort((a, b) => dateOf(b) - dateOf(a));
   }
 }
 
-export function activeDealChips(f: DealFilters): ActiveChip<DealFilters>[] {
+export function activeDealChips(f: DealFilters, closed = false): ActiveChip<DealFilters>[] {
   const chips: ActiveChip<DealFilters>[] = [];
   const without = (arr: string[], v: string) => arr.filter((x) => x !== v);
   for (const s of f.stages)
@@ -185,8 +190,8 @@ export function activeDealChips(f: DealFilters): ActiveChip<DealFilters>[] {
   if (f.period !== "all") {
     const fmt = (d: string) => d.split("-").reverse().join("/");
     const label = f.period === "custom"
-      ? `Aberta ${f.dateFrom ? fmt(f.dateFrom) : "…"} a ${f.dateTo ? fmt(f.dateTo) : "hoje"}`
-      : `Aberta nos últimos ${PERIOD_LABELS[f.period]}`;
+      ? `${closed ? "Fechada" : "Aberta"} ${f.dateFrom ? fmt(f.dateFrom) : "…"} a ${f.dateTo ? fmt(f.dateTo) : "hoje"}`
+      : `${closed ? "Fechada" : "Aberta"} nos últimos ${PERIOD_LABELS[f.period]}`;
     chips.push({ key: "d", label, clear: { period: "all", dateFrom: "", dateTo: "" } });
   }
   if (f.stale !== "all")
@@ -198,9 +203,12 @@ export function DealFiltersPanel({
   value: f,
   onChange,
   deals,
+  closed = false,
 }: {
   value: DealFilters;
   onChange: (patch: Partial<DealFilters>) => void;
+  /** Negócios fechados: sem etapa/parada; período = data de fechamento */
+  closed?: boolean;
   /** Negociações da aba atual — base para opções e contagens */
   deals: DealFull[];
 }) {
@@ -239,6 +247,12 @@ export function DealFiltersPanel({
 
   return (
     <>
+      {closed && (
+        <FilterGroup title="Fechada em">
+          <PeriodPicker f={f} onChange={onChange} />
+        </FilterGroup>
+      )}
+      {!closed && (
       <FilterGroup title="Etapa (mostra só as colunas escolhidas)">
         <div className="flex flex-wrap gap-2">
           {DEAL_STAGES.map((s) => (
@@ -254,8 +268,9 @@ export function DealFiltersPanel({
           ))}
         </div>
       </FilterGroup>
+      )}
 
-      <FilterGroup title="Valor da negociação (R$)">
+      <FilterGroup title={closed ? "Valor do negócio (R$)" : "Valor da negociação (R$)"}>
         <div className="flex flex-wrap gap-2">
           {VALUE_PRESETS.map((p) => {
             const on = f.valueFrom === p.from && f.valueTo === p.to;
@@ -389,32 +404,50 @@ export function DealFiltersPanel({
         </div>
       </FilterGroup>
 
-      <FilterGroup title="Sem movimentação há">
-        <div className="flex flex-wrap gap-2">
-          {(Object.keys(STALE_LABELS) as DealFilters["stale"][]).map((k) => (
-            <FilterChip key={k} on={f.stale === k} onClick={() => onChange({ stale: k })}>
-              {STALE_LABELS[k]}
-            </FilterChip>
-          ))}
-        </div>
-      </FilterGroup>
+      {!closed && (
+        <>
+          <FilterGroup title="Sem movimentação há">
+            <div className="flex flex-wrap gap-2">
+              {(["all", "7", "15", "30", "60"] as DealFilters["stale"][]).map((k) => (
+                <FilterChip key={k} on={f.stale === k} onClick={() => onChange({ stale: k })}>
+                  {STALE_LABELS[k]}
+                </FilterChip>
+              ))}
+            </div>
+          </FilterGroup>
 
-      <FilterGroup title="Aberta em">
-        <div className="flex flex-wrap gap-2">
-          {(Object.keys(PERIOD_LABELS) as DealFilters["period"][]).map((k) => (
-            <FilterChip key={k} on={f.period === k} onClick={() => onChange({ period: k })}>
-              {PERIOD_LABELS[k]}
-            </FilterChip>
-          ))}
+          <FilterGroup title="Aberta em">
+            <PeriodPicker f={f} onChange={onChange} />
+          </FilterGroup>
+        </>
+      )}
+    </>
+  );
+}
+
+function PeriodPicker({
+  f,
+  onChange,
+}: {
+  f: DealFilters;
+  onChange: (patch: Partial<DealFilters>) => void;
+}) {
+  return (
+    <>
+      <div className="flex flex-wrap gap-2">
+        {(["all", "7", "30", "90", "365", "custom"] as DealFilters["period"][]).map((k) => (
+          <FilterChip key={k} on={f.period === k} onClick={() => onChange({ period: k })}>
+            {PERIOD_LABELS[k]}
+          </FilterChip>
+        ))}
+      </div>
+      {f.period === "custom" && (
+        <div className="mt-3 flex items-center gap-2">
+          <Input type="date" value={f.dateFrom} onChange={(e) => onChange({ dateFrom: e.target.value })} className="min-w-0 flex-1" />
+          <span className="text-xs text-subtle">até</span>
+          <Input type="date" value={f.dateTo} onChange={(e) => onChange({ dateTo: e.target.value })} className="min-w-0 flex-1" />
         </div>
-        {f.period === "custom" && (
-          <div className="mt-3 flex items-center gap-2">
-            <Input type="date" value={f.dateFrom} onChange={(e) => onChange({ dateFrom: e.target.value })} className="min-w-0 flex-1" />
-            <span className="text-xs text-subtle">até</span>
-            <Input type="date" value={f.dateTo} onChange={(e) => onChange({ dateTo: e.target.value })} className="min-w-0 flex-1" />
-          </div>
-        )}
-      </FilterGroup>
+      )}
     </>
   );
 }

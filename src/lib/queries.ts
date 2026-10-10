@@ -19,7 +19,7 @@ import {
   type User,
   type Visit,
 } from "@/db/schema";
-import { count, countDistinct, desc, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, count, countDistinct, desc, eq, gte, inArray, sql } from "drizzle-orm";
 
 /* ─────────────────────── White label ─────────────────────── */
 
@@ -195,6 +195,27 @@ export async function listDeals(): Promise<DealFull[]> {
     .leftJoin(properties, eq(deals.propertyId, properties.id))
     .leftJoin(contacts, eq(deals.contactId, contacts.id))
     .orderBy(desc(deals.createdAt));
+}
+
+/**
+ * Data em que cada negócio foi movido para "Fechado" (última vez), pelo
+ * histórico da linha do tempo. Negócios criados já fechados não têm registro.
+ */
+export async function listDealClosedDates(): Promise<Record<string, string>> {
+  const rows = await db
+    .select({ id: activities.entityId, at: sql<string>`max(${activities.createdAt})` })
+    .from(activities)
+    .where(
+      and(
+        eq(activities.entity, "negocio"),
+        eq(activities.kind, "stage"),
+        sql`${activities.text} like ${"%“Fechado”%"}`,
+      ),
+    )
+    .groupBy(activities.entityId);
+  const out: Record<string, string> = {};
+  for (const r of rows) if (r.id) out[r.id] = new Date(r.at).toISOString();
+  return out;
 }
 
 export async function listActivities(limit = 30): Promise<Activity[]> {

@@ -21,6 +21,7 @@ import {
   Users,
   X,
   Tractor,
+  Handshake,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -31,6 +32,7 @@ const CRM_NAV = [
   { href: "/crm/imoveis", label: "Imóveis", icon: Building2 },
   { href: "/crm/propriedades", label: "Propriedades rurais", icon: Tractor },
   { href: "/crm/pipeline", label: "Pipeline", icon: Columns3 },
+  { href: "/crm/fechados", label: "Negócios fechados", icon: Handshake },
   { href: "/crm/contatos", label: "Contatos", icon: Users },
   { href: "/crm/agenda", label: "Agenda", icon: CalendarDays },
 ];

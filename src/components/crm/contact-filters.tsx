@@ -424,7 +424,7 @@ export function ContactFiltersPanel({
 
         <FilterGroup title="Entrou na base">
           <div className="flex flex-wrap gap-2">
-            {(Object.keys(PERIOD_LABELS) as ContactFilters["period"][]).map((k) => (
+            {(["all", "7", "30", "90", "365", "custom"] as ContactFilters["period"][]).map((k) => (
               <FilterChip key={k} on={f.period === k} onClick={() => onChange({ period: k })}>
                 {PERIOD_LABELS[k]}
               </FilterChip>
