@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import { Building2, Plus, RefreshCw, Tractor, UserPlus } from "lucide-react";
+import { Building2, CalendarPlus, Plus, RefreshCw, Tractor, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -58,12 +58,13 @@ export function HeaderActions() {
     { href: "/crm/imoveis/novo", label: "Novo imóvel", icon: Building2 },
     { href: "/crm/propriedades/nova", label: "Nova propriedade", icon: Tractor },
     { href: "/crm/contatos?novo=1", label: "Novo contato", icon: UserPlus },
+    { href: "/crm/agenda?nova=1", label: "Novo agendamento", icon: CalendarPlus },
   ];
 
   return (
     <div className="flex items-center gap-2">
       {/* Computador: botões lado a lado */}
-      <div className="hidden items-center gap-2 lg:flex">
+      <div className="hidden items-center gap-2 xl:flex">
         <Link href={items[0].href}>
           <Button variant="accent" size="sm" className="h-9">
             <Plus className="size-4" />
@@ -81,7 +82,7 @@ export function HeaderActions() {
       </div>
 
       {/* Celular/tablet: um botão + com o menu */}
-      <div className="relative lg:hidden">
+      <div className="relative xl:hidden">
         <Button
           variant="accent"
           size="sm"

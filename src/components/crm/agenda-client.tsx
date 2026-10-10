@@ -78,6 +78,7 @@ export function AgendaClient({
   properties,
   initialTab = "todas",
   openVisitId,
+  openNew = false,
 }: {
   initialVisits: VisitLite[];
   contacts: { id: string; name: string }[];
@@ -85,6 +86,8 @@ export function AgendaClient({
   initialTab?: AgendaTab;
   /** Vindo da busca: abre a semana da visita e o formulário de edição */
   openVisitId?: string;
+  /** /crm/agenda?nova=1 (atalho do topo): abre o formulário de nova visita */
+  openNew?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -95,7 +98,15 @@ export function AgendaClient({
   const [monthOffset, setMonthOffset] = useState(0);
   const [todayMenu, setTodayMenu] = useState(false);
   const [visits, setVisits] = useState(initialVisits);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(openNew);
+  // Atalho do topo (?nova=1): abre o formulário, inclusive já estando na agenda
+  useEffect(() => {
+    if (!openNew) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setOpen(true);
+    router.replace(pathname, { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openNew]);
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);

@@ -8,9 +8,9 @@ export const metadata: Metadata = { title: "Agenda" };
 export default async function AgendaPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tipo?: string; visita?: string }>;
+  searchParams: Promise<{ tipo?: string; visita?: string; nova?: string }>;
 }) {
-  const { tipo, visita } = await searchParams;
+  const { tipo, visita, nova } = await searchParams;
   const [visits, contacts, properties] = await Promise.all([
     listVisits(),
     listContacts(),
@@ -40,6 +40,7 @@ export default async function AgendaPage({
           .map((p) => ({ id: p.id, code: p.code, title: p.title, type: p.type }))}
         initialTab={tipo === "imoveis" || tipo === "rurais" ? tipo : "todas"}
         openVisitId={visita}
+        openNew={!!nova}
       />
     </div>
   );
