@@ -1,6 +1,6 @@
 import { Mark } from "@/components/brand";
 import type { SiteContent } from "@/lib/site-content";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, Heart } from "lucide-react";
 import Link from "next/link";
 
 export function SiteFooter({
@@ -105,8 +105,18 @@ export function SiteFooter({
             © {year} {orgName} — {footer.creci}
           </p>
           {footer.coords && <p className="font-mono uppercase tracking-[0.18em]">{footer.coords}</p>}
-          <p>
-            Plataforma <span className="text-ink">ImobManager</span>
+          <p className="inline-flex items-center gap-1">
+            Desenvolvido com muito carinho
+            <Heart className="size-3 fill-red-500 text-red-500" aria-label="amor" />
+            por
+            <a
+              href="https://www.kreativ.ae/"
+              target="_blank"
+              rel="noreferrer"
+              className="font-semibold text-ink transition-colors hover:text-accent"
+            >
+              kreativ.ae
+            </a>
           </p>
         </div>
       </div>
