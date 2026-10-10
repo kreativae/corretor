@@ -1,5 +1,6 @@
 import { ContactsClient } from "@/components/crm/contacts-client";
-import { listContacts, listDeals, listVisits } from "@/lib/queries";
+import type { ContactMeta } from "@/components/crm/contact-filters";
+import { listContacts, listDeals, listVisits, type DealFull, type VisitFull } from "@/lib/queries";
 import { isRuralType } from "@/lib/rural";
 import type { Metadata } from "next";
 
@@ -34,6 +35,9 @@ export default async function ContatosPage({
     const urbano = l.urbano || c.interestTypes.some((t) => !isRuralType(t));
     segments[c.id] = { rural, urbano: urbano || !rural };
   }
+
+  const meta = buildMeta(deals, visits);
+
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -52,8 +56,37 @@ export default async function ContatosPage({
       <ContactsClient
         initial={contacts}
         segments={segments}
+        meta={meta}
         initialTab={tipo === "imoveis" || tipo === "rurais" ? tipo : "todos"}
       />
     </div>
   );
+}
+
+/** Dados de relacionamento usados pelos filtros (etapa, visitas, imóveis) */
+function buildMeta(deals: DealFull[], visits: VisitFull[]) {
+  const now = Date.now();
+  const meta: Record<string, ContactMeta> = {};
+  const metaOf = (id: string) =>
+    (meta[id] ??= { stages: [], dealValue: 0, visitsDone: 0, visitsUpcoming: 0, properties: [] });
+  const addProperty = (m: ContactMeta, p: { id: string; code: string; title: string } | null) => {
+    if (p && !m.properties.some((x) => x.id === p.id))
+      m.properties.push({ id: p.id, code: p.code, title: p.title });
+  };
+  for (const d of deals) {
+    if (!d.contact) continue;
+    const m = metaOf(d.contact.id);
+    if (!m.stages.includes(d.deal.stage)) m.stages.push(d.deal.stage);
+    m.dealValue = Math.max(m.dealValue, d.deal.value ?? 0);
+    addProperty(m, d.property);
+  }
+  for (const v of visits) {
+    if (!v.contact) continue;
+    const m = metaOf(v.contact.id);
+    if (v.visit.status === "realizada") m.visitsDone += 1;
+    else if (v.visit.status !== "cancelada" && new Date(v.visit.scheduledAt).getTime() >= now)
+      m.visitsUpcoming += 1;
+    addProperty(m, v.property);
+  }
+  return meta;
 }

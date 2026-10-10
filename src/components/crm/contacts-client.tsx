@@ -1,5 +1,15 @@
 "use client";
 
+import {
+  ActiveFilterChips,
+  activeFilterChips,
+  applyContactFilters,
+  ContactFiltersPanel,
+  contactsToCsv,
+  EMPTY_FILTERS,
+  type ContactFilters,
+  type ContactMeta,
+} from "@/components/crm/contact-filters";
 import { LeadDrawer } from "@/components/crm/lead-drawer";
 import { Badge, Button, Field, Input, Modal, Select, Textarea } from "@/components/ui";
 import {
@@ -10,10 +20,10 @@ import {
 import type { Contact } from "@/db/schema";
 import { cn, formatCompact, initials, timeAgo } from "@/lib/utils";
 import { isRuralType } from "@/lib/rural";
-import { ArrowUpRight, Building2, Cloud, Layers, Plus, Search, Tractor, UserPlus } from "lucide-react";
+import { ArrowUpRight, Building2, Cloud, Download, Layers, Plus, Search, SlidersHorizontal, Tractor, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 const SOURCE_STYLES: Record<string, string> = {
@@ -28,6 +38,8 @@ const SOURCE_STYLES: Record<string, string> = {
 export type ContactsTab = "todos" | "imoveis" | "rurais";
 type Segment = { urbano: boolean; rural: boolean };
 
+const FILTERS_KEY = "crm-contact-filters";
+
 /** Segmento de um contato recém-criado (sem negociações): pelo interesse. */
 function segmentOf(c: Contact, segments: Record<string, Segment>): Segment {
   if (segments[c.id]) return segments[c.id];
@@ -38,18 +50,35 @@ function segmentOf(c: Contact, segments: Record<string, Segment>): Segment {
 export function ContactsClient({
   initial,
   segments = {},
+  meta = {},
   initialTab = "todos",
 }: {
   initial: Contact[];
   segments?: Record<string, Segment>;
+  meta?: Record<string, ContactMeta>;
   initialTab?: ContactsTab;
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const [tab, setTab] = useState<ContactsTab>(initialTab);
   const [items, setItems] = useState(initial);
-  const [q, setQ] = useState("");
-  const [type, setType] = useState("all");
+  const [filters, setFilters] = useState<ContactFilters>(EMPTY_FILTERS);
+  const [showFilters, setShowFilters] = useState(false);
+  const patch = (p: Partial<ContactFilters>) => setFilters((f) => ({ ...f, ...p }));
+
+  // Lembra os filtros do usuário neste navegador
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(FILTERS_KEY);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (saved) setFilters({ ...EMPTY_FILTERS, ...JSON.parse(saved), q: "" });
+    } catch {}
+  }, []);
+  useEffect(() => {
+    try {
+      localStorage.setItem(FILTERS_KEY, JSON.stringify(filters));
+    } catch {}
+  }, [filters]);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [previewId, setPreviewId] = useState<string | null>(null);
@@ -80,22 +109,38 @@ export function ContactsClient({
     router.replace(t === "todos" ? pathname : `${pathname}?tipo=${t}`, { scroll: false });
   }
 
-  const filtered = useMemo(() => {
-    let list = items;
-    if (tab === "imoveis") list = list.filter((c) => segmentOf(c, segments).urbano);
-    if (tab === "rurais") list = list.filter((c) => segmentOf(c, segments).rural);
-    if (type !== "all") list = list.filter((c) => c.type === type);
-    if (q.trim()) {
-      const t = q.toLowerCase();
-      list = list.filter(
-        (c) =>
-          c.name.toLowerCase().includes(t) ||
-          c.phone.includes(t) ||
-          (c.email ?? "").toLowerCase().includes(t),
-      );
-    }
-    return list;
-  }, [items, q, type, tab, segments]);
+  const inTab = useMemo(() => {
+    if (tab === "imoveis") return items.filter((c) => segmentOf(c, segments).urbano);
+    if (tab === "rurais") return items.filter((c) => segmentOf(c, segments).rural);
+    return items;
+  }, [items, tab, segments]);
+
+  const filtered = useMemo(
+    () => applyContactFilters(inTab, filters, meta),
+    [inTab, filters, meta],
+  );
+
+  // Imóveis ligados a algum contato (para o filtro por imóvel)
+  const linkedProperties = useMemo(() => {
+    const map = new Map<string, { id: string; code: string; title: string }>();
+    for (const m of Object.values(meta)) for (const p of m.properties) map.set(p.id, p);
+    return [...map.values()].sort((a, b) => a.code.localeCompare(b.code));
+  }, [meta]);
+
+  const chips = activeFilterChips(
+    filters,
+    (id) => linkedProperties.find((p) => p.id === id)?.code ?? "Imóvel",
+  );
+
+  function exportCsv() {
+    const blob = new Blob([contactsToCsv(filtered, meta)], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `contatos-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   function toggleInterest(t: string) {
     setForm((f) => ({
@@ -175,17 +220,35 @@ export function ContactsClient({
         <div className="relative min-w-56 flex-1">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-subtle" />
           <Input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Buscar por nome, telefone ou e-mail…"
+            value={filters.q}
+            onChange={(e) => patch({ q: e.target.value })}
+            placeholder="Buscar por nome, telefone, e-mail, bairro ou observação…"
             className="pl-10"
           />
         </div>
-        <Select value={type} onChange={(e) => setType(e.target.value)} className="w-auto">
-          <option value="all">Todos os tipos</option>
-          {Object.entries(CONTACT_TYPE_LABELS).map(([k, v]) => (
-            <option key={k} value={k}>{v}</option>
-          ))}
+        <Button
+          variant={showFilters || chips.length ? "primary" : "outline"}
+          onClick={() => setShowFilters((v) => !v)}
+        >
+          <SlidersHorizontal className="size-4" />
+          Filtros
+          {chips.length > 0 && (
+            <span className="rounded-full bg-accent px-1.5 font-mono text-[10px] text-on-accent">
+              {chips.length}
+            </span>
+          )}
+        </Button>
+        <Select
+          value={filters.sort}
+          onChange={(e) => patch({ sort: e.target.value as ContactFilters["sort"] })}
+          className="w-auto"
+          aria-label="Ordenar"
+        >
+          <option value="recent">Mais recentes</option>
+          <option value="oldest">Mais antigos</option>
+          <option value="name">Nome (A–Z)</option>
+          <option value="budget_desc">Maior orçamento</option>
+          <option value="budget_asc">Menor orçamento</option>
         </Select>
         <Button variant="primary" onClick={() => setOpen(true)}>
           <Plus className="size-4" />
@@ -193,17 +256,48 @@ export function ContactsClient({
         </Button>
       </div>
 
-      <p className="mt-4 font-mono text-[11px] uppercase tracking-[0.16em] text-subtle">
-        {filtered.length} de {items.length} contatos
-      </p>
+      {showFilters && (
+        <ContactFiltersPanel
+          value={filters}
+          onChange={patch}
+          onReset={() => setFilters({ ...EMPTY_FILTERS, sort: filters.sort })}
+          contacts={inTab}
+          meta={meta}
+          properties={linkedProperties}
+        />
+      )}
+      <ActiveFilterChips chips={chips} onClear={patch} />
+
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+        <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-subtle">
+          {filtered.length} de {inTab.length} contatos
+          {chips.length > 0 && (
+            <button
+              onClick={() => setFilters({ ...EMPTY_FILTERS, sort: filters.sort })}
+              className="ml-3 normal-case tracking-normal text-ink underline underline-offset-4"
+            >
+              limpar filtros
+            </button>
+          )}
+        </p>
+        <button
+          onClick={exportCsv}
+          disabled={!filtered.length}
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-subtle hover:text-ink disabled:opacity-40"
+        >
+          <Download className="size-3.5" />
+          Exportar CSV ({filtered.length})
+        </button>
+      </div>
 
       <div className="mt-3 overflow-x-auto rounded-2xl border border-hairline bg-card">
-        <table className="w-full min-w-[720px] text-left text-sm">
+        <table className="w-full min-w-[860px] text-left text-sm">
           <thead>
             <tr className="border-b border-hairline font-mono text-[10px] uppercase tracking-[0.16em] text-subtle">
               <th className="px-5 py-3.5 font-medium">Nome</th>
               <th className="px-4 py-3.5 font-medium">Tipo</th>
               <th className="px-4 py-3.5 font-medium">Origem</th>
+              <th className="px-4 py-3.5 font-medium">Interesse</th>
               <th className="px-4 py-3.5 text-right font-medium">Orçamento</th>
               <th className="px-4 py-3.5 text-right font-medium">Na base</th>
             </tr>
@@ -263,10 +357,19 @@ export function ContactsClient({
                     {SOURCE_LABELS[c.source]}
                   </Badge>
                 </td>
-                <td className="px-4 py-3 text-right font-mono text-xs tabular text-subtle">
-                  {c.budgetMax
-                    ? `até ${formatCompact(c.budgetMax)}`
+                <td className="max-w-[180px] truncate px-4 py-3 text-xs text-subtle">
+                  {c.interestTypes.length
+                    ? c.interestTypes.map((t) => TYPE_LABELS[t] ?? t).join(", ")
                     : "—"}
+                </td>
+                <td className="px-4 py-3 text-right font-mono text-xs tabular text-subtle">
+                  {c.budgetMin && c.budgetMax
+                    ? `${formatCompact(c.budgetMin)} – ${formatCompact(c.budgetMax)}`
+                    : c.budgetMax
+                      ? `até ${formatCompact(c.budgetMax)}`
+                      : c.budgetMin
+                        ? `a partir de ${formatCompact(c.budgetMin)}`
+                        : "—"}
                 </td>
                 <td className="px-4 py-3 text-right font-mono text-xs text-subtle">
                   {timeAgo(c.createdAt)}
@@ -279,7 +382,9 @@ export function ContactsClient({
           <p className="py-14 text-center text-sm text-subtle">
             {tab === "rurais"
               ? "Nenhum contato rural — marque interesse em fazenda, sítio ou chácara."
-              : "Nenhum contato encontrado."}
+              : chips.length || filters.q
+                ? "Nenhum contato com esses filtros."
+                : "Nenhum contato encontrado."}
           </p>
         )}
       </div>
