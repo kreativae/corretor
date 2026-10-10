@@ -14,7 +14,7 @@ import { TYPE_LABELS } from "@/lib/labels";
 import type { PropertyWithImages } from "@/lib/queries";
 import { APTIDAO_LABELS, isRuralType, RURAL_TYPES } from "@/lib/rural";
 import { cn, plural } from "@/lib/utils";
-import { Building2, Search, SlidersHorizontal, Tractor } from "lucide-react";
+import { Building2, ChevronDown, Search, SlidersHorizontal, Tractor } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 
@@ -73,6 +73,8 @@ export function ImoveisBrowser({
 
   const [filters, setFilters] = useState<PropertyFilters>(EMPTY_PROPERTY_FILTERS);
   const [showFilters, setShowFilters] = useState(false);
+  // No celular, os atalhos de tipo/finalidade ficam recolhidos
+  const [showQuick, setShowQuick] = useState(false);
   const patch = (p: Partial<PropertyFilters>) => setFilters((f) => ({ ...f, ...p }));
   const resetFilters = () => setFilters((f) => ({ ...EMPTY_PROPERTY_FILTERS, q: f.q, sort: f.sort }));
   const closeFilters = useCallback(() => setShowFilters(false), []);
@@ -88,6 +90,8 @@ export function ImoveisBrowser({
     [base, filters, rural],
   );
   const chips = activePropertyChips(filters, rural);
+  const quickCount =
+    filters.types.length + (rural ? filters.aptidoes.length : filters.purpose !== "all" ? 1 : 0);
   const toggleType = (t: string) =>
     patch({ types: filters.types.includes(t) ? filters.types.filter((x) => x !== t) : [...filters.types, t] });
   const toggleAptidao = (a: string) =>
@@ -125,7 +129,7 @@ export function ImoveisBrowser({
 
       {/* Barra de filtros */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative min-w-64 flex-1">
+        <div className="relative basis-full md:min-w-64 md:flex-1 md:basis-auto">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-subtle" />
           <Input
             value={filters.q}
@@ -138,7 +142,7 @@ export function ImoveisBrowser({
         <Select
           value={filters.sort}
           onChange={(e) => patch({ sort: e.target.value as PropertyFilters["sort"] })}
-          className="w-auto"
+          className="w-auto min-w-0 flex-1 md:flex-none"
           aria-label="Ordenar"
         >
           <option value="recent">Mais recentes</option>
@@ -147,9 +151,28 @@ export function ImoveisBrowser({
           <option value="area_desc">Maior área</option>
           {rural && <option value="ppa_asc">Menor preço por alqueire</option>}
         </Select>
+        <button
+          type="button"
+          onClick={() => setShowQuick((v) => !v)}
+          aria-expanded={showQuick}
+          className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border border-hairline px-3.5 text-sm text-subtle transition-colors hover:text-ink md:hidden"
+        >
+          Tipo
+          {quickCount > 0 && (
+            <span className="rounded-full bg-accent px-1.5 font-mono text-[10px] text-on-accent">
+              {quickCount}
+            </span>
+          )}
+          <ChevronDown className={cn("size-3.5 transition-transform", showQuick && "rotate-180")} />
+        </button>
       </div>
 
-      <div className="mt-5 flex flex-wrap items-center gap-2">
+      <div
+        className={cn(
+          "mt-5 flex-wrap items-center gap-2 md:flex",
+          showQuick ? "flex" : "hidden",
+        )}
+      >
         <SlidersHorizontal className="size-4 text-subtle" />
         <QuickChip on={!filters.types.length} onClick={() => patch({ types: [] })}>
           Todos
