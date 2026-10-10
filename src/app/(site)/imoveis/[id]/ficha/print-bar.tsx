@@ -5,7 +5,7 @@ import { MAX_UPLOAD_BYTES, sendFile } from "@/lib/upload-client";
 import { ArrowLeft, Loader2, MapPinned, Printer, Share2 } from "lucide-react";
 import { buildFichaPdf, downloadFile } from "./share-pdf";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 /**
@@ -27,25 +27,56 @@ export function PrintBar({
   const input = useRef<HTMLInputElement>(null);
   const [progress, setProgress] = useState<number | null>(null);
   const [sharing, setSharing] = useState(false);
+  // PDF gerado em segundo plano assim que a ficha carrega: o iPhone só abre o
+  // compartilhamento logo após o toque, então o arquivo precisa estar pronto
+  const pdf = useRef<Promise<File> | null>(null);
+
+  useEffect(() => {
+    const start = () => {
+      if (!pdf.current) {
+        pdf.current = buildFichaPdf(share.fileName).catch((e) => {
+          pdf.current = null;
+          throw e;
+        });
+        pdf.current.catch(() => undefined);
+      }
+    };
+    const t = window.setTimeout(start, 1200);
+    return () => window.clearTimeout(t);
+  }, [share.fileName]);
+
+  async function deliver(file: File) {
+    const data: ShareData = { files: [file], title: share.title, text: `${share.text}\n${share.url}` };
+    if (!navigator.canShare?.(data)) {
+      downloadFile(file);
+      toast.success("PDF baixado — anexe na conversa ou no e-mail.");
+      return;
+    }
+    try {
+      await navigator.share(data);
+    } catch (e) {
+      if (!(e instanceof DOMException)) throw e;
+      // Usuário fechou a janela de compartilhar: não é erro
+      if (e.name === "AbortError") return;
+      // O navegador exige um toque "fresco": oferece compartilhar de novo
+      if (e.name === "NotAllowedError") {
+        toast("PDF pronto", {
+          action: { label: "Compartilhar", onClick: () => void deliver(file) },
+          duration: 15000,
+        });
+        return;
+      }
+      throw e;
+    }
+  }
 
   async function sharePdf() {
     setSharing(true);
     try {
-      const file = await buildFichaPdf(share.fileName);
-      const data: ShareData = { files: [file], title: share.title, text: `${share.text}\n${share.url}` };
-      if (navigator.canShare?.(data)) {
-        try {
-          await navigator.share(data);
-        } catch (e) {
-          // Usuário fechou a janela de compartilhar: não é erro
-          if (e instanceof DOMException && e.name === "AbortError") return;
-          throw e;
-        }
-      } else {
-        downloadFile(file);
-        toast.success("PDF baixado — anexe na conversa ou no e-mail.");
-      }
+      const file = await (pdf.current ?? (pdf.current = buildFichaPdf(share.fileName)));
+      await deliver(file);
     } catch (e) {
+      pdf.current = null;
       console.error(e);
       toast.error("Não foi possível gerar o PDF. Use Imprimir › Salvar como PDF.");
     } finally {
@@ -89,6 +120,7 @@ export function PrintBar({
       });
       if (!res.ok) throw new Error("Não foi possível salvar o KMZ na propriedade.");
       toast.success("KMZ anexado — QR code de download adicionado à ficha.");
+      pdf.current = null; // QR mudou: gera o PDF de novo
       router.refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha no envio.");
