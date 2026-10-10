@@ -102,9 +102,9 @@ export function ImoveisBrowser({
     });
 
   return (
-    <div className="mt-10">
+    <div className="mt-8 md:mt-10">
       {rurais.length > 0 && (
-        <div className="mb-8 inline-flex rounded-full border border-hairline p-1">
+        <div className="mb-6 grid grid-cols-2 rounded-full border border-hairline p-1 sm:inline-flex md:mb-8">
           {(
             [
               { id: "urbanos", label: "Imóveis", icon: Building2, count: urbanos.length },
@@ -115,21 +115,33 @@ export function ImoveisBrowser({
               key={c.id}
               onClick={() => switchCategoria(c.id)}
               className={cn(
-                "inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all duration-300",
+                "inline-flex items-center justify-center gap-2 rounded-full px-3 py-2 text-sm font-medium transition-all duration-300 sm:px-4",
                 categoria === c.id ? "bg-ink text-canvas" : "text-subtle hover:text-ink",
               )}
             >
               <c.icon className="size-4" />
-              {c.label}
+              <span className="sm:hidden">{c.id === "rurais" ? "Rurais" : c.label}</span>
+              <span className="hidden sm:inline">{c.label}</span>
               <span className="font-mono text-[11px] opacity-60">{c.count}</span>
             </button>
           ))}
         </div>
       )}
 
-      {/* Barra de filtros */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative basis-full md:min-w-64 md:flex-1 md:basis-auto">
+      {/* Busca (celular: rola com a página; a linha de botões abaixo fica presa no topo) */}
+      <div className="relative md:hidden">
+        <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-subtle" />
+        <Input
+          value={filters.q}
+          onChange={(e) => patch({ q: e.target.value })}
+          placeholder={rural ? "Buscar por cidade, região, cultura ou código…" : "Buscar por bairro, rua, nome ou código…"}
+          className="pl-10"
+        />
+      </div>
+
+      {/* Barra de filtros — no celular fica presa no topo ao rolar */}
+      <div className="sticky top-16 z-20 -mx-5 mt-3 flex flex-wrap items-center gap-3 border-b border-hairline bg-canvas/85 px-5 py-2.5 backdrop-blur-xl sm:mx-0 sm:px-0 md:static md:mt-0 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
+        <div className="relative hidden min-w-64 flex-1 md:block">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-subtle" />
           <Input
             value={filters.q}
@@ -225,7 +237,7 @@ export function ImoveisBrowser({
         />
       </FilterSheet>
 
-      <p className="mt-8 font-mono text-xs uppercase tracking-[0.16em] text-subtle">
+      <p className="mt-6 font-mono text-xs uppercase tracking-[0.16em] text-subtle md:mt-8">
         {rural
           ? `${filtered.length} ${plural(filtered.length, "propriedade encontrada", "propriedades encontradas")}`
           : `${filtered.length} ${plural(filtered.length, "imóvel", "imóveis")} encontrados`}
@@ -248,7 +260,7 @@ export function ImoveisBrowser({
           />
         </div>
       ) : (
-        <div className="mt-6 grid gap-x-6 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-5 grid gap-x-6 gap-y-9 sm:grid-cols-2 md:mt-6 md:gap-y-12 lg:grid-cols-3">
           {filtered.map((p, i) => (
             <div
               key={p.id}

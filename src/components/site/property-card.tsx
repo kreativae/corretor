@@ -5,6 +5,15 @@ import { APTIDAO_LABELS, formatAlq, isRuralType, normalizeRural } from "@/lib/ru
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 
+/** "120 m² · 3 quartos" ou "310 alq · Dupla aptidão" */
+function specsLine(p: PropertyWithImages) {
+  if (isRuralType(p.type)) {
+    const r = normalizeRural(p.rural);
+    return `${formatAlq(r.totalAlq ?? 0)} alq${r.aptidao ? ` · ${APTIDAO_LABELS[r.aptidao]}` : ""}`;
+  }
+  return `${formatNumber(p.area)} m² · ${p.bedrooms} ${p.bedrooms === 1 ? "quarto" : "quartos"}`;
+}
+
 export function PropertyCard({
   property: p,
   featured,
@@ -54,7 +63,24 @@ export function PropertyCard({
         </div>
       </div>
 
-      <div className="flex items-start justify-between gap-4 pt-4">
+      {/* Celular: título inteiro e preço em destaque embaixo */}
+      <div className="pt-3 sm:hidden">
+        <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-subtle">
+          {p.code} · {TYPE_LABELS[p.type]} · {p.neighborhood}
+        </p>
+        <h3 className="mt-1 line-clamp-2 font-display text-lg font-semibold leading-snug tracking-tight">
+          {p.title}
+        </h3>
+        <div className="mt-2 flex items-baseline justify-between gap-3">
+          <p className="font-mono text-base font-medium tabular">
+            {formatBRL(p.price)}
+            {p.purpose === "aluguel" && <span className="text-xs text-subtle"> /mês</span>}
+          </p>
+          <p className="truncate text-xs text-subtle">{specsLine(p)}</p>
+        </div>
+      </div>
+
+      <div className="hidden items-start justify-between gap-4 pt-4 sm:flex">
         <div className="min-w-0">
           <p className="font-mono text-[10.5px] uppercase tracking-[0.16em] text-subtle">
             {p.code} · {TYPE_LABELS[p.type]}
@@ -73,14 +99,7 @@ export function PropertyCard({
               <span className="text-subtle"> /mês</span>
             )}
           </p>
-          <p className="mt-0.5 text-xs text-subtle">
-            {isRuralType(p.type)
-              ? (() => {
-                  const r = normalizeRural(p.rural);
-                  return `${formatAlq(r.totalAlq ?? 0)} alq${r.aptidao ? ` · ${APTIDAO_LABELS[r.aptidao]}` : ""}`;
-                })()
-              : `${formatNumber(p.area)} m² · ${p.bedrooms} ${p.bedrooms === 1 ? "quarto" : "quartos"}`}
-          </p>
+          <p className="mt-0.5 text-xs text-subtle">{specsLine(p)}</p>
         </div>
       </div>
     </Link>

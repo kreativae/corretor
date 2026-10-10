@@ -28,7 +28,7 @@ export default async function ImoveisPage({
   return (
     <div>
       <SiteHeader orgName={wl.orgName} hasRural={properties.some((x) => isRuralType(x.type))} />
-      <main className="container-x pb-24 pt-28 md:pt-36">
+      <main className="container-x pb-24 pt-24 md:pt-36">
         <p
           data-reveal
           className="font-mono text-[11px] uppercase tracking-[0.24em] text-subtle"
@@ -37,7 +37,7 @@ export default async function ImoveisPage({
         </p>
         <h1
           data-words
-          className="mt-3 font-display text-5xl font-semibold tracking-[-0.02em] md:text-7xl"
+          className="mt-3 text-balance font-display text-4xl font-semibold tracking-[-0.02em] sm:text-5xl md:text-7xl"
         >
           {content.listing.title}
         </h1>
