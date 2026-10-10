@@ -5,7 +5,7 @@ import { Button, Field, Input } from "@/components/ui";
 import type { WhiteLabel } from "@/lib/queries";
 import { compressImage, MAX_UPLOAD_BYTES, sendFile } from "@/lib/upload-client";
 import { cn } from "@/lib/utils";
-import { Check, ImagePlus, Loader2, Trash2 } from "lucide-react";
+import { Check, ChevronDown, ImagePlus, Loader2, Palette, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -211,6 +211,9 @@ export function WhiteLabelCard({ initial }: { initial: WhiteLabel }) {
   const router = useRouter();
   const [wl, setWl] = useState(initial);
   const [saving, setSaving] = useState(false);
+  // Fica recolhido (sanfona); o editor abre ao clicar no cabeçalho
+  const [open, setOpen] = useState(false);
+  const dirty = JSON.stringify(wl) !== JSON.stringify(initial);
   const set = <K extends keyof WhiteLabel>(k: K, v: WhiteLabel[K]) =>
     setWl((cur) => ({ ...cur, [k]: v }));
 
@@ -237,23 +240,60 @@ export function WhiteLabelCard({ initial }: { initial: WhiteLabel }) {
   }
 
   return (
-    <section className="card-elev rounded-2xl border border-hairline bg-card p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="font-display text-base font-semibold tracking-tight">
-            White label — identidade da marca
-          </h2>
-          <p className="mt-1 text-xs text-subtle">
-            Aplicada ao site público, CRM, tela de login, ficha do imóvel e materiais exportados.
-          </p>
-        </div>
-        <Button variant="accent" loading={saving} onClick={save}>
-          <Check className="size-4" />
-          Aplicar identidade
-        </Button>
+    <section className="card-elev rounded-2xl border border-hairline bg-card">
+      <div className="flex flex-wrap items-center gap-3 p-6">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          className="flex min-w-0 flex-1 items-center gap-3 text-left"
+        >
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-soft text-subtle">
+            <Palette className="size-5" />
+          </span>
+          <span className="min-w-0">
+            <span className="block font-display text-base font-semibold tracking-tight">
+              White label — identidade da marca
+            </span>
+            <span className="mt-1 flex items-center gap-2 text-xs text-subtle">
+              <span
+                className="size-3 shrink-0 rounded-full border border-hairline"
+                style={{ background: wl.accent }}
+                aria-hidden
+              />
+              <span className="truncate">
+                {open
+                  ? "Aplicada ao site público, CRM, tela de login, ficha do imóvel e materiais exportados."
+                  : `${wl.orgName}${wl.domain ? ` · ${wl.domain}` : ""} — clique para editar`}
+              </span>
+            </span>
+          </span>
+        </button>
+        {(open || dirty) && (
+          <Button variant="accent" loading={saving} onClick={save}>
+            <Check className="size-4" />
+            Aplicar identidade
+          </Button>
+        )}
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-label={open ? "Recolher editor" : "Abrir editor"}
+          className="rounded-full p-2 text-subtle transition-colors hover:bg-soft hover:text-ink"
+        >
+          <ChevronDown className={cn("size-4 transition-transform duration-300", open && "rotate-180")} />
+        </button>
       </div>
 
-      <div className="mt-6">
+      <div
+        className={cn(
+          "grid transition-[grid-template-rows] duration-500 ease-expo",
+          open ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+        )}
+      >
+      <div className="min-h-0 overflow-hidden" inert={!open}>
+      <div className="border-t border-hairline px-6 pb-6 pt-6">
+      <div>
         <p className={cn(h3, "mb-3")}>Prévia</p>
         <BrandPreview wl={wl} />
       </div>
@@ -393,6 +433,9 @@ export function WhiteLabelCard({ initial }: { initial: WhiteLabel }) {
             </Field>
           </div>
         </div>
+      </div>
+      </div>
+      </div>
       </div>
     </section>
   );
