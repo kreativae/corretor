@@ -1,12 +1,10 @@
 import { StatCard } from "@/components/crm/stat-card";
 import { StatsGrid } from "@/components/crm/stats-grid";
-import { Timeline } from "@/components/crm/timeline";
 import { db } from "@/db";
 import { integrations } from "@/db/schema";
 import {
   getPortfolioViews,
   getTopViewedProperties,
-  listActivities,
   listDeals,
   listPortals,
   listProperties,
@@ -29,13 +27,12 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Administração" };
 
 export default async function AdminPage() {
-  const [users, properties, portals, deals, activities, ints, views, topViewed] =
+  const [users, properties, portals, deals, ints, views, topViewed] =
     await Promise.all([
       listUsers(),
       listProperties(),
       listPortals(),
       listDeals(),
-      listActivities(12),
       db.select().from(integrations),
       getPortfolioViews(),
       getTopViewedProperties(5),
@@ -212,13 +209,6 @@ export default async function AdminPage() {
         </div>
       </section>
 
-      {/* Atividade */}
-      <section className="card-elev rounded-2xl border border-hairline bg-card p-6">
-        <h2 className="mb-6 font-display text-base font-semibold tracking-tight">
-          Auditoria recente
-        </h2>
-        <Timeline items={activities} />
-      </section>
     </div>
   );
 }

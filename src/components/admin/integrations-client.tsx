@@ -1,11 +1,13 @@
 "use client";
 
 import { Badge, Button, Field, Input, Modal, Select, Switch } from "@/components/ui";
-import type { ApiKey } from "@/db/schema";
+import { Timeline } from "@/components/crm/timeline";
+import type { Activity, ApiKey } from "@/db/schema";
 import type { WhiteLabel } from "@/lib/queries";
 import { cn, formatDateTime, timeAgo } from "@/lib/utils";
 import {
   CalendarDays,
+  History,
   Check,
   ChevronDown,
   Contact,
@@ -369,10 +371,13 @@ export function IntegrationsClient({
   integrations,
   apiKeys,
   whiteLabel,
+  audit = [],
 }: {
   integrations: IntegrationView[];
   apiKeys: ApiKey[];
   whiteLabel: WhiteLabel;
+  /** Últimas atividades do sistema (auditoria) */
+  audit?: Activity[];
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -385,6 +390,7 @@ export function IntegrationsClient({
   const [endpointsOpen, setEndpointsOpen] = useState(false);
   const [keysOpen, setKeysOpen] = useState(false);
   const [securityOpen, setSecurityOpen] = useState(false);
+  const [auditOpen, setAuditOpen] = useState(false);
   const [googleOpen, setGoogleOpen] = useState(
     () => !!(searchParams.get("connected") || searchParams.get("error")),
   );
@@ -708,6 +714,52 @@ export function IntegrationsClient({
                   </div>
                 ));
               })()}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Auditoria recente — sanfona */}
+      <section className="card-elev rounded-2xl border border-hairline bg-card">
+        <button
+          type="button"
+          onClick={() => setAuditOpen((v) => !v)}
+          aria-expanded={auditOpen}
+          className="flex w-full items-center gap-3 p-6 text-left"
+        >
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-soft text-subtle">
+            <History className="size-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className={cn(sectionTitle, "block")}>Auditoria recente</span>
+            <span className="mt-1 block truncate text-xs text-subtle">
+              {auditOpen
+                ? "Últimas ações registradas no sistema: cadastros, alterações, visitas e sincronizações."
+                : audit[0]
+                  ? `Última: ${audit[0].text} · ${timeAgo(audit[0].createdAt)}`
+                  : "Nenhuma atividade registrada ainda"}
+            </span>
+          </span>
+          <ChevronDown
+            className={cn(
+              "size-4 shrink-0 text-subtle transition-transform duration-300",
+              auditOpen && "rotate-180",
+            )}
+          />
+        </button>
+        <div
+          className={cn(
+            "grid transition-[grid-template-rows] duration-500 ease-expo",
+            auditOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+          )}
+        >
+          <div className="min-h-0 overflow-hidden" inert={!auditOpen}>
+            <div data-lenis-prevent className="max-h-[480px] overflow-y-auto overscroll-contain border-t border-hairline p-6">
+              {audit.length ? (
+                <Timeline items={audit} />
+              ) : (
+                <p className="py-6 text-center text-sm text-subtle">Nada registrado ainda.</p>
+              )}
             </div>
           </div>
         </div>

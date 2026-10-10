@@ -7,7 +7,7 @@ import { emailConfigured, getNotifySettings } from "@/lib/notify";
 import { db } from "@/db";
 import { apiKeys, integrations } from "@/db/schema";
 import { ensureGoogleIntegrations } from "@/lib/google";
-import { getWhiteLabel } from "@/lib/queries";
+import { getWhiteLabel, listActivities } from "@/lib/queries";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +20,11 @@ export default async function ConfiguracoesPage() {
     db.select().from(apiKeys).orderBy(apiKeys.createdAt),
     getWhiteLabel(),
   ]);
-  const [notify, features] = await Promise.all([getNotifySettings(), getFeatures()]);
+  const [notify, features, audit] = await Promise.all([
+    getNotifySettings(),
+    getFeatures(),
+    listActivities(40),
+  ]);
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -67,6 +71,7 @@ export default async function ConfiguracoesPage() {
         }))}
         apiKeys={keys}
         whiteLabel={wl}
+        audit={audit}
       />
     </div>
   );
