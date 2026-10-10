@@ -22,6 +22,7 @@ import {
   Building2,
   Columns3,
   Flag,
+  GripVertical,
   Handshake,
   Hourglass,
   Eye,
@@ -85,6 +86,14 @@ export function Kanban({
   const [overStage, setOverStage] = useState<string | null>(null);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [mobileStage, setMobileStage] = useState<string>("novo");
+  // Arrastar no toque (celular)
+  const [touchDrag, setTouchDrag] = useState<{
+    id: string;
+    name: string;
+    x: number;
+    y: number;
+    over: string | null;
+  } | null>(null);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ contactId: "", propertyId: "", value: "", stage: "novo" });
@@ -331,7 +340,41 @@ export function Kanban({
         <DealFiltersPanel value={filters} onChange={patch} deals={visible} />
       </FilterSheet>
 
-      {/* Celular: uma etapa por vez, cartões largos e "mover para" (arrastar não funciona no toque) */}
+      {/* Celular: soltar arrastando — etapas como alvos e "fantasma" seguindo o dedo */}
+      {touchDrag && (
+        <div className="pointer-events-none fixed inset-0 z-[60] md:hidden">
+          <div className="pointer-events-auto absolute inset-x-0 bottom-0 rounded-t-3xl border-t border-hairline bg-card/95 p-3 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl backdrop-blur-xl">
+            <p className="mb-2 text-center font-mono text-[10px] uppercase tracking-[0.18em] text-subtle">
+              Solte na etapa
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              {DEAL_STAGES.map((st) => (
+                <div
+                  key={st.id}
+                  data-drop-stage={st.id}
+                  className={cn(
+                    "flex h-14 flex-col items-center justify-center gap-1 rounded-xl border text-center text-[11px] font-medium leading-tight transition-all",
+                    touchDrag.over === st.id
+                      ? "scale-105 border-transparent bg-ink text-canvas"
+                      : "border-hairline bg-canvas",
+                  )}
+                >
+                  <span className="size-2 rounded-full" style={{ background: st.dot }} />
+                  {st.label}
+                </div>
+              ))}
+            </div>
+          </div>
+          <div
+            className="absolute z-10 max-w-[60vw] -translate-x-1/2 -translate-y-[130%] truncate rounded-full bg-ink px-3.5 py-2 text-xs font-medium text-canvas shadow-2xl"
+            style={{ left: touchDrag.x, top: touchDrag.y }}
+          >
+            {touchDrag.name}
+          </div>
+        </div>
+      )}
+
+      {/* Celular: uma etapa por vez, cartões largos; mover arrastando pela alça ou pelo seletor */}
       <div className="md:hidden">
         <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-3 [scrollbar-width:none]">
           {stages.map((st) => {
@@ -372,70 +415,107 @@ export function Kanban({
                 const digits = contact?.phone?.replace(/\D/g, "") ?? "";
                 const wa = digits.length >= 10 ? (digits.startsWith("55") ? digits : `55${digits}`) : null;
                 return (
-                  <div key={deal.id} className="rounded-2xl border border-hairline bg-card p-3.5">
-                    <button
-                      type="button"
-                      onClick={() => contact && setPreviewId(contact.id)}
-                      className="flex w-full items-center gap-3 text-left"
+                  <div
+                    key={deal.id}
+                    className={cn(
+                      "flex gap-1.5 rounded-2xl border border-hairline bg-card py-3.5 pl-1.5 pr-3.5 transition-opacity",
+                      touchDrag?.id === deal.id && "opacity-40",
+                    )}
+                  >
+                    {/* Alça de arrastar (toque): solte numa etapa do painel que aparece embaixo */}
+                    <span
+                      role="button"
+                      aria-label="Arrastar para outra etapa"
+                      title="Segure e arraste para outra etapa"
+                      className="flex w-6 shrink-0 cursor-grab touch-none select-none items-center justify-center rounded-lg text-subtle/70 active:bg-soft"
+                      onPointerDown={(e) => {
+                        e.currentTarget.setPointerCapture(e.pointerId);
+                        navigator.vibrate?.(12);
+                        setTouchDrag({ id: deal.id, name: contact?.name ?? "Negociação", x: e.clientX, y: e.clientY, over: null });
+                      }}
+                      onPointerMove={(e) => {
+                        if (!touchDrag) return;
+                        const el = document
+                          .elementFromPoint(e.clientX, e.clientY)
+                          ?.closest<HTMLElement>("[data-drop-stage]");
+                        setTouchDrag({ ...touchDrag, x: e.clientX, y: e.clientY, over: el?.dataset.dropStage ?? null });
+                      }}
+                      onPointerUp={() => {
+                        if (touchDrag?.over) {
+                          void move(touchDrag.id, touchDrag.over);
+                          setMobileStage(touchDrag.over);
+                        }
+                        setTouchDrag(null);
+                      }}
+                      onPointerCancel={() => setTouchDrag(null)}
                     >
-                      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-soft font-mono text-[10.5px] font-semibold text-subtle">
-                        {contact ? initials(contact.name) : "—"}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[15px] font-medium leading-tight">
-                          {contact?.name ?? "Contato removido"}
-                        </span>
-                        <span className="mt-0.5 block truncate text-xs text-subtle">
-                          {property ? (
-                            <>
-                              <span className="font-mono text-[10.5px] uppercase tracking-wider">{property.code}</span> ·{" "}
-                              {property.title}
-                            </>
-                          ) : (
-                            "Imóvel a definir"
-                          )}
-                        </span>
-                      </span>
-                      <span className="shrink-0 text-right font-mono text-sm font-medium tabular">
-                        {deal.value ? formatCompact(deal.value) : "—"}
-                      </span>
-                    </button>
-                    <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-subtle">
-                      {property && isRuralType(property.type) && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 font-medium text-emerald-600">
-                          <Tractor className="size-3" />
-                          {normalizeRural(property.rural).totalAlq
-                            ? `${formatAlq(normalizeRural(property.rural).totalAlq ?? 0)} alq`
-                            : "Rural"}
-                        </span>
-                      )}
-                      <span>Atualizada {timeAgo(deal.updatedAt)}</span>
-                    </div>
-                    <div className="mt-3 flex items-center gap-2 border-t border-hairline pt-3">
-                      <Select
-                        value={deal.stage}
-                        onChange={(e) => move(deal.id, e.target.value)}
-                        aria-label="Mover para"
-                        className="h-9 min-w-0 flex-1 text-xs"
+                      <GripVertical className="size-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <button
+                        type="button"
+                        onClick={() => contact && setPreviewId(contact.id)}
+                        className="flex w-full items-center gap-3 text-left"
                       >
-                        {DEAL_STAGES.map((st) => (
-                          <option key={st.id} value={st.id}>
-                            {st.id === deal.stage ? `Em: ${st.label}` : `Mover para ${st.label}`}
-                          </option>
-                        ))}
-                      </Select>
-                      {wa && (
-                        <a href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer" aria-label="WhatsApp">
-                          <Button variant="ghost" size="icon">
-                            <MessageCircle className="size-4 text-emerald-600" />
+                        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-soft font-mono text-[10.5px] font-semibold text-subtle">
+                          {contact ? initials(contact.name) : "—"}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[15px] font-medium leading-tight">
+                            {contact?.name ?? "Contato removido"}
+                          </span>
+                          <span className="mt-0.5 block truncate text-xs text-subtle">
+                            {property ? (
+                              <>
+                                <span className="font-mono text-[10.5px] uppercase tracking-wider">{property.code}</span> ·{" "}
+                                {property.title}
+                              </>
+                            ) : (
+                              "Imóvel a definir"
+                            )}
+                          </span>
+                        </span>
+                        <span className="shrink-0 text-right font-mono text-sm font-medium tabular">
+                          {deal.value ? formatCompact(deal.value) : "—"}
+                        </span>
+                      </button>
+                      <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-subtle">
+                        {property && isRuralType(property.type) && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 font-medium text-emerald-600">
+                            <Tractor className="size-3" />
+                            {normalizeRural(property.rural).totalAlq
+                              ? `${formatAlq(normalizeRural(property.rural).totalAlq ?? 0)} alq`
+                              : "Rural"}
+                          </span>
+                        )}
+                        <span>Atualizada {timeAgo(deal.updatedAt)}</span>
+                      </div>
+                      <div className="mt-3 flex items-center gap-2 border-t border-hairline pt-3">
+                        <Select
+                          value={deal.stage}
+                          onChange={(e) => move(deal.id, e.target.value)}
+                          aria-label="Mover para"
+                          className="h-9 min-w-0 flex-1 text-xs"
+                        >
+                          {DEAL_STAGES.map((st) => (
+                            <option key={st.id} value={st.id}>
+                              {st.id === deal.stage ? `Em: ${st.label}` : `Mover para ${st.label}`}
+                            </option>
+                          ))}
+                        </Select>
+                        {wa && (
+                          <a href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer" aria-label="WhatsApp">
+                            <Button variant="ghost" size="icon">
+                              <MessageCircle className="size-4 text-emerald-600" />
+                            </Button>
+                          </a>
+                        )}
+                        {contact && (
+                          <Button variant="ghost" size="icon" aria-label="Visão rápida" onClick={() => setPreviewId(contact.id)}>
+                            <Eye className="size-4" />
                           </Button>
-                        </a>
-                      )}
-                      {contact && (
-                        <Button variant="ghost" size="icon" aria-label="Visão rápida" onClick={() => setPreviewId(contact.id)}>
-                          <Eye className="size-4" />
-                        </Button>
-                      )}
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
