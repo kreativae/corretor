@@ -383,6 +383,7 @@ export function IntegrationsClient({
   const [origin, setOrigin] = useState("");
   // Google fica recolhido (sanfona); abre sozinho na volta do OAuth
   const [endpointsOpen, setEndpointsOpen] = useState(false);
+  const [keysOpen, setKeysOpen] = useState(false);
   const [googleOpen, setGoogleOpen] = useState(
     () => !!(searchParams.get("connected") || searchParams.get("error")),
   );
@@ -430,6 +431,7 @@ export function IntegrationsClient({
       if (!res.ok) throw new Error();
       const data = await res.json();
       setRevealed(data.fullKey);
+      setKeysOpen(true);
       setNewKey({ label: "", scope: "leitura" });
       router.refresh();
     } catch {
@@ -552,70 +554,104 @@ export function IntegrationsClient({
       </section>
       )}
 
-      {/* Chaves de API */}
-      <section>
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className={sectionTitle}>Chaves de API</h2>
-            <p className="mt-1 text-xs text-subtle">
-              Para integrar sistemas externos à API do ImobManager.
-            </p>
-          </div>
+      {/* Chaves de API — sanfona */}
+      <section className="card-elev rounded-2xl border border-hairline bg-card">
+        <div className="flex items-center gap-3 p-6">
+          <button
+            type="button"
+            onClick={() => setKeysOpen((v) => !v)}
+            aria-expanded={keysOpen}
+            className="flex min-w-0 flex-1 items-center gap-3 text-left"
+          >
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-soft text-subtle">
+              <KeyRound className="size-5" />
+            </span>
+            <span className="min-w-0">
+              <span className={cn(sectionTitle, "block")}>Chaves de API</span>
+              <span className="mt-1 block text-xs text-subtle">
+                {keysOpen
+                  ? "Para integrar sistemas externos à API do ImobManager."
+                  : (() => {
+                      const active = apiKeys.filter((k) => !k.revoked).length;
+                      const revoked = apiKeys.length - active;
+                      if (!apiKeys.length) return "Nenhuma chave gerada — clique para gerenciar";
+                      return `${active} ${active === 1 ? "ativa" : "ativas"}${revoked ? ` · ${revoked} ${revoked === 1 ? "revogada" : "revogadas"}` : ""} — clique para gerenciar`;
+                    })()}
+              </span>
+            </span>
+          </button>
           <Button size="sm" variant="primary" onClick={() => setOpen(true)}>
             <Plus className="size-4" />
             Gerar chave
           </Button>
+          <button
+            type="button"
+            onClick={() => setKeysOpen((v) => !v)}
+            aria-label={keysOpen ? "Recolher chaves" : "Mostrar chaves"}
+            className="rounded-full p-2 text-subtle transition-colors hover:bg-soft hover:text-ink"
+          >
+            <ChevronDown className={cn("size-4 transition-transform duration-300", keysOpen && "rotate-180")} />
+          </button>
         </div>
-        <div className="card-elev divide-y divide-hairline overflow-hidden rounded-2xl border border-hairline bg-card">
-          {apiKeys.length === 0 && (
-            <p className="py-12 text-center text-sm text-subtle">
-              Nenhuma chave gerada ainda.
-            </p>
+        <div
+          className={cn(
+            "grid transition-[grid-template-rows] duration-500 ease-expo",
+            keysOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
           )}
-          {apiKeys.map((k) => (
-            <div
-              key={k.id}
-              className="flex flex-wrap items-center justify-between gap-3 px-5 py-4"
-            >
-              <div className="flex min-w-0 items-center gap-3">
-                <span
-                  className={cn(
-                    "flex size-9 items-center justify-center rounded-lg",
-                    k.revoked ? "bg-soft text-subtle" : "bg-accent/12 text-accent",
-                  )}
-                >
-                  <KeyRound className="size-4" />
-                </span>
-                <div className="min-w-0">
-                  <p
-                    className={cn(
-                      "truncate text-sm font-medium",
-                      k.revoked && "text-subtle line-through",
-                    )}
-                  >
-                    {k.label}
+        >
+          <div className="min-h-0 overflow-hidden" inert={!keysOpen}>
+            <div className="divide-y divide-hairline border-t border-hairline">
+                {apiKeys.length === 0 && (
+                  <p className="py-12 text-center text-sm text-subtle">
+                    Nenhuma chave gerada ainda.
                   </p>
-                  <p className="font-mono text-[10.5px] text-subtle">
-                    {k.prefix}••••••••••••  ·  {SCOPE_LABELS[k.scope]}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-[10px] uppercase tracking-wider text-subtle">
-                  {k.revoked ? "revogada" : `criada ${timeAgo(k.createdAt)}`}
-                </span>
-                {!k.revoked && (
-                  <button
-                    onClick={() => revoke(k.id)}
-                    aria-label="Revogar"
-                    className="rounded-lg p-2 text-subtle transition-colors hover:bg-red-500/10 hover:text-red-500"
-                  >
-                    <Trash2 className="size-4" />
-                  </button>
                 )}
-              </div>
+                {apiKeys.map((k) => (
+                  <div
+                    key={k.id}
+                    className="flex flex-wrap items-center justify-between gap-3 px-6 py-4"
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span
+                        className={cn(
+                          "flex size-9 items-center justify-center rounded-lg",
+                          k.revoked ? "bg-soft text-subtle" : "bg-accent/12 text-accent",
+                        )}
+                      >
+                        <KeyRound className="size-4" />
+                      </span>
+                      <div className="min-w-0">
+                        <p
+                          className={cn(
+                            "truncate text-sm font-medium",
+                            k.revoked && "text-subtle line-through",
+                          )}
+                        >
+                          {k.label}
+                        </p>
+                        <p className="font-mono text-[10.5px] text-subtle">
+                          {k.prefix}••••••••••••  ·  {SCOPE_LABELS[k.scope]}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-[10px] uppercase tracking-wider text-subtle">
+                        {k.revoked ? "revogada" : `criada ${timeAgo(k.createdAt)}`}
+                      </span>
+                      {!k.revoked && (
+                        <button
+                          onClick={() => revoke(k.id)}
+                          aria-label="Revogar"
+                          className="rounded-lg p-2 text-subtle transition-colors hover:bg-red-500/10 hover:text-red-500"
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
             </div>
-          ))}
+          </div>
         </div>
       </section>
 
