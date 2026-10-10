@@ -384,6 +384,7 @@ export function IntegrationsClient({
   // Google fica recolhido (sanfona); abre sozinho na volta do OAuth
   const [endpointsOpen, setEndpointsOpen] = useState(false);
   const [keysOpen, setKeysOpen] = useState(false);
+  const [securityOpen, setSecurityOpen] = useState(false);
   const [googleOpen, setGoogleOpen] = useState(
     () => !!(searchParams.get("connected") || searchParams.get("error")),
   );
@@ -712,20 +713,47 @@ export function IntegrationsClient({
         </div>
       </section>
 
-      {/* Segurança */}
-      <section>
-        <div className="card-elev flex items-start gap-3.5 rounded-2xl border border-hairline bg-card p-5">
+      {/* Segurança — sanfona */}
+      <section className="card-elev rounded-2xl border border-hairline bg-card">
+        <button
+          type="button"
+          onClick={() => setSecurityOpen((v) => !v)}
+          aria-expanded={securityOpen}
+          className="flex w-full items-center gap-3 p-6 text-left"
+        >
           <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-soft text-subtle">
             <ShieldCheck className="size-5" />
           </span>
-          <div>
-            <p className="text-sm font-semibold">Segurança dos segredos</p>
-            <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-subtle">
+          <span className="min-w-0 flex-1">
+            <span className={cn(sectionTitle, "block")}>Segurança dos segredos</span>
+            <span className="mt-1 block text-xs text-subtle">
+              {securityOpen
+                ? "Boas práticas para credenciais e chaves."
+                : "Tokens ficam só no servidor · rotacione credenciais a cada 90 dias — clique para ler"}
+            </span>
+          </span>
+          <ChevronDown
+            className={cn(
+              "size-4 shrink-0 text-subtle transition-transform duration-300",
+              securityOpen && "rotate-180",
+            )}
+          />
+        </button>
+        <div
+          className={cn(
+            "grid transition-[grid-template-rows] duration-500 ease-expo",
+            securityOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+          )}
+        >
+          <div className="min-h-0 overflow-hidden" inert={!securityOpen}>
+            <div className="border-t border-hairline p-6">
+            <p className="max-w-2xl text-xs leading-relaxed text-subtle">
               Client secrets, access tokens e refresh tokens nunca são serializados
               para o navegador. Em produção, configure um cofre de segredos ou
               criptografia da camada de infraestrutura. Chaves revogadas deixam de
               ser aceitas imediatamente; rotacione credenciais a cada 90 dias.
             </p>
+            </div>
           </div>
         </div>
       </section>
