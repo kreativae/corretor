@@ -9,12 +9,25 @@ import {
 } from "@/components/crm/deal-filters";
 import { ActiveChips, FilterButton, FilterSheet } from "@/components/crm/filter-sheet";
 import { LeadDrawer } from "@/components/crm/lead-drawer";
+import { StatCard } from "@/components/crm/stat-card";
 import { Button, Field, Input, Modal, Select } from "@/components/ui";
 import { DEAL_STAGES } from "@/lib/labels";
 import type { DealFull } from "@/lib/queries";
 import { formatAlq, isRuralType, normalizeRural } from "@/lib/rural";
 import { cn, formatCompact, initials } from "@/lib/utils";
-import { ArrowUpRight, Building2, Handshake, Layers, Plus, Search, Tractor } from "lucide-react";
+import {
+  ArrowUpRight,
+  Building2,
+  Columns3,
+  Flag,
+  Handshake,
+  Hourglass,
+  Layers,
+  Plus,
+  Search,
+  Tractor,
+  Wallet,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -94,6 +107,29 @@ export function Kanban({
   const filtered = useMemo(() => applyDealFilters(visible, filters), [visible, filters]);
   const chips = activeDealChips(filters);
   const totalValue = filtered.reduce((a, d) => a + d.deal.value, 0);
+
+  // Indicadores do que está na tela (respeitam aba e filtros)
+  const stats = useMemo(() => {
+    const open = filtered.filter((d) => d.deal.stage !== "fechado");
+    const closed = filtered.filter((d) => d.deal.stage === "fechado");
+    const sum = (list: DealFull[]) => list.reduce((a, d) => a + d.deal.value, 0);
+    const reta = open.filter((d) => ["proposta", "documentacao"].includes(d.deal.stage));
+    const limite = new Date().getTime() - 15 * 86_400_000;
+    const paradas = open.filter((d) => new Date(d.deal.updatedAt).getTime() < limite);
+    const comValor = open.filter((d) => d.deal.value > 0);
+    return {
+      abertas: open.length,
+      semImovel: open.filter((d) => !d.property).length,
+      valorAberto: sum(open),
+      ticket: comValor.length ? Math.round(sum(comValor) / comValor.length) : 0,
+      reta: reta.length,
+      valorReta: sum(reta),
+      paradas: paradas.length,
+      conversao: filtered.length ? Math.round((closed.length / filtered.length) * 100) : 0,
+      fechadas: closed.length,
+      valorFechado: sum(closed),
+    };
+  }, [filtered]);
   const stages = filters.stages.length
     ? DEAL_STAGES.filter((s) => filters.stages.includes(s.id))
     : DEAL_STAGES;
@@ -232,6 +268,42 @@ export function Kanban({
         </Select>
       </div>
       <ActiveChips chips={chips} onClear={patch} onClearAll={resetFilters} />
+
+      {/* Indicadores */}
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <StatCard
+          label="Negociações abertas"
+          value={stats.abertas}
+          caption={stats.semImovel ? `${stats.semImovel} sem imóvel definido` : "Fora a coluna Fechado"}
+          icon={<Columns3 className="size-4" />}
+        />
+        <StatCard
+          label="Valor em aberto"
+          value={stats.valorAberto}
+          format="brl"
+          caption={stats.ticket ? `Ticket médio ${formatCompact(stats.ticket)}` : "Sem valores informados"}
+          icon={<Wallet className="size-4" />}
+        />
+        <StatCard
+          label="Reta final"
+          value={stats.reta}
+          caption={stats.reta ? `Proposta e documentação · ${formatCompact(stats.valorReta)}` : "Nada em proposta ou documentação"}
+          icon={<Flag className="size-4" />}
+        />
+        <StatCard
+          label="Paradas +15 dias"
+          value={stats.paradas}
+          caption={stats.paradas ? "Sem movimentação — vale um contato" : "Tudo em movimento"}
+          icon={<Hourglass className="size-4" />}
+        />
+        <StatCard
+          label="Conversão"
+          value={stats.conversao}
+          format="pct"
+          caption={`${stats.fechadas} ${stats.fechadas === 1 ? "fechada" : "fechadas"} · ${formatCompact(stats.valorFechado)}`}
+          icon={<Handshake className="size-4" />}
+        />
+      </div>
       <p className="mb-3 mt-4 font-mono text-[11px] uppercase tracking-[0.16em] text-subtle">
         {filtered.length} de {visible.length} negociações · {formatCompact(totalValue)}
       </p>
