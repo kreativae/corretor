@@ -1,5 +1,13 @@
 "use client";
 
+import { ActiveChips, FilterButton, FilterSheet } from "@/components/crm/filter-sheet";
+import {
+  activePropertyChips,
+  applyPropertyFilters,
+  EMPTY_PROPERTY_FILTERS,
+  PropertyFiltersPanel,
+  type PropertyFilters,
+} from "@/components/crm/property-filters";
 import { Badge, Button, Input, Modal, Select, Switch } from "@/components/ui";
 import {
   PURPOSE_LABELS,
@@ -29,7 +37,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 export function PropertiesTable({
@@ -45,27 +53,34 @@ export function PropertiesTable({
   const noun = rural ? "propriedades" : "imóveis";
   const router = useRouter();
   const [items, setItems] = useState(initial);
-  const [q, setQ] = useState("");
-  const [status, setStatus] = useState("all");
-  const [type, setType] = useState("all");
+  const filtersKey = rural ? "crm-rural-filters" : "crm-property-filters";
+  const [filters, setFilters] = useState<PropertyFilters>(EMPTY_PROPERTY_FILTERS);
+  const [showFilters, setShowFilters] = useState(false);
+  const patch = (p: Partial<PropertyFilters>) => setFilters((f) => ({ ...f, ...p }));
+  const resetFilters = () => setFilters((f) => ({ ...EMPTY_PROPERTY_FILTERS, q: f.q, sort: f.sort }));
+  const closeFilters = useCallback(() => setShowFilters(false), []);
+
+  // Lembra os filtros do usuário neste navegador
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(filtersKey);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (saved) setFilters({ ...EMPTY_PROPERTY_FILTERS, ...JSON.parse(saved), q: "" });
+    } catch {}
+  }, [filtersKey]);
+  useEffect(() => {
+    try {
+      localStorage.setItem(filtersKey, JSON.stringify(filters));
+    } catch {}
+  }, [filters, filtersKey]);
   const [toDelete, setToDelete] = useState<PropertyWithImages | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const filtered = useMemo(() => {
-    let list = items;
-    if (status !== "all") list = list.filter((p) => p.status === status);
-    if (type !== "all") list = list.filter((p) => p.type === type);
-    if (q.trim()) {
-      const t = q.toLowerCase();
-      list = list.filter(
-        (p) =>
-          p.title.toLowerCase().includes(t) ||
-          p.code.toLowerCase().includes(t) ||
-          p.neighborhood.toLowerCase().includes(t),
-      );
-    }
-    return list;
-  }, [items, q, status, type]);
+  const filtered = useMemo(
+    () => applyPropertyFilters(items, filters, viewCounts, rural),
+    [items, filters, viewCounts, rural],
+  );
+  const chips = activePropertyChips(filters, rural);
 
   async function togglePublished(p: PropertyWithImages, v: boolean) {
     setItems((arr) =>
@@ -116,29 +131,26 @@ export function PropertiesTable({
         <div className="relative min-w-56 flex-1">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-subtle" />
           <Input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder={rural ? "Buscar por código, título ou região…" : "Buscar por código, título ou bairro…"}
+            value={filters.q}
+            onChange={(e) => patch({ q: e.target.value })}
+            placeholder={rural ? "Buscar por código, título, região ou cultura…" : "Buscar por código, título, bairro ou rua…"}
             className="pl-10"
           />
         </div>
-        <Select value={status} onChange={(e) => setStatus(e.target.value)} className="w-auto">
-          <option value="all">Todos os status</option>
-          {Object.entries(STATUS_LABELS).map(([k, v]) => (
-            <option key={k} value={k}>
-              {v}
-            </option>
-          ))}
-        </Select>
-        <Select value={type} onChange={(e) => setType(e.target.value)} className="w-auto">
-          <option value="all">Todos os tipos</option>
-          {Object.entries(TYPE_LABELS)
-            .filter(([k]) => isRuralType(k) === rural)
-            .map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
+        <FilterButton count={chips.length} onClick={() => setShowFilters(true)} />
+        <Select
+          value={filters.sort}
+          onChange={(e) => patch({ sort: e.target.value as PropertyFilters["sort"] })}
+          className="w-auto"
+          aria-label="Ordenar"
+        >
+          <option value="recent">Mais recentes</option>
+          <option value="oldest">Mais antigos</option>
+          <option value="price_desc">Maior preço</option>
+          <option value="price_asc">Menor preço</option>
+          <option value="area_desc">Maior área</option>
+          <option value="views_desc">Mais vistos</option>
+          <option value="title">Título (A–Z)</option>
         </Select>
         <Link href={rural ? "/crm/propriedades/nova" : "/crm/imoveis/novo"}>
           <Button variant="primary" size="md">
@@ -147,6 +159,24 @@ export function PropertiesTable({
           </Button>
         </Link>
       </div>
+
+      <ActiveChips chips={chips} onClear={patch} onClearAll={resetFilters} />
+      <FilterSheet
+        open={showFilters}
+        onClose={closeFilters}
+        onReset={resetFilters}
+        title={rural ? "Filtrar propriedades" : "Filtrar imóveis"}
+        activeCount={chips.length}
+        resultLabel={`Ver ${filtered.length} ${filtered.length === 1 ? (rural ? "propriedade" : "imóvel") : noun}`}
+      >
+        <PropertyFiltersPanel
+          value={filters}
+          onChange={patch}
+          items={items}
+          views={viewCounts}
+          rural={rural}
+        />
+      </FilterSheet>
 
       <p className="mt-4 font-mono text-[11px] uppercase tracking-[0.16em] text-subtle">
         {filtered.length} de {items.length} {noun}
