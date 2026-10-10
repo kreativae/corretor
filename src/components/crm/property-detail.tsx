@@ -39,6 +39,7 @@ import {
   Check,
   FileDown,
   Globe,
+  Map as MapIcon,
   MessageCircle,
   Pencil,
   Ruler,
@@ -128,7 +129,8 @@ export async function PropertyDetail({
             </div>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        {/* Ações: no celular em grade de 2 colunas, botões largos */}
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center [&_button]:w-full sm:[&_button]:w-auto">
           <AdExporterModal property={p} whiteLabel={wl} />
           <Link href={crmPropertyPath(p, "/editar")}>
             <Button variant="outline" size="sm">
@@ -148,6 +150,14 @@ export async function PropertyDetail({
               Ficha PDF
             </Button>
           </Link>
+          {rural && r.kmzUrl && (
+            <Link href={`/imoveis/${p.code}/mapa`} target="_blank">
+              <Button variant="outline" size="sm">
+                <MapIcon className="size-3.5" />
+                Mapa
+              </Button>
+            </Link>
+          )}
           <a
             href={`https://wa.me/?text=${encodeURIComponent(`Confira este imóvel: ${p.title} (${p.code}) — ${formatBRL(p.price)}`)}`}
             target="_blank"
@@ -159,6 +169,29 @@ export async function PropertyDetail({
             </Button>
           </a>
         </div>
+      </div>
+
+      {/* Celular: preço e local logo no topo (o cartão completo fica no fim) */}
+      <div className="flex items-end justify-between gap-3 rounded-2xl border border-hairline bg-card p-4 lg:hidden">
+        <div className="min-w-0">
+          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-subtle">
+            {p.purpose === "aluguel" ? "Aluguel" : "Venda"}
+          </p>
+          <p className="mt-1 font-mono text-xl font-medium tabular tracking-tight">{formatBRL(p.price)}</p>
+          <p className="mt-1 truncate text-xs text-subtle">
+            {p.neighborhood}, {p.city} — {p.state}
+          </p>
+        </div>
+        <p className="shrink-0 text-right font-mono text-xs tabular text-subtle">
+          {rural
+            ? pricePerAlq(p.price, r.totalAlq)
+              ? `${formatBRL(pricePerAlq(p.price, r.totalAlq))}/alq`
+              : ""
+            : p.area
+              ? `${formatBRL(Math.round(p.price / p.area))}/m²`
+              : ""}
+          <span className="block">{views.total.toLocaleString("pt-BR")} visualizações</span>
+        </p>
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[1.6fr_1fr]">
@@ -192,7 +225,7 @@ export async function PropertyDetail({
           </div>
 
           {/* Specs + descrição */}
-          <div className="rounded-2xl border border-hairline bg-card p-6">
+          <div className="rounded-2xl border border-hairline bg-card p-4 md:p-6">
             <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-hairline bg-hairline sm:grid-cols-4">
               {specs.map((s) => (
                 <div key={s.label} className="bg-card p-4">
@@ -225,7 +258,7 @@ export async function PropertyDetail({
           </div>
 
           {rural && (
-            <div className="rounded-2xl border border-hairline bg-card p-6">
+            <div className="rounded-2xl border border-hairline bg-card p-4 md:p-6">
               <h2 className="mb-5 font-display text-base font-semibold tracking-tight">
                 Dados da propriedade
               </h2>
@@ -237,7 +270,7 @@ export async function PropertyDetail({
           <PropertyDocuments propertyId={p.id} initial={documents} />
 
           {/* Visitas */}
-          <div className="rounded-2xl border border-hairline bg-card p-6">
+          <div className="rounded-2xl border border-hairline bg-card p-4 md:p-6">
             <h2 className="font-display text-base font-semibold tracking-tight">
               Visitas deste imóvel
               <span className="ml-2 font-mono text-[11px] font-normal text-subtle">

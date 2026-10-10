@@ -183,7 +183,7 @@ export function PropertyDocuments({
   }
 
   return (
-    <div className="rounded-2xl border border-hairline bg-card p-6">
+    <div className="rounded-2xl border border-hairline bg-card p-4 md:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="flex items-center gap-2 font-display text-base font-semibold tracking-tight">
