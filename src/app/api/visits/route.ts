@@ -59,7 +59,10 @@ export async function POST(req: Request) {
     }
 
     const time = body.time ?? "10:00";
-    const scheduledAt = new Date(`${body.date}T${time}:00`);
+    // Navegador manda o instante exato; sem ele, data/hora valem no horário de Brasília
+    const scheduledAt = body.scheduledAt
+      ? new Date(String(body.scheduledAt))
+      : new Date(`${body.date}T${time}:00-03:00`);
 
     const [created] = await db
       .insert(visits)

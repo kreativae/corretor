@@ -2,8 +2,18 @@
 
 import { Kbd } from "@/components/ui";
 import { crmPropertyPath, formatAlq, isRuralType, type RuralData } from "@/lib/rural";
-import { cn, formatCompact } from "@/lib/utils";
-import { Building2, CornerDownLeft, Loader2, Search, Tractor, User } from "lucide-react";
+import { DEAL_STAGE_LABELS, VISIT_STATUS_LABELS } from "@/lib/labels";
+import { cn, formatCompact, formatDateTime } from "@/lib/utils";
+import {
+  Building2,
+  CalendarDays,
+  CornerDownLeft,
+  Handshake,
+  Loader2,
+  Search,
+  Tractor,
+  User,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -20,15 +30,35 @@ type Results = {
     rural: Partial<RuralData> | null;
   }[];
   contacts: { id: string; name: string; phone: string; type: string }[];
+  visits?: {
+    id: string;
+    scheduledAt: string;
+    status: string;
+    contactName: string;
+    propertyCode: string;
+    propertyTitle: string;
+    propertyType: string;
+  }[];
+  deals?: {
+    id: string;
+    stage: string;
+    value: number;
+    contactName: string;
+    propertyCode: string | null;
+    propertyTitle: string | null;
+    propertyType: string | null;
+  }[];
 };
 
-type Group = "imoveis" | "rurais" | "contatos";
+type Group = "imoveis" | "rurais" | "contatos" | "visitas" | "negociacoes";
 type Item = { group: Group; href: string; id: string; label: string; sub: string };
 
 const GROUP_LABELS: Record<Group, string> = {
   imoveis: "Imóveis",
   rurais: "Propriedades rurais",
   contatos: "Contatos",
+  visitas: "Visitas",
+  negociacoes: "Negociações",
 };
 
 export function CommandPalette({
@@ -94,6 +124,20 @@ export function CommandPalette({
       id: c.id,
       label: c.name,
       sub: c.phone,
+    })),
+    ...(results.visits ?? []).map((v) => ({
+      group: "visitas" as const,
+      href: `/crm/agenda?visita=${v.id}`,
+      id: v.id,
+      label: `${v.contactName} · ${v.propertyCode}`,
+      sub: `${formatDateTime(v.scheduledAt)} · ${VISIT_STATUS_LABELS[v.status] ?? v.status}`,
+    })),
+    ...(results.deals ?? []).map((d) => ({
+      group: "negociacoes" as const,
+      href: `/crm/pipeline?negocio=${d.id}`,
+      id: d.id,
+      label: `${d.contactName}${d.propertyCode ? ` · ${d.propertyCode}` : ""}`,
+      sub: `${DEAL_STAGE_LABELS[d.stage] ?? d.stage}${d.value ? ` · ${formatCompact(d.value)}` : ""}`,
     })),
   ];
 
@@ -162,7 +206,7 @@ export function CommandPalette({
               setSel(0);
             }}
             onKeyDown={onKey}
-            placeholder="Buscar por código, endereço, pessoa…"
+            placeholder="Buscar imóvel, pessoa, visita ou negociação…"
             className="h-14 flex-1 bg-transparent text-sm outline-none placeholder:text-subtle/60"
           />
           <Kbd>esc</Kbd>
@@ -177,7 +221,16 @@ export function CommandPalette({
             </p>
           )}
           {items.map((item, i) => {
-            const Icon = item.group === "rurais" ? Tractor : item.group === "imoveis" ? Building2 : User;
+            const Icon =
+              item.group === "rurais"
+                ? Tractor
+                : item.group === "imoveis"
+                  ? Building2
+                  : item.group === "visitas"
+                    ? CalendarDays
+                    : item.group === "negociacoes"
+                      ? Handshake
+                      : User;
             return (
               <div key={`${item.group}-${item.id}`}>
                 {item.group !== items[i - 1]?.group && (

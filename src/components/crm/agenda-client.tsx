@@ -12,7 +12,7 @@ import { MobileCollapse } from "@/components/crm/mobile-collapse";
 import { LeadDrawer } from "@/components/crm/lead-drawer";
 import { StatCard } from "@/components/crm/stat-card";
 import { StatsGrid } from "@/components/crm/stats-grid";
-import { Button, Field, Input, Modal, Select } from "@/components/ui";
+import { Button, Field, Input, Modal, Select, Textarea } from "@/components/ui";
 import { VISIT_STATUS_LABELS } from "@/lib/labels";
 import type { Contact, Property, Visit } from "@/db/schema";
 import { isRuralType } from "@/lib/rural";
@@ -28,15 +28,17 @@ import {
   Check,
   Cloud,
   MessageCircle,
+  Pencil,
   ChevronLeft,
   ChevronDown,
   ChevronRight,
   RotateCcw,
   Search,
+  Trash2,
   X,
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 export type VisitLite = {
@@ -75,11 +77,14 @@ export function AgendaClient({
   contacts,
   properties,
   initialTab = "todas",
+  openVisitId,
 }: {
   initialVisits: VisitLite[];
   contacts: { id: string; name: string }[];
   properties: { id: string; code: string; title: string; type: string }[];
   initialTab?: AgendaTab;
+  /** Vindo da busca: abre a semana da visita e o formulário de edição */
+  openVisitId?: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -100,6 +105,17 @@ export function AgendaClient({
   const [previewId, setPreviewId] = useState<string | null>(null);
   // Dia escolhido no celular (null = hoje, se estiver na semana, senão segunda)
   const [mobileDay, setMobileDay] = useState<number | null>(null);
+  // Edição de visita
+  const [editing, setEditing] = useState<VisitLite | null>(null);
+  const [editForm, setEditForm] = useState({
+    contactId: "",
+    propertyId: "",
+    date: "",
+    time: "",
+    status: "agendada",
+    feedback: "",
+  });
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [form, setForm] = useState({
     contactId: "",
     propertyId: "",
@@ -349,6 +365,7 @@ export function AgendaClient({
           propertyId: form.propertyId,
           date: form.date,
           time: form.time,
+          scheduledAt: new Date(`${form.date}T${form.time}`).toISOString(),
         }),
       });
       if (!res.ok) throw new Error();
@@ -365,6 +382,106 @@ export function AgendaClient({
       setSaving(false);
     }
   }
+
+  // Busca rápida → /crm/agenda?visita=ID: vai para a semana da visita e abre a edição
+  const openedFromSearch = useRef<string | null>(null);
+  useEffect(() => {
+    if (!openVisitId || openedFromSearch.current === openVisitId) return;
+    const v = visits.find((x) => x.visit.id === openVisitId);
+    if (!v) return;
+    openedFromSearch.current = openVisitId;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    openWeekOf(new Date(v.visit.scheduledAt));
+    openEdit(v);
+    router.replace(pathname, { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openVisitId, visits]);
+
+  function openEdit(v: VisitLite) {
+    const d = new Date(v.visit.scheduledAt);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    setEditForm({
+      contactId: v.contact?.id ?? v.visit.contactId,
+      propertyId: v.property?.id ?? v.visit.propertyId,
+      date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+      time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+      status: v.visit.status,
+      feedback: v.visit.feedback ?? "",
+    });
+    setConfirmDelete(false);
+    setEditing(v);
+  }
+
+  async function saveEdit() {
+    if (!editing) return;
+    if (!editForm.contactId || !editForm.propertyId || !editForm.date || !editForm.time) {
+      toast.error("Preencha cliente, imóvel, data e horário.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const when = new Date(`${editForm.date}T${editForm.time}`);
+      const res = await fetch(`/api/visits/${editing.visit.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contactId: editForm.contactId,
+          propertyId: editForm.propertyId,
+          scheduledAt: when.toISOString(),
+          status: editForm.status,
+          feedback: editForm.feedback.trim(),
+        }),
+      });
+      if (!res.ok) throw new Error();
+      const updated = await res.json();
+      const contact =
+        editForm.contactId === editing.contact?.id
+          ? editing.contact
+          : ((contacts.find((c) => c.id === editForm.contactId) ?? null) as unknown as Contact);
+      const property =
+        editForm.propertyId === editing.property?.id
+          ? editing.property
+          : ((properties.find((p) => p.id === editForm.propertyId) ?? null) as unknown as Property);
+      setVisits((arr) =>
+        arr.map((x) =>
+          x.visit.id === editing.visit.id ? { visit: { ...x.visit, ...updated }, contact, property } : x,
+        ),
+      );
+      toast.success("Visita atualizada.");
+      setEditing(null);
+      router.refresh();
+    } catch {
+      toast.error("Não foi possível salvar a visita.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteVisit() {
+    if (!editing) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/visits/${editing.visit.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+      setVisits((arr) => arr.filter((x) => x.visit.id !== editing.visit.id));
+      toast.success("Visita excluída.");
+      setEditing(null);
+      router.refresh();
+    } catch {
+      toast.error("Não foi possível excluir a visita.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Imóveis do formulário de edição (inclui o atual, mesmo se vendido/inativo)
+  const editProperties =
+    editing?.property && !properties.some((p) => p.id === editing.property?.id)
+      ? [
+          { id: editing.property.id, code: editing.property.code, title: editing.property.title, type: editing.property.type },
+          ...properties,
+        ]
+      : properties;
 
   return (
     <div>
@@ -639,7 +756,10 @@ export function AgendaClient({
                         <span
                           key={v.visit.id}
                           draggable={movable}
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEdit(v);
+                          }}
                           onDragStart={(e) => {
                             e.stopPropagation();
                             e.dataTransfer.effectAllowed = "move";
@@ -651,8 +771,8 @@ export function AgendaClient({
                           }}
                           title={
                             movable
-                              ? `${v.contact?.name ?? ""} — arraste para outro dia`
-                              : v.contact?.name ?? undefined
+                              ? `${v.contact?.name ?? ""} — clique para editar, arraste para outro dia`
+                              : `${v.contact?.name ?? ""} — clique para editar`
                           }
                           className={cn(
                             "block truncate rounded border-l-2 bg-canvas px-1.5 py-0.5 text-[10.5px]",
@@ -780,7 +900,6 @@ export function AgendaClient({
                         </span>
                       </span>
                     </button>
-                    {(open || wa) && (
                     <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-hairline pt-3">
                       {v.visit.status === "agendada" && (
                         <Button
@@ -823,6 +942,9 @@ export function AgendaClient({
                         </label>
                       )}
                       <div className="ml-auto flex items-center gap-0.5">
+                        <Button variant="ghost" size="icon" aria-label="Editar visita" onClick={() => openEdit(v)}>
+                          <Pencil className="size-4" />
+                        </Button>
                         {wa && (
                           <a href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer" aria-label="WhatsApp">
                             <Button variant="ghost" size="icon">
@@ -843,7 +965,6 @@ export function AgendaClient({
                         )}
                       </div>
                     </div>
-                    )}
                   </div>
                 );
               })}
@@ -904,6 +1025,7 @@ export function AgendaClient({
                   <div
                     key={v.visit.id}
                     draggable={["agendada", "confirmada"].includes(v.visit.status)}
+                    onClick={() => openEdit(v)}
                     onDragStart={() => setDragId(v.visit.id)}
                     onDragEnd={() => {
                       setDragId(null);
@@ -911,11 +1033,11 @@ export function AgendaClient({
                     }}
                     title={
                       ["agendada", "confirmada"].includes(v.visit.status)
-                        ? "Arraste para reagendar"
-                        : undefined
+                        ? "Clique para editar · arraste para reagendar"
+                        : "Clique para editar"
                     }
                     className={cn(
-                      "group rounded-lg border border-hairline border-l-4 bg-canvas p-2.5 transition-all duration-200 hover:shadow-md",
+                      "group cursor-pointer rounded-lg border border-hairline border-l-4 bg-canvas p-2.5 transition-all duration-200 hover:shadow-md",
                       STATUS_BORDER[v.visit.status],
                       ["agendada", "confirmada"].includes(v.visit.status) &&
                         "cursor-grab active:cursor-grabbing",
@@ -940,7 +1062,10 @@ export function AgendaClient({
                           <button
                             title="Confirmar"
                             disabled={busyId === v.visit.id}
-                            onClick={() => setStatus(v, "confirmada")}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setStatus(v, "confirmada");
+                            }}
                             className="rounded p-1 text-emerald-500 hover:bg-emerald-500/10"
                           >
                             <Check className="size-3" />
@@ -950,12 +1075,25 @@ export function AgendaClient({
                           <button
                             title="Cancelar"
                             disabled={busyId === v.visit.id}
-                            onClick={() => setStatus(v, "cancelada")}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setStatus(v, "cancelada");
+                            }}
                             className="rounded p-1 text-red-400 hover:bg-red-500/10"
                           >
                             <X className="size-3" />
                           </button>
                         )}
+                        <button
+                          title="Editar"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEdit(v);
+                          }}
+                          className="rounded p-1 text-subtle hover:bg-soft hover:text-ink"
+                        >
+                          <Pencil className="size-3" />
+                        </button>
                       </div>
                     </div>
                     <p className="mt-1 truncate text-xs font-medium">
@@ -981,6 +1119,95 @@ export function AgendaClient({
       </div>
 
       <LeadDrawer contactId={previewId} onClose={() => setPreviewId(null)} />
+
+      {/* Editar visita */}
+      <Modal open={!!editing} onClose={() => setEditing(null)} title="Editar visita">
+        <div className="space-y-4">
+          <Field label="Cliente">
+            <Select value={editForm.contactId} onChange={(e) => setEditForm({ ...editForm, contactId: e.target.value })}>
+              {!contacts.some((c) => c.id === editForm.contactId) && editing?.contact && (
+                <option value={editing.contact.id}>{editing.contact.name}</option>
+              )}
+              {contacts.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Imóvel">
+            <Select value={editForm.propertyId} onChange={(e) => setEditForm({ ...editForm, propertyId: e.target.value })}>
+              {editProperties.map((p) => (
+                <option key={p.id} value={p.id}>{p.code} — {p.title}</option>
+              ))}
+            </Select>
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Data">
+              <Input type="date" value={editForm.date} onChange={(e) => setEditForm({ ...editForm, date: e.target.value })} />
+            </Field>
+            <Field label="Horário">
+              <Input type="time" step={300} value={editForm.time} onChange={(e) => setEditForm({ ...editForm, time: e.target.value })} />
+            </Field>
+          </div>
+          <Field label="Status">
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(VISIT_STATUS_LABELS).map(([k, label]) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setEditForm({ ...editForm, status: k })}
+                  className={cn(
+                    "rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors",
+                    editForm.status === k
+                      ? "border-transparent bg-ink text-canvas"
+                      : "border-hairline text-subtle hover:text-ink",
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </Field>
+          <Field label="Observações / retorno do cliente">
+            <Textarea
+              rows={3}
+              value={editForm.feedback}
+              onChange={(e) => setEditForm({ ...editForm, feedback: e.target.value })}
+              placeholder="Ex.: gostou da planta, quer ver de novo com a esposa…"
+            />
+          </Field>
+          {editing?.visit.googleEventId && (
+            <p className="flex items-center gap-1.5 text-[11px] text-subtle">
+              <Cloud className="size-3.5 text-blue-500" />
+              Sincronizada com o Google Calendar — as mudanças vão na próxima sincronização.
+            </p>
+          )}
+        </div>
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-2">
+          {confirmDelete ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-subtle">Excluir de vez?</span>
+              <Button variant="danger" size="sm" loading={saving} onClick={deleteVisit}>
+                Sim, excluir
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(false)}>
+                Não
+              </Button>
+            </div>
+          ) : (
+            <Button variant="ghost" onClick={() => setConfirmDelete(true)}>
+              <Trash2 className="size-4 text-red-500/80" />
+              Excluir
+            </Button>
+          )}
+          <div className="ml-auto flex gap-2">
+            <Button variant="outline" onClick={() => setEditing(null)}>Cancelar</Button>
+            <Button variant="accent" loading={saving} onClick={saveEdit}>
+              <Check className="size-4" />
+              Salvar
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Nova visita */}
       <Modal open={open} onClose={() => setOpen(false)} title="Agendar visita">

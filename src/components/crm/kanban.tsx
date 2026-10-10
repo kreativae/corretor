@@ -50,6 +50,7 @@ export function Kanban({
   properties,
   initialTab = "imoveis",
   showClosedLink = false,
+  focusDealId,
 }: {
   initialDeals: DealFull[];
   contacts: { id: string; name: string }[];
@@ -57,6 +58,8 @@ export function Kanban({
   initialTab?: PipelineTab;
   /** Atalho para /crm/fechados (módulo opcional) */
   showClosedLink?: boolean;
+  /** Vindo da busca: destaca e rola até esta negociação */
+  focusDealId?: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -85,7 +88,10 @@ export function Kanban({
   const [dragId, setDragId] = useState<string | null>(null);
   const [overStage, setOverStage] = useState<string | null>(null);
   const [previewId, setPreviewId] = useState<string | null>(null);
-  const [mobileStage, setMobileStage] = useState<string>("novo");
+  const [mobileStage, setMobileStage] = useState<string>(
+    () => initialDeals.find((d) => d.deal.id === focusDealId)?.deal.stage ?? "novo",
+  );
+  const [highlight, setHighlight] = useState<string | null>(focusDealId ?? null);
   // Arrastar no toque (celular)
   const [touchDrag, setTouchDrag] = useState<{
     id: string;
@@ -147,6 +153,22 @@ export function Kanban({
   const stages = filters.stages.length
     ? DEAL_STAGES.filter((s) => filters.stages.includes(s.id))
     : DEAL_STAGES;
+
+  // Busca → /crm/pipeline?negocio=ID: rola até o cartão, destaca por alguns segundos
+  useEffect(() => {
+    if (!focusDealId) return;
+    const t = window.setTimeout(() => {
+      const els = Array.from(document.querySelectorAll<HTMLElement>(`[data-deal-id="${focusDealId}"]`));
+      els.find((el) => el.offsetParent !== null)?.scrollIntoView({ block: "center", inline: "center", behavior: "smooth" });
+      router.replace(pathname, { scroll: false });
+    }, 300);
+    const clear = window.setTimeout(() => setHighlight(null), 4000);
+    return () => {
+      window.clearTimeout(t);
+      window.clearTimeout(clear);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusDealId]);
 
   // Etapa exibida no celular (cai na primeira visível se o filtro a esconder)
   const activeMobileStage = stages.some((st) => st.id === mobileStage)
@@ -417,9 +439,11 @@ export function Kanban({
                 return (
                   <div
                     key={deal.id}
+                    data-deal-id={deal.id}
                     className={cn(
-                      "flex gap-1.5 rounded-2xl border border-hairline bg-card py-3.5 pl-1.5 pr-3.5 transition-opacity",
+                      "flex gap-1.5 rounded-2xl border border-hairline bg-card py-3.5 pl-1.5 pr-3.5 transition-all",
                       touchDrag?.id === deal.id && "opacity-40",
+                      highlight === deal.id && "ring-2 ring-[rgb(var(--accent))] ring-offset-2 ring-offset-canvas",
                     )}
                   >
                     {/* Alça de arrastar (toque): solte numa etapa do painel que aparece embaixo */}
@@ -575,6 +599,7 @@ export function Kanban({
                 {items.map(({ deal, contact, property }) => (
                   <div
                     key={deal.id}
+                    data-deal-id={deal.id}
                     draggable
                     onDragStart={() => setDragId(deal.id)}
                     onDragEnd={() => {
@@ -588,6 +613,7 @@ export function Kanban({
                     className={cn(
                       "cursor-grab rounded-xl border border-hairline bg-canvas p-3.5 transition-all duration-200 hover:border-hairline-strong hover:shadow-md active:cursor-grabbing",
                       dragId === deal.id && "rotate-2 opacity-40",
+                      highlight === deal.id && "ring-2 ring-[rgb(var(--accent))] ring-offset-2 ring-offset-canvas",
                     )}
                   >
                     <div className="flex items-center gap-2.5">
