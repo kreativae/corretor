@@ -1,5 +1,13 @@
 "use client";
 
+import {
+  activeAgendaChips,
+  AgendaFiltersPanel,
+  applyAgendaFilters,
+  EMPTY_AGENDA_FILTERS,
+  type AgendaFilters,
+} from "@/components/crm/agenda-filters";
+import { ActiveChips, FilterButton, FilterSheet } from "@/components/crm/filter-sheet";
 import { Button, Field, Input, Modal, Select } from "@/components/ui";
 import { VISIT_STATUS_LABELS } from "@/lib/labels";
 import type { Contact, Property, Visit } from "@/db/schema";
@@ -15,10 +23,11 @@ import {
   ChevronLeft,
   ChevronRight,
   RotateCcw,
+  Search,
   X,
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 export type VisitLite = {
@@ -49,6 +58,8 @@ function mondayOf(offset: number) {
 export type AgendaTab = "todas" | "imoveis" | "rurais";
 
 const isRuralVisit = (v: VisitLite) => isRuralType(v.property?.type);
+
+const FILTERS_KEY = "crm-agenda-filters";
 
 export function AgendaClient({
   initialVisits,
@@ -101,9 +112,52 @@ export function AgendaClient({
     router.replace(t === "todas" ? pathname : `${pathname}?tipo=${t}`, { scroll: false });
   }
 
+  const [filters, setFilters] = useState<AgendaFilters>(EMPTY_AGENDA_FILTERS);
+  const [showFilters, setShowFilters] = useState(false);
+  const patch = (p: Partial<AgendaFilters>) => setFilters((f) => ({ ...f, ...p }));
+  const resetFilters = () => setFilters((f) => ({ ...EMPTY_AGENDA_FILTERS, q: f.q }));
+  const closeFilters = useCallback(() => setShowFilters(false), []);
+
+  // Lembra os filtros do usuário neste navegador
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(FILTERS_KEY);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (saved) setFilters({ ...EMPTY_AGENDA_FILTERS, ...JSON.parse(saved), q: "" });
+    } catch {}
+  }, []);
+  useEffect(() => {
+    try {
+      localStorage.setItem(FILTERS_KEY, JSON.stringify(filters));
+    } catch {}
+  }, [filters]);
+
+  const inTab = useMemo(
+    () => visits.filter((v) => tab === "todas" || isRuralVisit(v) === (tab === "rurais")),
+    [visits, tab],
+  );
+  const weekVisits = useMemo(() => {
+    const start = week[0].getTime();
+    const end = start + 7 * 864e5;
+    return inTab.filter((v) => {
+      const t = new Date(v.visit.scheduledAt).getTime();
+      return t >= start && t < end;
+    });
+  }, [inTab, week]);
+  const filtered = useMemo(() => applyAgendaFilters(inTab, filters), [inTab, filters]);
+  const weekFiltered = useMemo(() => applyAgendaFilters(weekVisits, filters), [weekVisits, filters]);
+  const chips = activeAgendaChips(
+    filters,
+    (id) => inTab.find((v) => v.property?.id === id)?.property?.code ?? "Imóvel",
+  );
+  // Visitas filtradas nas semanas seguintes à exibida
+  const weekEnd = week[0].getTime() + 7 * 864e5;
+  const upcomingElsewhere = chips.length || filters.q
+    ? filtered.filter((v) => new Date(v.visit.scheduledAt).getTime() >= weekEnd).length
+    : 0;
+
   function visitsFor(day: Date) {
-    return visits
-      .filter((v) => tab === "todas" || isRuralVisit(v) === (tab === "rurais"))
+    return filtered
       .filter((v) => {
         const d = new Date(v.visit.scheduledAt);
         return d.toDateString() === day.toDateString();
@@ -257,8 +311,37 @@ export function AgendaClient({
         ))}
       </div>
 
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <div className="relative min-w-56 flex-1">
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-subtle" />
+          <Input
+            value={filters.q}
+            onChange={(e) => patch({ q: e.target.value })}
+            placeholder="Buscar por cliente, código ou imóvel…"
+            className="pl-10"
+          />
+        </div>
+        <FilterButton count={chips.length} onClick={() => setShowFilters(true)} />
+      </div>
+      <ActiveChips chips={chips} onClear={patch} onClearAll={resetFilters} />
+
+      <FilterSheet
+        open={showFilters}
+        onClose={closeFilters}
+        onReset={resetFilters}
+        title="Filtrar agenda"
+        activeCount={chips.length}
+        resultLabel={`Ver ${weekFiltered.length} ${weekFiltered.length === 1 ? "visita" : "visitas"} na semana`}
+      >
+        <AgendaFiltersPanel value={filters} onChange={patch} visits={inTab} weekVisits={weekVisits} />
+      </FilterSheet>
+
       <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.16em] text-subtle">
-        Arraste os cartões entre os dias para reagendar
+        {weekFiltered.length} de {weekVisits.length} visitas nesta semana
+        {upcomingElsewhere > 0 && (
+          <> · {upcomingElsewhere} {upcomingElsewhere === 1 ? "outra" : "outras"} nas próximas semanas</>
+        )}
+        {" "}· arraste os cartões entre os dias para reagendar
       </p>
 
       {/* Grade da semana */}
