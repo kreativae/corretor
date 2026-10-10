@@ -1,15 +1,23 @@
+import { OverviewFiltersBar } from "@/components/crm/overview-filters-bar";
 import { StatCard } from "@/components/crm/stat-card";
 import { Timeline } from "@/components/crm/timeline";
 import { Badge } from "@/components/ui";
 import { DEAL_STAGES, TYPE_LABELS, VISIT_STATUS_STYLES, VISIT_STATUS_LABELS } from "@/lib/labels";
 import { formatAlq, isRuralType, normalizeRural } from "@/lib/rural";
 import {
+  overviewPeriodLabel,
+  overviewRange,
+  parseOverview,
+} from "@/lib/overview-filters";
+import {
   listActivities,
   listContacts,
+  listDealClosedDates,
   listDeals,
   listProperties,
   listVisits,
 } from "@/lib/queries";
+import type { Contact, Property } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import {
   cn,
@@ -26,6 +34,7 @@ import {
   Building2,
   CalendarDays,
   Columns3,
+  Handshake,
   Tractor,
   UserPlus,
 } from "lucide-react";
@@ -33,17 +42,74 @@ import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-export default async function CrmDashboard() {
-  const [properties, contacts, visits, deals, activities, user] = await Promise.all([
-    listProperties(),
-    listContacts(),
-    listVisits(),
-    listDeals(),
-    listActivities(10),
-    getCurrentUser(),
-  ]);
+export default async function CrmDashboard({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const sp = await searchParams;
+  const f = parseOverview(sp);
+  const [allProperties, allContacts, allVisits, allDeals, activities, user, closedDates] =
+    await Promise.all([
+      listProperties(),
+      listContacts(),
+      listVisits(),
+      listDeals(),
+      listActivities(10),
+      getCurrentUser(),
+      listDealClosedDates(),
+    ]);
 
   const now = new Date();
+
+  // ── Filtros (segmento, tipo, local, finalidade, origem) ──
+  const hasPropFilter = !!(f.tipo.length || f.bairro.length || f.cidade.length || f.finalidade);
+  const propOk = (p: Property | null) => {
+    if (!p) return !hasPropFilter && f.seg !== "rurais";
+    if (f.seg !== "todos" && isRuralType(p.type) !== (f.seg === "rurais")) return false;
+    if (f.tipo.length && !f.tipo.includes(p.type)) return false;
+    if (f.bairro.length && !f.bairro.includes(p.neighborhood)) return false;
+    if (f.cidade.length && !f.cidade.includes(p.city)) return false;
+    if (f.finalidade && p.purpose !== f.finalidade) return false;
+    return true;
+  };
+  const sourceOk = (c: Contact | null) => !f.origem.length || (!!c && f.origem.includes(c.source));
+  // Leads: pelo interesse declarado (sem interesse conta como imóveis)
+  const contactOk = (c: Contact) => {
+    if (!sourceOk(c)) return false;
+    const rural = c.interestTypes.some(isRuralType);
+    if (f.seg === "rurais" && !rural) return false;
+    if (f.seg === "imoveis" && rural && !c.interestTypes.some((t) => !isRuralType(t))) return false;
+    if (f.tipo.length && !c.interestTypes.some((t) => f.tipo.includes(t))) return false;
+    if (f.bairro.length && !c.neighborhoods.some((n) => f.bairro.includes(n))) return false;
+    return true;
+  };
+  const properties = allProperties.filter(propOk);
+  const contacts = allContacts.filter(contactOk);
+  const deals = allDeals.filter((d) => propOk(d.property) && sourceOk(d.contact));
+  const visits = allVisits.filter((v) => propOk(v.property) && sourceOk(v.contact));
+
+  const [rangeFrom, rangeTo] = overviewRange(f, now.getTime());
+  const inRange = (d: Date | string) => {
+    const t = new Date(d).getTime();
+    return (rangeFrom == null || t >= rangeFrom) && (rangeTo == null || t <= rangeTo);
+  };
+  const periodLabel = overviewPeriodLabel(f);
+  const closedInPeriod = deals.filter(
+    (d) => d.deal.stage === "fechado" && inRange(closedDates[d.deal.id] ?? d.deal.updatedAt),
+  );
+  const closedValue = closedInPeriod.reduce((a, d) => a + d.deal.value, 0);
+  const visitsInPeriod = visits.filter(
+    (v) => v.visit.status !== "cancelada" && inRange(v.visit.scheduledAt),
+  ).length;
+
+  const tally = (vals: string[]) =>
+    [...new Set(vals.filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const filterOptions = {
+    bairros: tally(allProperties.map((p) => p.neighborhood)),
+    cidades: tally(allProperties.map((p) => p.city)),
+    tipos: tally(allProperties.map((p) => p.type)),
+  };
   const hour = zonedParts(now).hour;
   const firstName = user?.name.trim().split(/\s+/)[0];
   const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
@@ -54,10 +120,7 @@ export default async function CrmDashboard() {
   const active = urbanos.filter((p) => p.status === "disponivel").length;
   const activeRurais = rurais.filter((p) => p.status === "disponivel");
   const activeRuralAlq = activeRurais.reduce((a, p) => a + (normalizeRural(p.rural).totalAlq ?? 0), 0);
-  const monthAgo = new Date(now.getTime() - 30 * 864e5);
-  const newLeads = contacts.filter(
-    (c) => new Date(c.createdAt) >= monthAgo,
-  ).length;
+  const newLeads = contacts.filter((c) => inRange(c.createdAt)).length;
 
   // semana atual (segunda-feira)
   // Meia-noite de Brasília = 03:00 UTC (sem horário de verão desde 2019)
@@ -153,13 +216,19 @@ export default async function CrmDashboard() {
         <p className="max-w-xs text-right text-xs leading-relaxed text-subtle">
           {active} imóveis ativos ·{" "}
           {rurais.length > 0 && `${activeRurais.length} rurais ativas · `}
-          {newLeads} novos leads em 30 dias ·{" "}
+          {newLeads} novos leads ({periodLabel}) ·{" "}
           {weekVisits.length} visitas nesta semana
         </p>
       </div>
 
+      <OverviewFiltersBar
+        value={f}
+        hasParams={Object.keys(sp).length > 0}
+        options={filterOptions}
+      />
+
       {/* KPIs */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard
           label="Imóveis ativos"
           value={active}
@@ -179,7 +248,7 @@ export default async function CrmDashboard() {
         <StatCard
           label="Novos leads"
           value={newLeads}
-          caption="Últimos 30 dias"
+          caption={`${periodLabel[0].toUpperCase()}${periodLabel.slice(1)} · ${visitsInPeriod} visitas no período`}
           icon={<UserPlus className="size-4" />}
         />
         <StatCard
@@ -199,6 +268,13 @@ export default async function CrmDashboard() {
           }
           icon={<Columns3 className="size-4" />}
         />
+        <StatCard
+          label="Negócios fechados"
+          value={closedValue}
+          format="brl"
+          caption={`${closedInPeriod.length} ${closedInPeriod.length === 1 ? "negócio" : "negócios"} · ${periodLabel}`}
+          icon={<Handshake className="size-4" />}
+        />
       </div>
 
       {/* Portfólio: imóveis x rurais */}
@@ -208,7 +284,9 @@ export default async function CrmDashboard() {
             { title: "Imóveis", href: "/crm/imoveis", icon: Building2, data: portfolio[0], rural: false },
             { title: "Propriedades rurais", href: "/crm/propriedades", icon: Tractor, data: portfolio[1], rural: true },
           ] as const
-        ).map((c) => (
+        )
+          .filter((c) => f.seg === "todos" || c.rural === (f.seg === "rurais"))
+          .map((c) => (
           <Link
             key={c.href}
             href={c.href}
