@@ -197,7 +197,8 @@ export function PropertiesTable({
         <Link href={rural ? "/crm/propriedades/nova" : "/crm/imoveis/novo"}>
           <Button variant="primary" size="md">
             <Plus className="size-4" />
-            {rural ? "Nova propriedade" : "Novo imóvel"}
+            {rural ? "Nova" : "Novo"}
+            <span className="hidden sm:inline">{rural ? " propriedade" : " imóvel"}</span>
           </Button>
         </Link>
       </div>
@@ -273,8 +274,90 @@ export function PropertiesTable({
         {filtered.length} de {items.length} {noun}
       </p>
 
-      {/* Tabela */}
-      <div className="card-elev mt-3 overflow-x-auto rounded-2xl border border-hairline bg-card">
+      {/* Celular: cartões com ações sempre visíveis */}
+      <div className="mt-3 space-y-3 md:hidden">
+        {filtered.map((p) => {
+          const rr = normalizeRural(p.rural);
+          const ppa = rural ? pricePerAlq(p.price, rr.totalAlq) : null;
+          return (
+            <div key={p.id} className="card-elev rounded-2xl border border-hairline bg-card p-3.5">
+              <Link href={crmPropertyPath(p)} className="flex gap-3">
+                <span className="relative block size-20 shrink-0 overflow-hidden rounded-xl bg-soft">
+                  {p.cover ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img src={p.cover} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
+                  ) : rural ? (
+                    <Tractor className="absolute inset-0 m-auto size-5 text-subtle" />
+                  ) : (
+                    <Building2 className="absolute inset-0 m-auto size-5 text-subtle" />
+                  )}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-mono text-[10px] uppercase tracking-wider text-subtle">
+                    {p.code} · {TYPE_LABELS[p.type]}
+                  </span>
+                  <span className="mt-0.5 block truncate text-[15px] font-medium leading-tight">{p.title}</span>
+                  <span className="mt-0.5 block truncate text-xs text-subtle">
+                    {p.neighborhood}
+                    {p.city ? `, ${p.city}` : ""}
+                  </span>
+                  <span className="mt-1.5 block font-mono text-sm font-medium tabular">
+                    {formatBRL(p.price)}
+                    {ppa && (
+                      <span className="ml-1.5 text-[10.5px] font-normal text-subtle">
+                        {formatBRL(ppa)}/alq
+                      </span>
+                    )}
+                  </span>
+                </span>
+              </Link>
+              <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-subtle">
+                <Badge className={cn("border", STATUS_STYLES[p.status])}>{STATUS_LABELS[p.status]}</Badge>
+                <span className="font-mono tabular">
+                  {rural ? `${formatAlq(rr.totalAlq ?? 0)} alq` : `${formatNumber(p.area)} m²`}
+                </span>
+                <span className="inline-flex items-center gap-1 font-mono tabular">
+                  <Eye className="size-3.5" />
+                  {viewCounts[p.id]?.total ?? 0}
+                </span>
+              </div>
+              <div className="mt-3 flex items-center justify-between border-t border-hairline pt-3">
+                <label className="flex items-center gap-2 text-xs text-subtle">
+                  <Switch checked={p.published} onChange={(v) => togglePublished(p, v)} />
+                  {p.published ? "No site" : "Fora do site"}
+                </label>
+                <div className="flex items-center gap-0.5">
+                  <Link href={crmPropertyPath(p, "/editar")}>
+                    <Button variant="ghost" size="icon" aria-label="Editar">
+                      <Pencil className="size-4" />
+                    </Button>
+                  </Link>
+                  <Button variant="ghost" size="icon" aria-label="Excluir" onClick={() => setToDelete(p)}>
+                    <Trash2 className="size-4 text-red-500/80" />
+                  </Button>
+                  <Link href={crmPropertyPath(p)}>
+                    <Button variant="ghost" size="icon" aria-label="Abrir">
+                      <ArrowUpRight className="size-4" />
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        {filtered.length === 0 && (
+          <p className="rounded-2xl border border-hairline bg-card py-14 text-center text-sm text-subtle">
+            {rural
+              ? items.length
+                ? "Nenhuma propriedade com esses filtros."
+                : "Nenhuma propriedade rural cadastrada ainda."
+              : "Nenhum imóvel com esses filtros."}
+          </p>
+        )}
+      </div>
+
+      {/* Tabela (tablet e computador) */}
+      <div className="card-elev mt-3 hidden overflow-x-auto rounded-2xl border border-hairline bg-card md:block">
         <table className="w-full min-w-[940px] text-left text-sm">
           <thead>
             <tr className="border-b border-hairline font-mono text-[10px] uppercase tracking-[0.16em] text-subtle">
@@ -376,7 +459,7 @@ export function PropertiesTable({
                   </div>
                 </td>
                 <td className="px-4 py-3">
-                  <div className="flex items-center justify-end gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                  <div className="flex items-center justify-end gap-0.5 transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100">
                     <Link href={crmPropertyPath(p, "/editar")}>
                       <Button variant="ghost" size="icon" aria-label="Editar">
                         <Pencil className="size-4" />
