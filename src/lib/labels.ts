@@ -72,11 +72,11 @@ export const ROLE_LABELS: Record<string, string> = {
 };
 
 export const DEAL_STAGES = [
-  { id: "novo", label: "Novo interesse", dot: "#8b8b86" },
-  { id: "contato", label: "Contato feito", dot: "#60a5fa" },
-  { id: "visita", label: "Visita agendada", dot: "#c084fc" },
-  { id: "proposta", label: "Proposta", dot: "#f59e0b" },
-  { id: "documentacao", label: "Documentação", dot: "#fb923c" },
+  { id: "novo", label: "Novo interesse", dot: "#9a9ab5" },
+  { id: "contato", label: "Contato feito", dot: "#7b83eb" },
+  { id: "visita", label: "Visita agendada", dot: "#a78bfa" },
+  { id: "proposta", label: "Proposta", dot: "#f5b13d" },
+  { id: "documentacao", label: "Documentação", dot: "#F47525" },
   { id: "fechado", label: "Fechado", dot: "#10b981" },
 ] as const;
 

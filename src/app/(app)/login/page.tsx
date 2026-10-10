@@ -1,5 +1,6 @@
 import { LoginForm } from "@/components/auth/login-form";
-import { Mark } from "@/components/brand";
+import { Mark, Wordmark } from "@/components/brand";
+import { Monogram } from "@/components/monogram";
 import { getCurrentUser } from "@/lib/auth";
 import { getWhiteLabel } from "@/lib/queries";
 import type { Metadata } from "next";
@@ -7,7 +8,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Entrar — ImobManager" };
+export const metadata: Metadata = { title: "Entrar" };
 
 export default async function LoginPage({
   searchParams,
@@ -24,28 +25,20 @@ export default async function LoginPage({
   return (
     <div className="flex min-h-screen">
       {/* Painel esquerdo — editorial */}
-      <div className="relative hidden w-1/2 flex-col justify-between overflow-hidden bg-ink p-12 lg:flex">
+      <div className="dark relative hidden w-1/2 flex-col justify-between overflow-hidden bg-[#2B2B5D] p-12 text-ink lg:flex">
         <div className="grid-bg pointer-events-none absolute inset-0 opacity-[0.07]" />
-        <div className="relative flex items-center gap-3">
-          <Mark className="size-9 text-white" />
-          <div className="leading-none">
-            <p className="font-display text-base font-semibold text-canvas">
-              {wl.orgName}
-            </p>
-            <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.24em] text-canvas/40">
-              {wl.tagline}
-            </p>
-          </div>
-        </div>
+        {/* Monograma grande como marca d'água */}
+        <Monogram className="pointer-events-none absolute -bottom-24 -right-20 size-[520px] text-white opacity-[0.05]" tip="#F47525" />
+        <Wordmark className="relative [&_svg]:size-10" sub={wl.tagline} />
 
         <div className="relative">
-          <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-canvas/40">
+          <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-ink/50">
             Área do corretor
           </p>
-          <h1 className="mt-5 max-w-md font-display text-5xl font-semibold leading-[1.05] tracking-[-0.03em] text-canvas">
+          <h1 className="mt-5 max-w-md font-display text-5xl font-semibold leading-[1.05] tracking-[-0.03em] text-ink">
             Todo o seu negócio, em um só lugar.
           </h1>
-          <p className="mt-5 max-w-sm text-sm leading-relaxed text-canvas/50">
+          <p className="mt-5 max-w-sm text-sm leading-relaxed text-ink/65">
             Imóveis, contatos, agenda, pipeline e portais — sincronizados e
             prontos para o seu dia.
           </p>
@@ -58,10 +51,10 @@ export default async function LoginPage({
             ["24/7", "Sincronização"],
           ].map(([v, l]) => (
             <div key={l}>
-              <p className="font-mono text-2xl font-medium tabular text-canvas">
+              <p className="font-mono text-2xl font-medium tabular text-ink">
                 {v}
               </p>
-              <p className="mt-1 text-[11px] leading-snug text-canvas/40">{l}</p>
+              <p className="mt-1 text-[11px] leading-snug text-ink/50">{l}</p>
             </div>
           ))}
         </div>

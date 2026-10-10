@@ -1,6 +1,6 @@
 "use client";
 
-import { Wordmark } from "@/components/brand";
+import { Mark, Wordmark } from "@/components/brand";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button, Kbd } from "@/components/ui";
 import { CommandPalette } from "@/components/crm/command-palette";
@@ -168,7 +168,7 @@ export function AppShell({
       <div className="border-t border-hairline p-3">
         <div className="flex items-center justify-between gap-2 rounded-xl px-2 py-1.5">
           <div className="flex min-w-0 items-center gap-3">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-ink font-mono text-[11px] font-semibold text-canvas">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent font-mono text-[11px] font-semibold text-on-accent">
               {initials(user.name)}
             </span>
             <div className="min-w-0">
@@ -198,7 +198,8 @@ export function AppShell({
   return (
     <div className="flex min-h-screen">
       {/* Sidebar desktop */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-hairline bg-card lg:block">
+      {/* Barra lateral sempre no azul-marinho da marca (tokens do tema escuro) */}
+      <aside className="dark fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-hairline bg-canvas text-ink lg:block">
         {sidebar}
       </aside>
 
@@ -218,7 +219,7 @@ export function AppShell({
         />
         <aside
           className={cn(
-            "absolute inset-y-0 left-0 w-72 border-r border-hairline bg-card transition-transform duration-300 ease-expo",
+            "dark absolute inset-y-0 left-0 w-72 border-r border-hairline bg-canvas text-ink transition-transform duration-300 ease-expo",
             mobileOpen ? "translate-x-0" : "-translate-x-full",
           )}
         >
@@ -229,20 +230,23 @@ export function AppShell({
       {/* Conteúdo */}
       <div className="flex min-w-0 flex-1 flex-col lg:pl-64">
         <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-hairline bg-canvas/85 px-4 backdrop-blur-xl md:px-8">
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
             <button
-              className="rounded-full border border-hairline p-2 text-subtle lg:hidden"
+              className="shrink-0 rounded-full border border-hairline p-2 text-subtle lg:hidden"
               onClick={() => setMobileOpen(true)}
               aria-label="Abrir menu"
             >
               <Menu className="size-4" />
             </button>
+            <Link href="/crm" aria-label="Início do CRM" className="shrink-0 lg:hidden">
+              <Mark className="size-7" />
+            </Link>
             <button
               onClick={() => setPaletteOpen(true)}
-              className="flex h-9 w-48 items-center gap-2.5 rounded-full border border-hairline bg-soft/60 px-3.5 text-xs text-subtle transition-colors hover:border-hairline-strong sm:w-72"
+              className="flex h-9 min-w-0 flex-1 items-center gap-2.5 rounded-full border border-hairline bg-soft/60 px-3.5 text-xs text-subtle transition-colors hover:border-hairline-strong sm:w-72 sm:flex-none"
             >
               <Search className="size-3.5" />
-              <span className="flex-1 text-left">
+              <span className="flex-1 truncate text-left">
                 Buscar imóveis, contatos…
               </span>
               <span className="hidden gap-1 sm:flex">
@@ -251,7 +255,7 @@ export function AppShell({
               </span>
             </button>
           </div>
-          <div className="flex items-center gap-2.5">
+          <div className="flex shrink-0 items-center gap-2.5">
             {mode === "crm" && <HeaderActions />}
           </div>
         </header>
