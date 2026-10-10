@@ -2,7 +2,7 @@
 
 import { Button, Field, Input } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import { BellRing, Check, Send } from "lucide-react";
+import { BellRing, Check, ChevronDown, Send } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -19,6 +19,11 @@ export function NotificationsCard({
   const [emails, setEmails] = useState(initialEmails);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
+  // Recolhido (sanfona); abre ao clicar no cabeçalho
+  const [open, setOpen] = useState(false);
+  const recipients = (emails.trim() || fallbackEmail)
+    .split(/[,;\s]+/)
+    .filter(Boolean);
 
   async function save() {
     setSaving(true);
@@ -52,22 +57,30 @@ export function NotificationsCard({
   }
 
   return (
-    <section className="card-elev rounded-2xl border border-hairline bg-card p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex items-start gap-3">
+    <section className="card-elev rounded-2xl border border-hairline bg-card">
+      <div className="flex flex-wrap items-center gap-3 p-6">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          className="flex min-w-0 flex-1 items-center gap-3 text-left"
+        >
           <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-soft text-subtle">
             <BellRing className="size-5" />
           </span>
-          <div>
-            <h2 className="font-display text-base font-semibold tracking-tight">
+          <span className="min-w-0">
+            <span className="block font-display text-base font-semibold tracking-tight">
               Avisos de novos leads
-            </h2>
-            <p className="mt-1 max-w-xl text-xs text-subtle">
-              E-mail a cada contato pelo formulário do site, visita agendada no site ou lead
-              recebido pelo webhook.
-            </p>
-          </div>
-        </div>
+            </span>
+            <span className={cn("mt-1 block max-w-xl text-xs text-subtle", !open && "truncate")}>
+              {open
+                ? "E-mail a cada contato pelo formulário do site, visita agendada no site ou lead recebido pelo webhook."
+                : recipients.length
+                  ? `Enviando para ${recipients.join(", ")} — clique para editar`
+                  : "Nenhum destinatário — clique para configurar"}
+            </span>
+          </span>
+        </button>
         <span
           className={cn(
             "rounded-full px-2.5 py-1 text-[11px] font-medium",
@@ -76,9 +89,25 @@ export function NotificationsCard({
         >
           {configured ? "Envio configurado" : "Falta RESEND_API_KEY na Vercel"}
         </span>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-label={open ? "Recolher" : "Abrir"}
+          className="rounded-full p-2 text-subtle transition-colors hover:bg-soft hover:text-ink"
+        >
+          <ChevronDown className={cn("size-4 transition-transform duration-300", open && "rotate-180")} />
+        </button>
       </div>
 
-      <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end">
+      <div
+        className={cn(
+          "grid transition-[grid-template-rows] duration-500 ease-expo",
+          open ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+        )}
+      >
+      <div className="min-h-0 overflow-hidden" inert={!open}>
+      <div className="border-t border-hairline p-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
         <Field
           label="Enviar para"
           hint={`Um ou mais e-mails, separados por vírgula${fallbackEmail ? ` · vazio = ${fallbackEmail}` : ""}`}
@@ -100,6 +129,9 @@ export function NotificationsCard({
             Enviar teste
           </Button>
         </div>
+      </div>
+      </div>
+      </div>
       </div>
     </section>
   );
