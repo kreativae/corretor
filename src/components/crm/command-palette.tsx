@@ -4,6 +4,7 @@ import { Kbd } from "@/components/ui";
 import { crmPropertyPath, formatAlq, isRuralType, type RuralData } from "@/lib/rural";
 import { cn, formatCompact } from "@/lib/utils";
 import { Building2, CornerDownLeft, Loader2, Search, Tractor, User } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
@@ -43,6 +44,7 @@ export function CommandPalette({
   const [loading, setLoading] = useState(false);
   const [sel, setSel] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (open) {
@@ -99,6 +101,13 @@ export function CommandPalette({
     router.push(item.href);
     onClose();
   }
+
+  // Teclado: mantém o item selecionado visível na lista
+  useEffect(() => {
+    listRef.current
+      ?.querySelector<HTMLElement>(`[data-index="${sel}"]`)
+      ?.scrollIntoView({ block: "nearest" });
+  }, [sel]);
 
   // Esc fecha a busca mesmo com o foco fora do campo
   useEffect(() => {
@@ -159,7 +168,7 @@ export function CommandPalette({
           <Kbd>esc</Kbd>
         </div>
 
-        <div data-lenis-prevent className="max-h-80 overflow-y-auto p-2">
+        <div ref={listRef} data-lenis-prevent className="max-h-80 overflow-y-auto overscroll-contain p-2">
           {items.length === 0 && (
             <p className="px-3 py-8 text-center text-sm text-subtle">
               {q.trim()
@@ -179,11 +188,19 @@ export function CommandPalette({
                     </span>
                   </p>
                 )}
-                <button
-                  onMouseEnter={() => setSel(i)}
-                  onClick={() => go(item)}
+                {/* Link de verdade: clique abre; Ctrl/⌘ ou botão do meio abre em nova aba.
+                    Destaca com o movimento do mouse (não ao rolar a lista sob o cursor). */}
+                <Link
+                  href={item.href}
+                  data-index={i}
+                  onMouseMove={() => sel !== i && setSel(i)}
+                  onClick={(e) => {
+                    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+                    e.preventDefault();
+                    go(item);
+                  }}
                   className={cn(
-                    "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors",
+                    "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-soft",
                     sel === i ? "bg-soft" : "",
                   )}
                 >
@@ -202,7 +219,7 @@ export function CommandPalette({
                     </span>
                   </span>
                   {sel === i && <CornerDownLeft className="size-3.5 text-subtle" />}
-                </button>
+                </Link>
               </div>
             );
           })}
@@ -218,6 +235,7 @@ export function CommandPalette({
             <Kbd>↵</Kbd>
             abrir
           </span>
+          <span className="ml-auto hidden sm:inline">ou clique · Ctrl/⌘ + clique abre em nova aba</span>
         </div>
       </div>
     </div>
