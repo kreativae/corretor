@@ -49,6 +49,8 @@ export function FichaSheet({
   showDomain = true,
   qrSvg,
   qrKind = "mapa",
+  qrUrl,
+  whatsappUrl,
 }: {
   p: PropertyWithImages;
   orgName: string;
@@ -64,6 +66,10 @@ export function FichaSheet({
   showDomain?: boolean;
   /** QR code (SVG) para baixar o KMZ — propriedades rurais */
   qrSvg?: string;
+  /** Mesmo endereço do QR: vira link clicável no PDF */
+  qrUrl?: string;
+  /** WhatsApp do corretor: telefone clicável no PDF */
+  whatsappUrl?: string;
   /** Destino do QR: mapa do KMZ (rurais) ou formulário do consultor */
   qrKind?: "mapa" | "contato";
 }) {
@@ -292,10 +298,16 @@ export function FichaSheet({
           <p className="truncate text-[10px] text-neutral-400">{brokerRole}</p>
         </div>
         {phone && (
-          <div className="flex shrink-0 items-center gap-2">
+          <a
+            href={whatsappUrl}
+            target="_blank"
+            rel="noreferrer"
+            data-pdf-link={whatsappUrl}
+            className="flex shrink-0 items-center gap-2"
+          >
             <MessageCircle className="size-4 text-emerald-400" />
             <span className="font-mono text-[13px] tabular">{phone}</span>
-          </div>
+          </a>
         )}
         {showDomain && !qrSvg && (
           <p className="shrink-0 text-right text-[9px] uppercase tracking-[0.16em] text-neutral-400">
@@ -303,7 +315,13 @@ export function FichaSheet({
           </p>
         )}
         {qrSvg && (
-          <div className="flex shrink-0 items-center gap-3">
+          <a
+            href={qrUrl}
+            target="_blank"
+            rel="noreferrer"
+            data-pdf-link={qrUrl}
+            className="flex shrink-0 items-center gap-3"
+          >
             <div className="text-right">
               <p className="text-[11px] font-semibold leading-tight">
                 {qrKind === "mapa" ? "Veja a propriedade no mapa" : "Fale com um consultor"}
@@ -324,7 +342,7 @@ export function FichaSheet({
               className="size-[24mm] shrink-0 rounded-[2mm] bg-white p-[1.6mm] [&>svg]:size-full"
               dangerouslySetInnerHTML={{ __html: qrSvg }}
             />
-          </div>
+          </a>
         )}
       </footer>
     </article>

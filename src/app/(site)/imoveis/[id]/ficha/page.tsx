@@ -56,9 +56,11 @@ export default async function FichaPage({
   const host = h.get("x-forwarded-host") ?? h.get("host");
   const proto = host?.startsWith("localhost") ? "http" : "https";
   let qrSvg: string | undefined;
+  let qrUrl: string | undefined;
   if (qrKind) {
     const path = qrKind === "mapa" ? "mapa" : "contato?origem=qr";
-    qrSvg = await QRCode.toString(`${proto}://${host}/imoveis/${p.code}/${path}`, {
+    qrUrl = `${proto}://${host}/imoveis/${p.code}/${path}`;
+    qrSvg = await QRCode.toString(qrUrl, {
       type: "svg",
       margin: 0,
       errorCorrectionLevel: "M",
@@ -97,6 +99,8 @@ export default async function FichaPage({
         showDomain={wl.fichaShowDomain}
         qrSvg={qrSvg}
         qrKind={qrKind ?? undefined}
+        qrUrl={qrUrl}
+        whatsappUrl={digits ? `https://wa.me/${digits}?text=${encodeURIComponent(`Olá! Tenho interesse no imóvel ${p.code} — ${p.title}.`)}` : undefined}
       />
       </FitSheet>
     </div>

@@ -31,6 +31,16 @@ export async function buildFichaPdf(fileName: string): Promise<File> {
 
   const pdf = new jsPDF({ unit: "mm", format: "a4", compress: true });
   pdf.addImage(data, "JPEG", 0, 0, 210, 297, undefined, "FAST");
+
+  // Links clicáveis no PDF (QR code, WhatsApp): mesma posição da tela, em mm
+  const box = sheet.getBoundingClientRect();
+  const mm = 210 / box.width;
+  sheet.querySelectorAll<HTMLElement>("[data-pdf-link]").forEach((el) => {
+    const url = el.dataset.pdfLink;
+    if (!url) return;
+    const r = el.getBoundingClientRect();
+    pdf.link((r.left - box.left) * mm, (r.top - box.top) * mm, r.width * mm, r.height * mm, { url });
+  });
   return new File([pdf.output("blob")], fileName, { type: "application/pdf" });
 }
 
