@@ -8,6 +8,7 @@ import {
   PropertyFiltersPanel,
   type PropertyFilters,
 } from "@/components/crm/property-filters";
+import { StatCard } from "@/components/crm/stat-card";
 import { Badge, Button, Input, Modal, Select, Switch } from "@/components/ui";
 import {
   PURPOSE_LABELS,
@@ -24,11 +25,14 @@ import {
   normalizeRural,
   pricePerAlq,
 } from "@/lib/rural";
-import { cn, formatBRL, formatNumber } from "@/lib/utils";
+import { cn, formatBRL, formatCompact, formatNumber } from "@/lib/utils";
 import {
   ArrowUpRight,
   Building2,
   Eye,
+  Globe,
+  Ruler,
+  Wallet,
   Pencil,
   Plus,
   Search,
@@ -81,6 +85,38 @@ export function PropertiesTable({
     [items, filters, viewCounts, rural],
   );
   const chips = activePropertyChips(filters, rural);
+
+  // Indicadores do recorte (respeitam busca e filtros)
+  const stats = useMemo(() => {
+    const disp = filtered.filter((p) => p.status === "disponivel");
+    const vgv = disp.reduce((a, p) => a + p.price, 0);
+    const alq = (list: PropertyWithImages[]) =>
+      list.reduce((a, p) => a + (normalizeRural(p.rural).totalAlq ?? 0), 0);
+    const m2 = disp.filter((p) => p.area > 0);
+    const precoM2 = m2.length
+      ? Math.round(m2.reduce((a, p) => a + p.price / p.area, 0) / m2.length)
+      : 0;
+    const alqDisp = alq(disp);
+    const views = filtered.reduce((a, p) => a + (viewCounts[p.id]?.total ?? 0), 0);
+    const top = [...filtered].sort(
+      (a, b) => (viewCounts[b.id]?.total ?? 0) - (viewCounts[a.id]?.total ?? 0),
+    )[0];
+    return {
+      total: filtered.length,
+      disponiveis: disp.length,
+      reservados: filtered.filter((p) => p.status === "reservado").length,
+      vgv,
+      ticket: disp.length ? Math.round(vgv / disp.length) : 0,
+      precoM2,
+      alqTotal: alq(filtered),
+      alqDisp,
+      precoAlq: alqDisp > 0 ? Math.round(vgv / alqDisp) : 0,
+      publicados: filtered.filter((p) => p.published).length,
+      semFoto: filtered.filter((p) => p.published && !p.images.length).length,
+      views,
+      top: top && viewCounts[top.id]?.total ? top.code : null,
+    };
+  }, [filtered, viewCounts]);
 
   async function togglePublished(p: PropertyWithImages, v: boolean) {
     setItems((arr) =>
@@ -163,6 +199,55 @@ export function PropertiesTable({
       </div>
 
       <ActiveChips chips={chips} onClear={patch} onClearAll={resetFilters} />
+
+      {/* Indicadores */}
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <StatCard
+          label={rural ? "Propriedades" : "Imóveis"}
+          value={stats.total}
+          caption={`${stats.disponiveis} ${stats.disponiveis === 1 ? "disponível" : "disponíveis"}${stats.reservados ? ` · ${stats.reservados} ${stats.reservados === 1 ? "reservado" : "reservados"}` : ""}`}
+          icon={rural ? <Tractor className="size-4" /> : <Building2 className="size-4" />}
+        />
+        <StatCard
+          label="VGV disponível"
+          value={stats.vgv}
+          format="brl"
+          caption={stats.ticket ? `Ticket médio ${formatCompact(stats.ticket)}` : "Nada disponível"}
+          icon={<Wallet className="size-4" />}
+        />
+        {rural ? (
+          <StatCard
+            label="Alqueires"
+            value={Math.round(stats.alqTotal)}
+            suffix=" alq"
+            caption={
+              stats.precoAlq
+                ? `${formatAlq(stats.alqDisp)} disponíveis · ${formatCompact(stats.precoAlq)}/alq`
+                : `${formatAlq(stats.alqDisp)} disponíveis`
+            }
+            icon={<Ruler className="size-4" />}
+          />
+        ) : (
+          <StatCard
+            label="R$ por m² (média)"
+            value={stats.precoM2}
+            caption="Média dos disponíveis"
+            icon={<Ruler className="size-4" />}
+          />
+        )}
+        <StatCard
+          label={rural ? "Publicadas no site" : "Publicados no site"}
+          value={stats.publicados}
+          caption={stats.semFoto ? `${stats.semFoto} publicado${stats.semFoto === 1 ? "" : "s"} sem foto` : `de ${stats.total} cadastrados`}
+          icon={<Globe className="size-4" />}
+        />
+        <StatCard
+          label="Visualizações"
+          value={stats.views}
+          caption={stats.top ? `Mais visto: ${stats.top}` : "Nenhuma visualização ainda"}
+          icon={<Eye className="size-4" />}
+        />
+      </div>
       <FilterSheet
         open={showFilters}
         onClose={closeFilters}
