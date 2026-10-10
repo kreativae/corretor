@@ -19,10 +19,13 @@ const LINKS = [
 export function SiteHeader({
   orgName,
   hasRural = false,
+  overHero = false,
 }: {
   orgName: string;
   /** Exibe o link "Rurais" só quando há propriedades rurais publicadas */
   hasRural?: boolean;
+  /** Header transparente sobre o hero escuro: usa o tema escuro até rolar */
+  overHero?: boolean;
 }) {
   const links = LINKS.filter((l) => hasRural || !l.href.includes("categoria=rurais"));
   const [scrolled, setScrolled] = useState(false);
@@ -39,7 +42,8 @@ export function SiteHeader({
     <>
       <header
         className={cn(
-          "fixed inset-x-0 top-0 z-40 transition-all duration-500 ease-expo",
+          "fixed inset-x-0 top-0 z-40 text-ink transition-all duration-500 ease-expo",
+          overHero && !scrolled && "dark",
           scrolled
             ? "border-b border-hairline bg-canvas/80 backdrop-blur-xl"
             : "border-b border-transparent bg-transparent",

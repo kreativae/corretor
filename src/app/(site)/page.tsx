@@ -48,10 +48,11 @@ export default async function HomePage() {
 
   return (
     <div className="bg-canvas">
-      <SiteHeader orgName={wl.orgName} hasRural={published.some((x) => isRuralType(x.type))} />
+      <SiteHeader overHero orgName={wl.orgName} hasRural={published.some((x) => isRuralType(x.type))} />
 
       {/* ───────────── HERO ───────────── */}
-      <section className="relative flex h-[100svh] min-h-[640px] flex-col overflow-hidden">
+      {/* Hero sempre escuro, independente do tema (vídeo + overlay + texto branco) */}
+      <section className="dark relative flex h-[100svh] min-h-[640px] flex-col overflow-hidden">
         <div className="absolute inset-0">
           {heroYouTubeId ? (
             /* Vídeo do YouTube — embed em modo capa (cover), mudo e em loop.
@@ -80,7 +81,7 @@ export default async function HomePage() {
               <source src={content.hero.videoUrl} type="video/mp4" />
             </video>
           )}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/25 to-[var(--canvas)]" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/25 to-[#0a0a0a]" />
           <div className="absolute inset-0 bg-black/20" />
         </div>
 
