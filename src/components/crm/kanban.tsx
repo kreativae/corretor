@@ -20,6 +20,8 @@ import { cn, formatCompact, initials, timeAgo } from "@/lib/utils";
 import {
   ArrowUpRight,
   Building2,
+  ChevronLeft,
+  ChevronRight,
   Columns3,
   Flag,
   GripVertical,
@@ -35,7 +37,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 export type PipelineTab = "imoveis" | "rurais" | "todos";
@@ -92,6 +94,66 @@ export function Kanban({
     () => initialDeals.find((d) => d.deal.id === focusDealId)?.deal.stage ?? "novo",
   );
   const [highlight, setHighlight] = useState<string | null>(focusDealId ?? null);
+
+  // Quadro: colunas ajustadas à tela (padrão) ou largas com rolagem lateral
+  const [layout, setLayout] = useState<"ajustar" | "largas">("ajustar");
+  const boardRef = useRef<HTMLDivElement>(null);
+  const [edges, setEdges] = useState({ left: false, right: false });
+  const [panning, setPanning] = useState(false);
+
+  const updateEdges = useCallback(() => {
+    const el = boardRef.current;
+    if (!el) return;
+    setEdges({
+      left: el.scrollLeft > 4,
+      right: el.scrollLeft + el.clientWidth < el.scrollWidth - 4,
+    });
+  }, []);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("crm-pipeline-layout");
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (saved === "largas" || saved === "ajustar") setLayout(saved);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    updateEdges();
+    const el = boardRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(updateEdges);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [updateEdges, layout]);
+
+  function changeLayout(v: "ajustar" | "largas") {
+    setLayout(v);
+    try {
+      localStorage.setItem("crm-pipeline-layout", v);
+    } catch {}
+  }
+
+  /** Arrastar o fundo do quadro com o mouse rola para os lados (como no Trello) */
+  function startPan(e: React.MouseEvent) {
+    const el = boardRef.current;
+    if (!el || e.button !== 0) return;
+    if ((e.target as HTMLElement).closest("[data-deal-id], a, button")) return;
+    if (el.scrollWidth <= el.clientWidth) return;
+    const startX = e.clientX;
+    const startLeft = el.scrollLeft;
+    setPanning(true);
+    const onMove = (ev: MouseEvent) => {
+      el.scrollLeft = startLeft - (ev.clientX - startX);
+    };
+    const onUp = () => {
+      setPanning(false);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }
   // Arrastar no toque (celular)
   const [touchDrag, setTouchDrag] = useState<{
     id: string;
@@ -549,8 +611,90 @@ export function Kanban({
         })()}
       </div>
 
+      {/* Barra do quadro (tablet e computador): largura das colunas e rolagem */}
+      <div className="mb-3 hidden items-center justify-between gap-3 md:flex">
+        <div className="inline-flex rounded-full border border-hairline p-0.5">
+          {(
+            [
+              { id: "ajustar", label: "Ajustar à tela" },
+              { id: "largas", label: "Colunas largas" },
+            ] as const
+          ).map((o) => (
+            <button
+              key={o.id}
+              type="button"
+              onClick={() => changeLayout(o.id)}
+              className={cn(
+                "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                layout === o.id ? "bg-ink text-canvas" : "text-subtle hover:text-ink",
+              )}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+        {(edges.left || edges.right) && (
+          <div className="flex items-center gap-2">
+            <span className="hidden text-[11px] text-subtle lg:inline">
+              Role com as setas ou arraste o fundo do quadro
+            </span>
+            <Button
+              variant="outline"
+              size="icon"
+              className="size-8"
+              disabled={!edges.left}
+              onClick={() => boardRef.current?.scrollBy({ left: -320, behavior: "smooth" })}
+              aria-label="Colunas anteriores"
+            >
+              <ChevronLeft className="size-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="size-8"
+              disabled={!edges.right}
+              onClick={() => boardRef.current?.scrollBy({ left: 320, behavior: "smooth" })}
+              aria-label="Próximas colunas"
+            >
+              <ChevronRight className="size-4" />
+            </Button>
+          </div>
+        )}
+      </div>
+
       {/* Quadro (tablet e computador) */}
-      <div className="hidden gap-3 overflow-x-auto pb-4 md:flex">
+      <div className="relative hidden md:block">
+        {/* Sombra nas bordas indica que há mais colunas */}
+        <div
+          className={cn(
+            "pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-canvas to-transparent transition-opacity",
+            edges.left ? "opacity-100" : "opacity-0",
+          )}
+        />
+        <div
+          className={cn(
+            "pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-canvas to-transparent transition-opacity",
+            edges.right ? "opacity-100" : "opacity-0",
+          )}
+        />
+      <div
+        ref={boardRef}
+        onScroll={updateEdges}
+        onMouseDown={startPan}
+        // Arrastando um cartão perto da borda, o quadro rola sozinho
+        onDragOver={(e) => {
+          const el = boardRef.current;
+          if (!el || !dragId) return;
+          const r = el.getBoundingClientRect();
+          if (e.clientX < r.left + 80) el.scrollBy({ left: -24 });
+          else if (e.clientX > r.right - 80) el.scrollBy({ left: 24 });
+        }}
+        className={cn(
+          "flex overflow-x-auto pb-4 [scrollbar-width:thin]",
+          layout === "ajustar" ? "gap-2" : "gap-3",
+          panning && "cursor-grabbing select-none",
+        )}
+      >
         {stages.map((stage) => {
           const items = byStage.get(stage.id) ?? [];
           const sum = items.reduce((a, d) => a + d.deal.value, 0);
@@ -569,19 +713,32 @@ export function Kanban({
                 setOverStage(null);
               }}
               className={cn(
-                "flex w-72 shrink-0 flex-col rounded-2xl border p-3 transition-colors duration-200",
+                "flex flex-col rounded-2xl border transition-colors duration-200",
+                layout === "ajustar" ? "min-w-[168px] flex-1 basis-0 p-2" : "w-72 shrink-0 p-3",
                 overStage === stage.id
                   ? "border-[rgb(var(--accent))/0.5] bg-soft"
                   : "border-hairline bg-card",
               )}
             >
-              <div className="flex items-center gap-2 px-1.5 pb-3 pt-1">
-                <span className="size-2 rounded-full" style={{ background: stage.dot }} />
-                <p className="text-[13px] font-semibold">{stage.label}</p>
+              <div
+                className={cn(
+                  "flex items-center gap-2 px-1.5 pt-1",
+                  layout === "ajustar" ? "flex-wrap gap-y-0.5 pb-2.5" : "pb-3",
+                )}
+              >
+                <span className="size-2 shrink-0 rounded-full" style={{ background: stage.dot }} />
+                <p className="min-w-0 truncate text-[13px] font-semibold" title={stage.label}>
+                  {stage.label}
+                </p>
                 <span className="rounded-full bg-soft px-2 py-0.5 font-mono text-[10px] tabular text-subtle">
                   {items.length}
                 </span>
-                <span className="ml-auto font-mono text-[10.5px] tabular text-subtle">
+                <span
+                  className={cn(
+                    "font-mono text-[10.5px] tabular text-subtle",
+                    layout === "ajustar" ? "basis-full pl-4" : "ml-auto",
+                  )}
+                >
                   {formatCompact(sum)}
                 </span>
                 {stage.id === "fechado" && showClosedLink && (
@@ -611,7 +768,8 @@ export function Kanban({
                     }}
                     title="Arraste para mover · clique para visão rápida do lead"
                     className={cn(
-                      "cursor-grab rounded-xl border border-hairline bg-canvas p-3.5 transition-all duration-200 hover:border-hairline-strong hover:shadow-md active:cursor-grabbing",
+                      "cursor-grab rounded-xl border border-hairline bg-canvas transition-all duration-200 hover:border-hairline-strong hover:shadow-md active:cursor-grabbing",
+                      layout === "ajustar" ? "p-2.5" : "p-3.5",
                       dragId === deal.id && "rotate-2 opacity-40",
                       highlight === deal.id && "ring-2 ring-[rgb(var(--accent))] ring-offset-2 ring-offset-canvas",
                     )}
@@ -657,6 +815,7 @@ export function Kanban({
             </div>
           );
         })}
+      </div>
       </div>
 
       <LeadDrawer contactId={previewId} onClose={() => setPreviewId(null)} />
