@@ -8,14 +8,18 @@ import {
   type AgendaFilters,
 } from "@/components/crm/agenda-filters";
 import { ActiveChips, FilterButton, FilterSheet } from "@/components/crm/filter-sheet";
+import { StatCard } from "@/components/crm/stat-card";
 import { Button, Field, Input, Modal, Select } from "@/components/ui";
 import { VISIT_STATUS_LABELS } from "@/lib/labels";
 import type { Contact, Property, Visit } from "@/db/schema";
 import { isRuralType } from "@/lib/rural";
-import { cn } from "@/lib/utils";
+import { cn, formatTime } from "@/lib/utils";
 import {
   Building2,
+  CalendarDays,
   CalendarPlus,
+  CheckCheck,
+  Clock,
   Layers,
   Tractor,
   Check,
@@ -146,6 +150,47 @@ export function AgendaClient({
   }, [inTab, week]);
   const filtered = useMemo(() => applyAgendaFilters(inTab, filters), [inTab, filters]);
   const weekFiltered = useMemo(() => applyAgendaFilters(weekVisits, filters), [weekVisits, filters]);
+
+  // Indicadores da semana exibida (respeitam aba e filtros)
+  const stats = useMemo(() => {
+    const by = (st: string) => weekFiltered.filter((v) => v.visit.status === st).length;
+    const agendadas = by("agendada");
+    const confirmadas = by("confirmada");
+    const realizadas = by("realizada");
+    const canceladas = by("cancelada");
+    const ativas = weekFiltered.length - canceladas;
+    const clientes = new Set(
+      weekFiltered.filter((v) => v.visit.status !== "cancelada").map((v) => v.contact?.id),
+    ).size;
+    const todayKey = new Date().toDateString();
+    const hoje = filtered
+      .filter(
+        (v) =>
+          v.visit.status !== "cancelada" &&
+          new Date(v.visit.scheduledAt).toDateString() === todayKey,
+      )
+      .sort((a, b) => new Date(a.visit.scheduledAt).getTime() - new Date(b.visit.scheduledAt).getTime());
+    const agora = new Date().getTime();
+    const proxima = hoje.find(
+      (v) =>
+        ["agendada", "confirmada"].includes(v.visit.status) &&
+        new Date(v.visit.scheduledAt).getTime() >= agora,
+    );
+    const aRealizar = agendadas + confirmadas;
+    const encerradas = realizadas + canceladas;
+    return {
+      ativas,
+      clientes,
+      hoje: hoje.length,
+      proxima: proxima ? formatTime(proxima.visit.scheduledAt) : null,
+      confirmadas,
+      pctConfirmadas: aRealizar ? Math.round((confirmadas / aRealizar) * 100) : 0,
+      aConfirmar: agendadas,
+      realizadas,
+      comparecimento: encerradas ? Math.round((realizadas / encerradas) * 100) : null,
+      canceladas,
+    };
+  }, [weekFiltered, filtered]);
   const chips = activeAgendaChips(
     filters,
     (id) => inTab.find((v) => v.property?.id === id)?.property?.code ?? "Imóvel",
@@ -324,6 +369,48 @@ export function AgendaClient({
         <FilterButton count={chips.length} onClick={() => setShowFilters(true)} />
       </div>
       <ActiveChips chips={chips} onClear={patch} onClearAll={resetFilters} />
+
+      {/* Indicadores */}
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <StatCard
+          label="Visitas na semana"
+          value={stats.ativas}
+          caption={`${stats.clientes} ${stats.clientes === 1 ? "cliente" : "clientes"} · sem canceladas`}
+          icon={<CalendarDays className="size-4" />}
+        />
+        <StatCard
+          label="Hoje"
+          value={stats.hoje}
+          caption={stats.proxima ? `Próxima às ${stats.proxima}` : stats.hoje ? "Nenhuma pendente" : "Agenda livre"}
+          icon={<Clock className="size-4" />}
+        />
+        <StatCard
+          label="Confirmadas"
+          value={stats.confirmadas}
+          caption={
+            stats.aConfirmar
+              ? `${stats.pctConfirmadas}% · ${stats.aConfirmar} a confirmar`
+              : "Nenhuma pendente de confirmação"
+          }
+          icon={<Check className="size-4" />}
+        />
+        <StatCard
+          label="Realizadas"
+          value={stats.realizadas}
+          caption={
+            stats.comparecimento != null
+              ? `${stats.comparecimento}% de comparecimento`
+              : "Nenhuma visita encerrada"
+          }
+          icon={<CheckCheck className="size-4" />}
+        />
+        <StatCard
+          label="Canceladas"
+          value={stats.canceladas}
+          caption="Na semana exibida"
+          icon={<X className="size-4" />}
+        />
+      </div>
 
       <FilterSheet
         open={showFilters}
