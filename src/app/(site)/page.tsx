@@ -5,7 +5,7 @@ import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 import { listDeals, listPublishedProperties, getWhiteLabel } from "@/lib/queries";
 import { getSiteContent } from "@/lib/site-content";
-import { parseYouTubeUrl } from "@/lib/utils";
+import { cn, parseYouTubeUrl } from "@/lib/utils";
 import { ArrowDown, ArrowRight, ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 
@@ -52,7 +52,7 @@ export default async function HomePage() {
 
       {/* ───────────── HERO ───────────── */}
       {/* Hero sempre escuro, independente do tema (vídeo + overlay + texto branco) */}
-      <section className="dark relative flex h-[100svh] min-h-[640px] flex-col overflow-hidden">
+      <section className="dark relative flex min-h-[100svh] flex-col overflow-hidden md:h-[100svh] md:min-h-[640px]">
         <div className="absolute inset-0">
           {heroYouTubeId ? (
             /* Vídeo do YouTube — embed em modo capa (cover), mudo e em loop.
@@ -85,10 +85,10 @@ export default async function HomePage() {
           <div className="absolute inset-0 bg-black/20" />
         </div>
 
-        <div className="container-x relative z-10 flex flex-1 flex-col justify-end pb-10 text-white md:pb-14">
+        <div className="container-x relative z-10 flex flex-1 flex-col justify-end pb-8 pt-28 text-white md:pb-14 md:pt-0">
           <p
             data-reveal
-            className="mb-6 inline-flex items-center gap-2.5 font-mono text-[11px] uppercase tracking-[0.24em] text-white/80"
+            className="mb-5 inline-flex items-center gap-2.5 font-mono text-[10.5px] uppercase tracking-[0.22em] text-white/80 md:mb-6 md:text-[11px] md:tracking-[0.24em]"
           >
             <span className="size-1.5 rounded-full bg-accent" />
             {wl.orgName} — {content.hero.eyebrow}
@@ -102,29 +102,29 @@ export default async function HomePage() {
             {content.hero.title}
           </h1>
 
-          <div className="mt-8 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+          <div className="mt-6 flex flex-col gap-5 md:mt-8 md:flex-row md:items-end md:justify-between md:gap-6">
             <p
               data-reveal
               data-delay="0.35"
-              className="max-w-md text-[15px] leading-relaxed text-white/75"
+              className="max-w-md text-sm leading-relaxed text-white/75 md:text-[15px]"
             >
               {content.hero.subtitle}
             </p>
             <div
               data-reveal
               data-delay="0.45"
-              className="flex flex-wrap items-center gap-3"
+              className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-center"
             >
               <Link
                 href="/imoveis"
-                className="group inline-flex h-12 items-center gap-2 rounded-full bg-white px-6 text-sm font-medium text-black transition-all duration-300 ease-expo hover:scale-[1.03] active:scale-[0.98]"
+                className="group inline-flex h-12 items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-white px-4 text-sm font-medium text-black sm:gap-2 sm:px-6 transition-all duration-300 ease-expo hover:scale-[1.03] active:scale-[0.98]"
               >
                 {content.hero.ctaPrimary}
                 <ArrowRight className="size-4 transition-transform duration-300 group-hover:translate-x-1" />
               </Link>
               <a
                 href="#colecao"
-                className="inline-flex h-12 items-center gap-2 rounded-full border border-white/25 px-6 text-sm font-medium text-white backdrop-blur-sm transition-colors duration-300 hover:border-white/60"
+                className="inline-flex h-12 items-center justify-center gap-2 whitespace-nowrap rounded-full border border-white/25 px-4 text-sm font-medium text-white sm:px-6 backdrop-blur-sm transition-colors duration-300 hover:border-white/60"
               >
                 {content.hero.ctaSecondary}
               </a>
@@ -135,11 +135,11 @@ export default async function HomePage() {
           <div
             data-reveal
             data-delay="0.55"
-            className="mt-12 grid grid-cols-2 gap-6 border-t border-white/15 pt-6 md:grid-cols-4"
+            className="mt-8 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-white/15 pt-5 md:mt-12 md:grid-cols-4 md:gap-6 md:pt-6"
           >
             {heroStats.map((s, i) => (
               <div key={i}>
-                <p className="font-mono text-2xl font-medium tabular md:text-3xl">
+                <p className="font-mono text-xl font-medium tabular md:text-3xl">
                   <span data-counter={s.n} data-format={s.format ?? "int"}>
                     0
                   </span>
@@ -159,7 +159,7 @@ export default async function HomePage() {
       </section>
 
       {/* ───────────── MARQUEE ───────────── */}
-      <section className="overflow-hidden border-b border-hairline py-5">
+      <section className="overflow-hidden border-b border-hairline py-4 md:py-5">
         <div className="animate-marquee flex w-max items-center gap-10">
           {[...marqueeItems, ...marqueeItems].map((n, i) => (
             <span
@@ -174,8 +174,8 @@ export default async function HomePage() {
       </section>
 
       {/* ───────────── COLEÇÃO ───────────── */}
-      <section id="colecao" className="container-x py-20 md:py-32">
-        <div className="mb-12 flex flex-wrap items-end justify-between gap-6">
+      <section id="colecao" className="container-x scroll-mt-16 py-14 md:py-32">
+        <div className="mb-8 flex flex-wrap items-end justify-between gap-4 md:mb-12 md:gap-6">
           <div>
             <p
               data-reveal
@@ -185,7 +185,7 @@ export default async function HomePage() {
             </p>
             <h2
               data-words
-              className="mt-3 max-w-xl font-display text-4xl font-semibold tracking-[-0.02em] md:text-6xl"
+              className="mt-3 max-w-xl text-balance font-display text-3xl font-semibold tracking-[-0.02em] sm:text-4xl md:text-6xl"
             >
               {content.collection.title}
             </h2>
@@ -200,13 +200,17 @@ export default async function HomePage() {
           </Link>
         </div>
 
-        <div className="grid gap-x-6 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
+        {/* Celular: carrossel de deslizar; do tablet para cima, grade */}
+        <div className="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-2 [scrollbar-width:none] sm:mx-0 sm:grid sm:snap-none sm:grid-cols-2 sm:gap-x-6 sm:gap-y-12 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-3">
           {featured.map((p, i) => (
             <div
               key={p.id}
               data-reveal
               data-delay={`${(i % 3) * 0.08}`}
-              className={i === 0 ? "sm:col-span-2" : ""}
+              className={cn(
+                "w-[84%] shrink-0 snap-center sm:w-auto",
+                i === 0 && "sm:col-span-2",
+              )}
             >
               <PropertyCard property={p} featured={i === 0} />
             </div>
@@ -216,7 +220,7 @@ export default async function HomePage() {
 
       {/* ───────────── EXPERIÊNCIA ───────────── */}
       <section id="experiencia" className="border-t border-hairline bg-soft/60">
-        <div className="container-x grid gap-14 py-20 md:py-32 lg:grid-cols-2 lg:gap-20">
+        <div className="container-x grid gap-10 py-14 md:gap-14 md:py-32 lg:grid-cols-2 lg:gap-20">
           <div className="lg:sticky lg:top-32 lg:self-start">
             <p
               data-reveal
@@ -226,21 +230,21 @@ export default async function HomePage() {
             </p>
             <h2
               data-words
-              className="mt-4 text-balance font-display text-4xl font-semibold leading-[1.05] tracking-[-0.02em] md:text-5xl"
+              className="mt-4 text-balance font-display text-3xl font-semibold leading-[1.05] tracking-[-0.02em] sm:text-4xl md:text-5xl"
             >
               {content.experience.title}
             </h2>
             <p
               data-reveal
-              className="mt-6 max-w-md text-[15px] leading-relaxed text-subtle"
+              className="mt-5 max-w-md text-sm leading-relaxed text-subtle md:mt-6 md:text-[15px]"
             >
               {content.experience.body}
             </p>
 
-            <div className="mt-12 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-hairline bg-hairline">
+            <div className="mt-8 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-hairline bg-hairline md:mt-12">
               {content.experience.stats.map((s, i) => (
-                <div key={i} className="bg-card p-6">
-                  <p className="font-mono text-3xl font-medium tabular">
+                <div key={i} className="bg-card p-4 md:p-6">
+                  <p className="font-mono text-2xl font-medium tabular md:text-3xl">
                     <span
                       data-counter={parseFloat(s.value.replace(/[^\d.]/g, "")) || 0}
                       data-format="int"
@@ -257,9 +261,9 @@ export default async function HomePage() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-6">
+          <div className="grid grid-cols-2 gap-3 lg:flex lg:flex-col lg:gap-6">
             <div data-clip className="overflow-hidden rounded-2xl">
-              <div className="relative aspect-[4/5] overflow-hidden">
+              <div className="relative aspect-[3/4] overflow-hidden lg:aspect-[4/5]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={content.experience.imageA}
@@ -271,7 +275,7 @@ export default async function HomePage() {
               </div>
             </div>
             <div data-clip className="overflow-hidden rounded-2xl">
-              <div className="relative aspect-[16/10] overflow-hidden">
+              <div className="relative aspect-[3/4] overflow-hidden lg:aspect-[16/10]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={content.experience.imageB}
@@ -287,7 +291,7 @@ export default async function HomePage() {
       </section>
 
       {/* ───────────── COMO FUNCIONA ───────────── */}
-      <section className="container-x py-20 md:py-32">
+      <section className="container-x py-14 md:py-32">
         <p
           data-reveal
           className="font-mono text-[11px] uppercase tracking-[0.24em] text-subtle"
@@ -296,12 +300,12 @@ export default async function HomePage() {
         </p>
         <h2
           data-words
-          className="mt-4 max-w-2xl font-display text-4xl font-semibold tracking-[-0.02em] md:text-6xl"
+          className="mt-4 max-w-2xl text-balance font-display text-3xl font-semibold tracking-[-0.02em] sm:text-4xl md:text-6xl"
         >
           {content.process.title}
         </h2>
 
-        <div className="mt-14 grid gap-10 md:grid-cols-3">
+        <div className="mt-10 grid gap-8 md:mt-14 md:grid-cols-3 md:gap-10">
           {content.process.steps.map((s, i) => (
             <div
               key={i}
@@ -310,7 +314,7 @@ export default async function HomePage() {
               className="border-t border-hairline-strong pt-6"
             >
               <p className="font-mono text-xs text-subtle">{s.n}</p>
-              <h3 className="mt-4 font-display text-2xl font-semibold tracking-tight">
+              <h3 className="mt-3 font-display text-xl font-semibold tracking-tight md:mt-4 md:text-2xl">
                 {s.title}
               </h3>
               <p className="mt-3 text-sm leading-relaxed text-subtle">{s.body}</p>
@@ -320,13 +324,13 @@ export default async function HomePage() {
       </section>
 
       {/* ───────────── FALE COM A GENTE ───────────── */}
-      <section id="fale-conosco" className="container-x scroll-mt-24 pb-20 md:pb-28">
-        <div className="grid gap-10 rounded-3xl border border-hairline bg-card p-6 md:grid-cols-[0.8fr_1.2fr] md:p-12">
+      <section id="fale-conosco" className="container-x scroll-mt-24 pb-14 md:pb-28">
+        <div className="grid gap-8 rounded-3xl border border-hairline bg-card p-5 md:grid-cols-[0.8fr_1.2fr] md:gap-10 md:p-12">
           <div data-reveal>
             <p className="font-mono text-[11px] uppercase tracking-[0.24em] text-subtle">
               Fale com a gente
             </p>
-            <h2 className="mt-3 font-display text-3xl font-semibold tracking-tight md:text-4xl">
+            <h2 className="mt-3 font-display text-2xl font-semibold tracking-tight sm:text-3xl md:text-4xl">
               Conte o que você procura.
             </h2>
             <p className="mt-4 max-w-sm text-sm leading-relaxed text-subtle">
@@ -341,16 +345,16 @@ export default async function HomePage() {
       </section>
 
       {/* ───────────── CTA FINAL ───────────── */}
-      <section className="container-x pb-20 md:pb-32">
+      <section className="container-x pb-14 md:pb-32">
         <div
           data-reveal
-          className="relative overflow-hidden rounded-3xl border border-hairline bg-soft px-8 py-16 text-center md:py-24"
+          className="relative overflow-hidden rounded-3xl border border-hairline bg-soft px-5 py-12 text-center sm:px-8 md:py-24"
         >
           <div className="grid-bg pointer-events-none absolute inset-0 opacity-60" />
           <div className="relative">
             <h2
               data-words
-              className="mx-auto max-w-3xl text-balance font-display text-4xl font-semibold tracking-[-0.02em] md:text-6xl"
+              className="mx-auto max-w-3xl text-balance font-display text-3xl font-semibold tracking-[-0.02em] sm:text-4xl md:text-6xl"
             >
               {content.cta.title}
             </h2>
@@ -363,11 +367,11 @@ export default async function HomePage() {
             <div
               data-reveal
               data-delay="0.1"
-              className="mt-9 flex flex-wrap items-center justify-center gap-3"
+              className="mt-8 flex flex-col items-stretch justify-center gap-3 sm:mt-9 sm:flex-row sm:flex-wrap sm:items-center"
             >
               <Link
                 href="/imoveis"
-                className="group inline-flex h-12 items-center gap-2 rounded-full bg-accent px-7 text-sm font-medium text-on-accent transition-all duration-300 ease-expo hover:scale-[1.03] active:scale-[0.98]"
+                className="group inline-flex h-12 items-center justify-center gap-2 rounded-full bg-accent px-7 text-sm font-medium text-on-accent transition-all duration-300 ease-expo hover:scale-[1.03] active:scale-[0.98]"
               >
                 {content.cta.primary}
                 <ArrowRight className="size-4 transition-transform duration-300 group-hover:translate-x-1" />
@@ -376,7 +380,7 @@ export default async function HomePage() {
                 href={`https://wa.me/${wl.phone}?text=${encodeURIComponent(content.cta.whatsappMessage)}`}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex h-12 items-center gap-2 rounded-full border border-hairline-strong px-7 text-sm font-medium transition-colors duration-300 hover:bg-card"
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-hairline-strong px-7 text-sm font-medium transition-colors duration-300 hover:bg-card"
               >
                 {content.cta.secondary}
               </a>
