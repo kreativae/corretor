@@ -1,4 +1,5 @@
 import { FichaSheet } from "./ficha-sheet";
+import { FitSheet } from "./fit-sheet";
 import { PrintBar } from "./print-bar";
 import { getPropertyByCode, getWhiteLabel } from "@/lib/queries";
 import { getCurrentUser } from "@/lib/auth";
@@ -51,11 +52,11 @@ export default async function FichaPage({
   const ruralData = normalizeRural(p.rural);
   const qrKind: "mapa" | "contato" | null =
     rural && ruralData.kmzUrl ? "mapa" : p.published ? "contato" : null;
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  const proto = host?.startsWith("localhost") ? "http" : "https";
   let qrSvg: string | undefined;
   if (qrKind) {
-    const h = await headers();
-    const host = h.get("x-forwarded-host") ?? h.get("host");
-    const proto = host?.startsWith("localhost") ? "http" : "https";
     const path = qrKind === "mapa" ? "mapa" : "contato?origem=qr";
     qrSvg = await QRCode.toString(`${proto}://${host}/imoveis/${p.code}/${path}`, {
       type: "svg",
@@ -65,15 +66,22 @@ export default async function FichaPage({
   }
 
   return (
-    <div className="ficha-page min-h-screen overflow-x-auto bg-neutral-200 py-8 pb-28 print:bg-white print:p-0">
+    <div className="ficha-page min-h-screen overflow-x-auto bg-neutral-200 px-2 py-2 pb-28 sm:px-0 sm:py-8 print:bg-white print:p-0">
       <PrintBar
         backHref={user ? crmPropertyPath(p) : `/imoveis/${p.code}`}
+        share={{
+          fileName: `Ficha-${p.code}.pdf`,
+          title: p.title,
+          text: `${p.title} (${p.code}) — ${wl.orgName}`,
+          url: `${proto}://${host}/imoveis/${p.code}`,
+        }}
         kmz={
           user && rural
             ? { propertyId: p.id, type: p.type, rural: ruralData }
             : undefined
         }
       />
+      <FitSheet>
       <FichaSheet
         p={p}
         orgName={wl.orgName}
@@ -90,6 +98,7 @@ export default async function FichaPage({
         qrSvg={qrSvg}
         qrKind={qrKind ?? undefined}
       />
+      </FitSheet>
     </div>
   );
 }

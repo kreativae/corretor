@@ -205,6 +205,9 @@ html.lenis body {
   body {
     background: #fff !important;
   }
+  .fit-sheet {
+    zoom: 1 !important;
+  }
   .ficha-sheet {
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
