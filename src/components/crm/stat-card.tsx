@@ -1,3 +1,4 @@
+import { CountUp } from "@/components/crm/count-up";
 import type { ReactNode } from "react";
 
 export function StatCard({
@@ -24,9 +25,7 @@ export function StatCard({
         {icon && <span className="text-subtle">{icon}</span>}
       </div>
       <p className="mt-4 font-mono text-[28px] font-medium leading-none tabular tracking-tight">
-        <span data-counter={value} data-format={format}>
-          0
-        </span>
+        <CountUp value={value} kind={format} />
         {suffix}
       </p>
       {caption && <p className="mt-2.5 text-xs text-subtle">{caption}</p>}
