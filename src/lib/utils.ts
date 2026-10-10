@@ -143,6 +143,25 @@ export function parseYouTubeUrl(url: string | null | undefined): string | null {
   return null;
 }
 
+/** Cor do texto sobre o destaque: a escolhida ou, se vazia, a de maior contraste
+ *  entre branco e marinho (WCAG). */
+export function onAccentColor(accent: string, chosen?: string): string {
+  if (chosen && /^#[0-9a-f]{6}$/i.test(chosen)) return chosen;
+  const m = /^#?([0-9a-f]{6})$/i.exec(accent);
+  if (!m) return "#1c1c45";
+  const lum = (hex: string) => {
+    const [r, g, b] = [0, 2, 4].map((i) => {
+      const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+      return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const L = lum(m[1]);
+  const vsWhite = 1.05 / (L + 0.05);
+  const vsNavy = (L + 0.05) / (lum("1c1c45") + 0.05);
+  return vsWhite >= vsNavy ? "#ffffff" : "#1c1c45";
+}
+
 /** "#10B981" → "16 185 129" (triplas RGB p/ variáveis CSS) */
 export function hexToRgbTriplet(hex: string): string | null {
   const m = hex.replace("#", "");

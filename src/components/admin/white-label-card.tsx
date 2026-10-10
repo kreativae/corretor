@@ -4,20 +4,26 @@ import { Logo, Mark } from "@/components/brand";
 import { Button, Field, Input } from "@/components/ui";
 import type { WhiteLabel } from "@/lib/queries";
 import { compressImage, MAX_UPLOAD_BYTES, sendFile } from "@/lib/upload-client";
-import { cn } from "@/lib/utils";
-import { Check, ChevronDown, ImagePlus, Loader2, Palette, Trash2 } from "lucide-react";
+import { cn, onAccentColor } from "@/lib/utils";
+import { ArrowUpRight, Check, ChevronDown, ImagePlus, Loader2, Palette, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 const ACCENTS = [
-  { name: "Laranja da marca", value: "#F47525" },
+  { name: "Laranja da marca", value: "#f47525" },
   { name: "Esmeralda", value: "#10b981" },
   { name: "Azul elétrico", value: "#4f7cff" },
   { name: "Laranja queimado", value: "#f26a1b" },
   { name: "Dourado grafite", value: "#d4a94e" },
   { name: "Vinho", value: "#b4325a" },
   { name: "Grafite", value: "#52525b" },
+];
+
+const ON_ACCENTS = [
+  { name: "Branco", value: "#ffffff" },
+  { name: "Marinho da marca", value: "#1c1c45" },
+  { name: "Preto", value: "#0a0a0a" },
 ];
 
 const h3 = "font-mono text-[10.5px] uppercase tracking-[0.2em] text-subtle";
@@ -193,7 +199,7 @@ function BrandPreview({ wl }: { wl: WhiteLabel }) {
         )}
         <span
           className="ml-auto rounded-full px-3 py-1.5 text-[11px] font-semibold"
-          style={{ background: wl.accent, color: "#1c1c45" }}
+          style={{ background: wl.accent, color: onAccentColor(wl.accent, wl.onAccent) }}
         >
           Agendar visita
         </span>
@@ -346,6 +352,54 @@ export function WhiteLabelCard({ initial }: { initial: WhiteLabel }) {
               />
               <code className="font-mono text-xs text-subtle">{wl.accent}</code>
             </div>
+          </div>
+          <div>
+            <span className="mb-1.5 block text-xs font-medium text-subtle">
+              Cor do texto no destaque
+            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => set("onAccent", "")}
+                className={cn(
+                  "h-9 rounded-full border-2 px-3.5 text-xs font-medium transition-colors",
+                  !wl.onAccent ? "border-ink text-ink" : "border-hairline text-subtle hover:text-ink",
+                )}
+              >
+                Automática
+              </button>
+              {ON_ACCENTS.map((a) => (
+                <button
+                  key={a.value}
+                  type="button"
+                  title={a.name}
+                  onClick={() => set("onAccent", a.value)}
+                  className={cn(
+                    "size-9 rounded-full border-2 ring-1 ring-hairline transition-transform duration-200 hover:scale-110",
+                    wl.onAccent.toLowerCase() === a.value ? "border-ink" : "border-transparent",
+                  )}
+                  style={{ background: a.value }}
+                />
+              ))}
+              <input
+                type="color"
+                value={onAccentColor(wl.accent, wl.onAccent)}
+                onChange={(e) => set("onAccent", e.target.value)}
+                className="size-9 cursor-pointer rounded-full border border-hairline bg-transparent"
+                aria-label="Cor personalizada do texto"
+              />
+              {/* Prévia: um botão como os do site */}
+              <span
+                className="inline-flex h-9 items-center gap-1.5 rounded-full px-4 text-xs font-medium"
+                style={{ background: wl.accent, color: onAccentColor(wl.accent, wl.onAccent) }}
+              >
+                Falar com corretor
+                <ArrowUpRight className="size-3.5" />
+              </span>
+            </div>
+            <p className="mt-1.5 text-[11px] text-subtle">
+              Texto e ícones dos botões e selos na cor de destaque. &ldquo;Automática&rdquo; escolhe o de melhor leitura.
+            </p>
           </div>
         </div>
 

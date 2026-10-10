@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { settings } from "@/db/schema";
 import { TYPE_LABELS } from "@/lib/labels";
 import { getWhiteLabel } from "@/lib/queries";
+import { onAccentColor } from "@/lib/utils";
 import { eq } from "drizzle-orm";
 
 /**
@@ -74,7 +75,7 @@ export type LeadNotice = {
   returning?: boolean;
 };
 
-function leadHtml(n: LeadNotice, orgName: string, accent: string) {
+function leadHtml(n: LeadNotice, orgName: string, accent: string, onAccent: string) {
   const digits = n.phone.replace(/\D/g, "");
   const wa = `https://wa.me/${digits.startsWith("55") ? digits : `55${digits}`}`;
   const rows: [string, string][] = [
@@ -100,7 +101,7 @@ function leadHtml(n: LeadNotice, orgName: string, accent: string) {
   </table>
   ${n.message ? `<div style="margin:16px 24px;padding:14px;background:#f4f4f5;border-radius:12px;font-size:14px;line-height:1.5;white-space:pre-wrap">${esc(n.message)}</div>` : ""}
   <div style="padding:16px 24px 24px">
-    <a href="${n.baseUrl}/crm/contatos/${n.contactId}" style="display:inline-block;background:${accent};color:#1c1c45;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:999px;margin:0 8px 8px 0">Abrir no CRM</a>
+    <a href="${n.baseUrl}/crm/contatos/${n.contactId}" style="display:inline-block;background:${accent};color:${onAccent};text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:999px;margin:0 8px 8px 0">Abrir no CRM</a>
     <a href="${wa}" style="display:inline-block;background:#18181b;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:999px">Responder no WhatsApp</a>
   </div>
 </div>
@@ -116,7 +117,7 @@ export async function notifyNewLead(n: LeadNotice) {
     const to = parseEmails(cfg.leadEmails || wl.email);
     if (!to.length) return;
     const subject = `${n.returning ? "Lead retornou" : "Novo lead"}: ${n.name}${n.interest && TYPE_LABELS[n.interest] ? ` · ${TYPE_LABELS[n.interest]}` : ""}`;
-    await sendEmail(to, subject, leadHtml(n, wl.orgName, wl.accent));
+    await sendEmail(to, subject, leadHtml(n, wl.orgName, wl.accent, onAccentColor(wl.accent, wl.onAccent)));
   } catch (e) {
     console.error("[aviso de lead]", e);
   }
@@ -143,6 +144,7 @@ export async function sendTestEmail(baseUrl: string) {
       },
       wl.orgName,
       wl.accent,
+      onAccentColor(wl.accent, wl.onAccent),
     ),
   );
   return to;

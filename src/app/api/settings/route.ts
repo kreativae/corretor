@@ -24,6 +24,7 @@ function sanitizeWhiteLabel(input: Record<string, unknown>): WhiteLabel {
     }
   }
   if (!/^#[0-9a-f]{6}$/i.test(out.accent)) out.accent = WL_DEFAULTS.accent;
+  if (out.onAccent && !/^#[0-9a-f]{6}$/i.test(out.onAccent)) out.onAccent = "";
   out.phone = out.phone.replace(/\D/g, "");
   for (const k of ["logoUrl", "logoDarkUrl", "iconUrl"] as const) {
     if (out[k] && !/^https?:\/\//.test(out[k])) out[k] = "";

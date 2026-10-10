@@ -5,7 +5,7 @@ import { MotionFX, SmoothScroll } from "@/components/motion";
 import { BrandProvider } from "@/components/brand";
 import { brandShortName, getWhiteLabel } from "@/lib/queries";
 import { getSiteContent } from "@/lib/site-content";
-import { hexToRgbTriplet } from "@/lib/utils";
+import { hexToRgbTriplet, onAccentColor } from "@/lib/utils";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -48,7 +48,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     <html
       lang="pt-BR"
       suppressHydrationWarning
-      style={{ "--accent": accent } as CSSProperties}
+      style={{ "--accent": accent, "--on-accent": onAccentColor(wl.accent, wl.onAccent) } as CSSProperties}
     >
       <body
         className={`${inter.variable} ${jetbrains.variable} ${montserrat.variable} bg-canvas font-sans text-ink antialiased`}

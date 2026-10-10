@@ -33,6 +33,8 @@ export type WhiteLabel = {
   brandSub: string;
   domain: string;
   accent: string;
+  /** Cor do texto/ícones sobre a cor de destaque (vazio = automática pelo contraste) */
+  onAccent: string;
   phone: string; // WhatsApp com DDI, ex: 5511998765432
   email: string;
   instagram: string; // @usuario ou URL
@@ -57,6 +59,7 @@ export const WL_DEFAULTS: WhiteLabel = {
   brandSub: "IMÓVEIS",
   domain: "kreativae-corretor.vercel.app",
   accent: "#F47525",
+  onAccent: "",
   phone: "",
   email: "",
   instagram: "",
