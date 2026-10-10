@@ -48,6 +48,7 @@ export function FichaSheet({
   showName = true,
   showDomain = true,
   qrSvg,
+  qrKind = "mapa",
 }: {
   p: PropertyWithImages;
   orgName: string;
@@ -63,6 +64,8 @@ export function FichaSheet({
   showDomain?: boolean;
   /** QR code (SVG) para baixar o KMZ — propriedades rurais */
   qrSvg?: string;
+  /** Destino do QR: mapa do KMZ (rurais) ou formulário do consultor */
+  qrKind?: "mapa" | "contato";
 }) {
   const imgs = p.images.map((i) => i.url);
   const rural = isRuralType(p.type);
@@ -302,9 +305,13 @@ export function FichaSheet({
         {qrSvg && (
           <div className="flex shrink-0 items-center gap-3">
             <div className="text-right">
-              <p className="text-[11px] font-semibold leading-tight">Veja a propriedade no mapa</p>
+              <p className="text-[11px] font-semibold leading-tight">
+                {qrKind === "mapa" ? "Veja a propriedade no mapa" : "Fale com um consultor"}
+              </p>
               <p className="mt-0.5 text-[9px] leading-snug text-neutral-400">
-                Perímetro em satélite, rota e KMZ
+                {qrKind === "mapa"
+                  ? "Perímetro em satélite, rota e KMZ"
+                  : "Aponte a câmera e deixe seu contato"}
                 {showDomain && (
                   <>
                     <br />

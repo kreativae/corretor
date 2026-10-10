@@ -45,15 +45,19 @@ export default async function FichaPage({
         ? `+${digits.slice(0, 2)} (${digits.slice(2, 4)}) ${digits.slice(4, 8)}-${digits.slice(8)}`
         : digits;
 
-  // QR code → mapa interativo do perímetro, no domínio em que a ficha foi aberta
+  // QR code, no domínio em que a ficha foi aberta:
+  // rural com KMZ → mapa do perímetro; demais → "Fale com um consultor"
   const rural = isRuralType(p.type);
   const ruralData = normalizeRural(p.rural);
+  const qrKind: "mapa" | "contato" | null =
+    rural && ruralData.kmzUrl ? "mapa" : p.published ? "contato" : null;
   let qrSvg: string | undefined;
-  if (rural && ruralData.kmzUrl) {
+  if (qrKind) {
     const h = await headers();
     const host = h.get("x-forwarded-host") ?? h.get("host");
     const proto = host?.startsWith("localhost") ? "http" : "https";
-    qrSvg = await QRCode.toString(`${proto}://${host}/imoveis/${p.code}/mapa`, {
+    const path = qrKind === "mapa" ? "mapa" : "contato?origem=qr";
+    qrSvg = await QRCode.toString(`${proto}://${host}/imoveis/${p.code}/${path}`, {
       type: "svg",
       margin: 0,
       errorCorrectionLevel: "M",
@@ -84,6 +88,7 @@ export default async function FichaPage({
         showName={wl.fichaShowName}
         showDomain={wl.fichaShowDomain}
         qrSvg={qrSvg}
+        qrKind={qrKind ?? undefined}
       />
     </div>
   );

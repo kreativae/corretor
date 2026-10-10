@@ -16,8 +16,17 @@ const INTERESTS: [string, string][] = [
   ["chacara", "Chácara"],
 ];
 
-/** Formulário de contato do site: o lead entra direto no CRM. */
-export function LeadForm() {
+/**
+ * Formulário de contato do site: o lead entra direto no CRM.
+ * Com `property`, o contato fica vinculado ao imóvel (e abre negociação).
+ */
+export function LeadForm({
+  property,
+  origin = "site",
+}: {
+  property?: { id: string; code: string; title: string };
+  origin?: "site" | "qr";
+} = {}) {
   const [form, setForm] = useState({ name: "", phone: "", email: "", interest: "", message: "", website: "" });
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState(false);
@@ -34,7 +43,7 @@ export function LeadForm() {
       const res = await fetch("/api/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, propertyId: property?.id, origin }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error);
@@ -52,7 +61,9 @@ export function LeadForm() {
         <CheckCircle2 className="size-10 text-accent" />
         <p className="font-display text-2xl font-semibold tracking-tight">Recebemos seu contato!</p>
         <p className="max-w-sm text-sm text-subtle">
-          Em breve um corretor fala com você pelo WhatsApp {form.phone && `(${form.phone})`}.
+          Em breve um consultor fala com você pelo WhatsApp{" "}
+          {form.phone && `(${form.phone})`}
+          {property ? ` sobre ${property.code}` : ""}.
         </p>
       </div>
     );
@@ -76,19 +87,25 @@ export function LeadForm() {
       <Field label="E-mail (opcional)">
         <Input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} autoComplete="email" />
       </Field>
-      <Field label="Tenho interesse em">
-        <Select value={form.interest} onChange={(e) => set("interest", e.target.value)}>
-          {INTERESTS.map(([v, l]) => (
-            <option key={v} value={v}>{l}</option>
-          ))}
-        </Select>
-      </Field>
+      {!property && (
+        <Field label="Tenho interesse em">
+          <Select value={form.interest} onChange={(e) => set("interest", e.target.value)}>
+            {INTERESTS.map(([v, l]) => (
+              <option key={v} value={v}>{l}</option>
+            ))}
+          </Select>
+        </Field>
+      )}
       <Field label="Mensagem (opcional)" className="sm:col-span-2">
         <Textarea
           rows={4}
           value={form.message}
           onChange={(e) => set("message", e.target.value)}
-          placeholder="Região, faixa de valor, prazo… conte o que procura."
+          placeholder={
+            property
+              ? "Ex.: quero agendar uma visita, saber sobre financiamento, aceita permuta?"
+              : "Região, faixa de valor, prazo… conte o que procura."
+          }
           maxLength={1000}
         />
       </Field>

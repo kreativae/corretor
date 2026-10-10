@@ -1,9 +1,9 @@
 import { db } from "@/db";
-import { activities, contacts } from "@/db/schema";
+import { activities, contacts, deals, properties } from "@/db/schema";
 import { TYPE_LABELS } from "@/lib/labels";
 import { requestPublicOrigin } from "@/lib/google";
 import { notifyNewLead } from "@/lib/notify";
-import { sql } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 import { after, NextResponse } from "next/server";
 
 /**
@@ -60,9 +60,35 @@ export async function POST(req: Request) {
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return NextResponse.json({ error: "E-mail inválido." }, { status: 400 });
   }
-  const interestTypes = interest && interest in TYPE_LABELS ? [interest] : [];
+  const viaQr = clean(body.origin, 10) === "qr";
+  const propertyId = clean(body.propertyId, 60);
 
   try {
+    // Contato vindo da página de um imóvel (QR da ficha): só imóveis publicados
+    let property: { id: string; code: string; title: string; type: string; price: number } | null = null;
+    if (propertyId) {
+      const [p] = await db
+        .select({
+          id: properties.id,
+          code: properties.code,
+          title: properties.title,
+          type: properties.type,
+          price: properties.price,
+          published: properties.published,
+        })
+        .from(properties)
+        .where(eq(properties.id, propertyId));
+      if (!p?.published) {
+        return NextResponse.json({ error: "Imóvel indisponível." }, { status: 404 });
+      }
+      property = p;
+    }
+    const interestTypes = property
+      ? [property.type]
+      : interest && interest in TYPE_LABELS
+        ? [interest]
+        : [];
+
     // Mesmo telefone (ignorando máscara) → reaproveita o contato
     const [existing] = await db
       .select()
@@ -70,7 +96,8 @@ export async function POST(req: Request) {
       .where(sql`regexp_replace(${contacts.phone}, '\\D', '', 'g') = ${phone}`)
       .limit(1);
 
-    const note = message ? `[Site] ${message}` : "";
+    const tag = property ? `[${viaQr ? "QR" : "Site"} · ${property.code}]` : "[Site]";
+    const note = message ? `${tag} ${message}` : property ? `${tag} Pediu contato sobre ${property.title}.` : "";
     let contactId: string;
     if (existing) {
       contactId = existing.id;
@@ -100,14 +127,41 @@ export async function POST(req: Request) {
     }
 
     const interestLabel = interestTypes[0] ? ` · interesse: ${TYPE_LABELS[interestTypes[0]].toLowerCase()}` : "";
-    await db.insert(activities).values({
-      entity: "contato",
-      entityId: contactId,
-      kind: "lead",
-      text: existing
+    const channel = viaQr ? "pelo QR code da ficha" : "pelo formulário do site";
+    const leadText = property
+      ? `${existing?.name ?? name} pediu contato ${channel} sobre ${property.code}.`
+      : existing
         ? `${existing.name} voltou a entrar em contato pelo site${interestLabel}.`
-        : `${name} entrou em contato pelo formulário do site${interestLabel}.`,
-    });
+        : `${name} entrou em contato pelo formulário do site${interestLabel}.`;
+    await db.insert(activities).values([
+      { entity: "contato", entityId: contactId, kind: "lead", text: leadText },
+      ...(property
+        ? [{ entity: "imovel" as const, entityId: property.id, kind: "lead" as const, text: leadText }]
+        : []),
+    ]);
+
+    // Interesse num imóvel específico abre negociação no pipeline (sem duplicar)
+    if (property) {
+      const [open] = await db
+        .select({ id: deals.id })
+        .from(deals)
+        .where(
+          and(eq(deals.contactId, contactId), eq(deals.propertyId, property.id), ne(deals.stage, "fechado")),
+        )
+        .limit(1);
+      if (!open) {
+        const [deal] = await db
+          .insert(deals)
+          .values({ contactId, propertyId: property.id, stage: "novo", value: property.price })
+          .returning();
+        await db.insert(activities).values({
+          entity: "negocio",
+          entityId: deal.id,
+          kind: "stage",
+          text: `Negociação aberta automaticamente: ${existing?.name ?? name} · ${property.code}.`,
+        });
+      }
+    }
 
     // E-mail de aviso depois da resposta, sem atrasar o visitante
     const baseUrl = requestPublicOrigin(req);
@@ -119,7 +173,10 @@ export async function POST(req: Request) {
         email: email || existing?.email,
         interest: interestTypes[0],
         message,
-        origin: "Formulário do site",
+        origin: property
+          ? `${viaQr ? "QR code da ficha" : "Página do imóvel"}`
+          : "Formulário do site",
+        detail: property ? `${property.code} · ${property.title}` : null,
         baseUrl,
         returning: !!existing,
       }),
