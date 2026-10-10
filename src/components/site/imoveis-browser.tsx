@@ -1,18 +1,56 @@
 "use client";
 
+import { ActiveChips, FilterButton, FilterSheet } from "@/components/crm/filter-sheet";
+import {
+  activePropertyChips,
+  applyPropertyFilters,
+  EMPTY_PROPERTY_FILTERS,
+  PropertyFiltersPanel,
+  type PropertyFilters,
+} from "@/components/crm/property-filters";
 import { PropertyCard } from "@/components/site/property-card";
 import { EmptyState, Input, Select } from "@/components/ui";
 import { TYPE_LABELS } from "@/lib/labels";
 import type { PropertyWithImages } from "@/lib/queries";
-import { APTIDAO_LABELS, isRuralType, normalizeRural, RURAL_TYPES } from "@/lib/rural";
+import { APTIDAO_LABELS, isRuralType, RURAL_TYPES } from "@/lib/rural";
 import { cn, plural } from "@/lib/utils";
 import { Building2, Search, SlidersHorizontal, Tractor } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 
 const URBAN_TYPES = ["apartamento", "casa", "cobertura", "estudio", "terreno"];
 
 export type Categoria = "urbanos" | "rurais";
+
+const NO_VIEWS = {};
+
+function QuickChip({
+  on,
+  accent,
+  onClick,
+  children,
+}: {
+  on: boolean;
+  accent?: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "rounded-full border px-3.5 py-1.5 text-xs font-medium transition-all duration-300",
+        on
+          ? accent
+            ? "border-transparent bg-accent text-on-accent"
+            : "border-transparent bg-ink text-canvas"
+          : "border-hairline text-subtle hover:border-hairline-strong hover:text-ink",
+      )}
+    >
+      {children}
+    </button>
+  );
+}
 
 export function ImoveisBrowser({
   properties,
@@ -33,53 +71,31 @@ export function ImoveisBrowser({
   const base = rural ? rurais : urbanos;
   const TYPES: string[] = rural ? [...RURAL_TYPES] : URBAN_TYPES;
 
-  const [q, setQ] = useState("");
-  const [type, setType] = useState("all");
-  const [purpose, setPurpose] = useState("all");
-  const [aptidao, setAptidao] = useState("all");
-  const [hood, setHood] = useState("all");
-  const [sort, setSort] = useState("recent");
+  const [filters, setFilters] = useState<PropertyFilters>(EMPTY_PROPERTY_FILTERS);
+  const [showFilters, setShowFilters] = useState(false);
+  const patch = (p: Partial<PropertyFilters>) => setFilters((f) => ({ ...f, ...p }));
+  const resetFilters = () => setFilters((f) => ({ ...EMPTY_PROPERTY_FILTERS, q: f.q, sort: f.sort }));
+  const closeFilters = useCallback(() => setShowFilters(false), []);
 
   function switchCategoria(c: Categoria) {
     setCategoria(c);
-    setType("all");
-    setPurpose("all");
-    setAptidao("all");
-    setHood("all");
-    setSort("recent");
+    setFilters(EMPTY_PROPERTY_FILTERS);
     router.replace(c === "rurais" ? `${pathname}?categoria=rurais` : pathname, { scroll: false });
   }
 
-  // Rurais filtram por cidade; urbanos por bairro
-  const hoods = useMemo(
-    () => [...new Set(base.map((p) => (rural ? p.city : p.neighborhood)))].filter(Boolean).sort(),
-    [base, rural],
+  const filtered = useMemo(
+    () => applyPropertyFilters(base, filters, NO_VIEWS, rural),
+    [base, filters, rural],
   );
-
-  const filtered = useMemo(() => {
-    let list = base;
-    if (type !== "all") list = list.filter((p) => p.type === type);
-    if (purpose !== "all") list = list.filter((p) => p.purpose === purpose);
-    if (rural && aptidao !== "all")
-      list = list.filter((p) => normalizeRural(p.rural).aptidao === aptidao);
-    if (hood !== "all")
-      list = list.filter((p) => (rural ? p.city : p.neighborhood) === hood);
-    if (q.trim()) {
-      const t = q.toLowerCase();
-      list = list.filter(
-        (p) =>
-          p.title.toLowerCase().includes(t) ||
-          p.neighborhood.toLowerCase().includes(t) ||
-          p.city.toLowerCase().includes(t) ||
-          p.code.toLowerCase().includes(t),
-      );
-    }
-    if (sort === "priceAsc") list = [...list].sort((a, b) => a.price - b.price);
-    else if (sort === "priceDesc")
-      list = [...list].sort((a, b) => b.price - a.price);
-    else if (sort === "areaDesc") list = [...list].sort((a, b) => b.area - a.area);
-    return list;
-  }, [base, rural, q, type, purpose, aptidao, hood, sort]);
+  const chips = activePropertyChips(filters, rural);
+  const toggleType = (t: string) =>
+    patch({ types: filters.types.includes(t) ? filters.types.filter((x) => x !== t) : [...filters.types, t] });
+  const toggleAptidao = (a: string) =>
+    patch({
+      aptidoes: filters.aptidoes.includes(a)
+        ? filters.aptidoes.filter((x) => x !== a)
+        : [...filters.aptidoes, a],
+    });
 
   return (
     <div className="mt-10">
@@ -112,79 +128,79 @@ export function ImoveisBrowser({
         <div className="relative min-w-64 flex-1">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-subtle" />
           <Input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder={rural ? "Buscar por cidade, região, nome ou código…" : "Buscar por bairro, nome ou código…"}
+            value={filters.q}
+            onChange={(e) => patch({ q: e.target.value })}
+            placeholder={rural ? "Buscar por cidade, região, cultura ou código…" : "Buscar por bairro, rua, nome ou código…"}
             className="pl-10"
           />
         </div>
-        <Select value={hood} onChange={(e) => setHood(e.target.value)} className="w-auto">
-          <option value="all">{rural ? "Todas as cidades" : "Todos os bairros"}</option>
-          {hoods.map((h) => (
-            <option key={h} value={h}>
-              {h}
-            </option>
-          ))}
-        </Select>
-        <Select value={sort} onChange={(e) => setSort(e.target.value)} className="w-auto">
+        <FilterButton count={chips.length} onClick={() => setShowFilters(true)} />
+        <Select
+          value={filters.sort}
+          onChange={(e) => patch({ sort: e.target.value as PropertyFilters["sort"] })}
+          className="w-auto"
+          aria-label="Ordenar"
+        >
           <option value="recent">Mais recentes</option>
-          <option value="priceAsc">Menor preço</option>
-          <option value="priceDesc">Maior preço</option>
-          {rural && <option value="areaDesc">Maior área</option>}
+          <option value="price_asc">Menor preço</option>
+          <option value="price_desc">Maior preço</option>
+          <option value="area_desc">Maior área</option>
+          {rural && <option value="ppa_asc">Menor preço por alqueire</option>}
         </Select>
       </div>
 
       <div className="mt-5 flex flex-wrap items-center gap-2">
         <SlidersHorizontal className="size-4 text-subtle" />
-        {["all", ...TYPES].map((t) => (
-          <button
-            key={t}
-            onClick={() => setType(t)}
-            className={cn(
-              "rounded-full border px-3.5 py-1.5 text-xs font-medium transition-all duration-300",
-              type === t
-                ? "border-transparent bg-ink text-canvas"
-                : "border-hairline text-subtle hover:border-hairline-strong hover:text-ink",
-            )}
-          >
-            {t === "all" ? "Todos" : TYPE_LABELS[t]}
-          </button>
+        <QuickChip on={!filters.types.length} onClick={() => patch({ types: [] })}>
+          Todos
+        </QuickChip>
+        {TYPES.map((t) => (
+          <QuickChip key={t} on={filters.types.includes(t)} onClick={() => toggleType(t)}>
+            {TYPE_LABELS[t]}
+          </QuickChip>
         ))}
         <span className="mx-1 hidden h-4 w-px bg-hairline sm:block" />
         {rural
-          ? [["all", "Todas as aptidões"], ...Object.entries(APTIDAO_LABELS)].map(([id, label]) => (
-              <button
-                key={id}
-                onClick={() => setAptidao(id)}
-                className={cn(
-                  "rounded-full border px-3.5 py-1.5 text-xs font-medium transition-all duration-300",
-                  aptidao === id
-                    ? "border-transparent bg-accent text-on-accent"
-                    : "border-hairline text-subtle hover:border-hairline-strong hover:text-ink",
-                )}
-              >
+          ? Object.entries(APTIDAO_LABELS).map(([id, label]) => (
+              <QuickChip key={id} accent on={filters.aptidoes.includes(id)} onClick={() => toggleAptidao(id)}>
                 {label}
-              </button>
+              </QuickChip>
             ))
-          : [
-          { id: "all", label: "Comprar e alugar" },
-          { id: "venda", label: "Comprar" },
-          { id: "aluguel", label: "Alugar" },
-        ].map((p) => (
-          <button
-            key={p.id}
-            onClick={() => setPurpose(p.id)}
-            className={cn(
-              "rounded-full border px-3.5 py-1.5 text-xs font-medium transition-all duration-300",
-              purpose === p.id
-                ? "border-transparent bg-accent text-on-accent"
-                : "border-hairline text-subtle hover:border-hairline-strong hover:text-ink",
-            )}
-          >
-            {p.label}
-          </button>
-        ))}
+          : (
+              [
+                { id: "all", label: "Comprar e alugar" },
+                { id: "venda", label: "Comprar" },
+                { id: "aluguel", label: "Alugar" },
+              ] as const
+            ).map((p) => (
+              <QuickChip key={p.id} accent on={filters.purpose === p.id} onClick={() => patch({ purpose: p.id })}>
+                {p.label}
+              </QuickChip>
+            ))}
       </div>
+      <ActiveChips chips={chips} onClear={patch} onClearAll={resetFilters} />
+
+      <FilterSheet
+        open={showFilters}
+        onClose={closeFilters}
+        onReset={resetFilters}
+        title={rural ? "Filtrar propriedades" : "Filtrar imóveis"}
+        activeCount={chips.length}
+        resultLabel={
+          rural
+            ? `Ver ${filtered.length} ${plural(filtered.length, "propriedade", "propriedades")}`
+            : `Ver ${filtered.length} ${plural(filtered.length, "imóvel", "imóveis")}`
+        }
+      >
+        <PropertyFiltersPanel
+          value={filters}
+          onChange={patch}
+          items={base}
+          views={NO_VIEWS}
+          rural={rural}
+          publicMode
+        />
+      </FilterSheet>
 
       <p className="mt-8 font-mono text-xs uppercase tracking-[0.16em] text-subtle">
         {rural
@@ -200,13 +216,7 @@ export function ImoveisBrowser({
             description="Tente ampliar os filtros ou fale com um curador: temos imóveis off-market que não entram na vitrine."
             action={
               <button
-                onClick={() => {
-                  setQ("");
-                  setType("all");
-                  setPurpose("all");
-                  setAptidao("all");
-                  setHood("all");
-                }}
+                onClick={() => setFilters(EMPTY_PROPERTY_FILTERS)}
                 className="rounded-full border border-hairline px-4 py-2 text-sm transition-colors hover:bg-soft"
               >
                 Limpar filtros

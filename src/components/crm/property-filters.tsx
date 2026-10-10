@@ -360,12 +360,15 @@ export function PropertyFiltersPanel({
   items,
   views,
   rural,
+  publicMode = false,
 }: {
   value: PropertyFilters;
   onChange: (patch: Partial<PropertyFilters>) => void;
   items: PropertyWithImages[];
   views: Views;
   rural: boolean;
+  /** Site público: esconde opções internas (status, publicação, fotos, views, documentos) */
+  publicMode?: boolean;
 }) {
   type ListKey =
     | "statuses"
@@ -398,6 +401,7 @@ export function PropertyFiltersPanel({
 
   return (
     <>
+      {!publicMode && (
       <FilterGroup title="Status">
         <div className="flex flex-wrap gap-2">
           {Object.entries(STATUS_LABELS).map(([k, label]) => (
@@ -407,6 +411,7 @@ export function PropertyFiltersPanel({
           ))}
         </div>
       </FilterGroup>
+      )}
 
       <FilterGroup title="Tipo">
         <div className="flex flex-wrap gap-2">
@@ -580,6 +585,7 @@ export function PropertyFiltersPanel({
               ))}
             </div>
           </FilterGroup>
+          {!publicMode && (
           <FilterGroup title="Documentação informada">
             <div className="flex flex-wrap gap-2">
               {DOCS.map((d) => (
@@ -589,7 +595,8 @@ export function PropertyFiltersPanel({
               ))}
             </div>
           </FilterGroup>
-          <FilterGroup title="Mapa KMZ">
+          )}
+          <FilterGroup title={publicMode ? "Mapa da área" : "Mapa KMZ"}>
             <TriState
               value={f.kmz}
               onChange={(kmz) => onChange({ kmz })}
@@ -627,6 +634,8 @@ export function PropertyFiltersPanel({
         </FilterGroup>
       )}
 
+      {!publicMode && (
+        <>
       <FilterGroup title="Publicação no site">
         <TriState
           value={f.published}
@@ -662,6 +671,8 @@ export function PropertyFiltersPanel({
           ]}
         />
       </FilterGroup>
+        </>
+      )}
     </>
   );
 }
