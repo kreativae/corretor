@@ -153,6 +153,25 @@ export const propertyImages = pgTable("property_images", {
   position: integer("position").notNull().default(0),
 });
 
+/** Documentos internos do imóvel (escritura, matrícula…) — nunca vão para o site. */
+export const propertyDocuments = pgTable("property_documents", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  propertyId: uuid("property_id")
+    .notNull()
+    .references(() => properties.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  category: text("category").notNull().default("outro"),
+  /** Caminho no Blob (privado) ou URL pública, quando o store é público */
+  pathname: text("pathname").notNull(),
+  url: text("url").notNull().default(""),
+  size: integer("size").notNull().default(0),
+  contentType: text("content_type").notNull().default("application/octet-stream"),
+  uploadedBy: text("uploaded_by"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 /* ─────────────────────────── Contatos ─────────────────────────── */
 
 export const contacts = pgTable("contacts", {
@@ -300,6 +319,7 @@ export const settings = pgTable("settings", {
 
 export type Property = typeof properties.$inferSelect;
 export type PropertyImage = typeof propertyImages.$inferSelect;
+export type PropertyDocument = typeof propertyDocuments.$inferSelect;
 export type Contact = typeof contacts.$inferSelect;
 export type Visit = typeof visits.$inferSelect;
 export type Deal = typeof deals.$inferSelect;

@@ -5,6 +5,7 @@ import {
   deals,
   portals,
   properties,
+  propertyDocuments,
   propertyImages,
   propertyViews,
   settings,
@@ -15,6 +16,7 @@ import {
   type Deal,
   type Portal,
   type Property,
+  type PropertyDocument,
   type PropertyImage,
   type User,
   type Visit,
@@ -396,4 +398,18 @@ export async function getMatchesFor(contact: Contact): Promise<Match[]> {
     .filter((m) => m.score >= 40)
     .sort((a, b) => b.score - a.score)
     .slice(0, 6);
+}
+
+/** Documentos internos de um imóvel, mais recentes primeiro. */
+export async function listPropertyDocuments(propertyId: string): Promise<PropertyDocument[]> {
+  try {
+    return await db
+      .select()
+      .from(propertyDocuments)
+      .where(eq(propertyDocuments.propertyId, propertyId))
+      .orderBy(desc(propertyDocuments.createdAt));
+  } catch {
+    // Tabela ainda sendo criada pela migração em runtime
+    return [];
+  }
 }

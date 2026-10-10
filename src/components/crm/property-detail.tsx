@@ -12,6 +12,7 @@ import {
 } from "@/lib/rural";
 import { AdExporterModal } from "@/components/crm/ad-exporter-modal";
 import { PortalPanel } from "@/components/crm/portal-panel";
+import { PropertyDocuments } from "@/components/crm/property-documents";
 import { Timeline } from "@/components/crm/timeline";
 import { Badge, Button } from "@/components/ui";
 import { getPropertyViewStats, getWhiteLabel } from "@/lib/queries";
@@ -27,6 +28,7 @@ import {
   getPropertyById,
   listActivitiesFor,
   listPortals,
+  listPropertyDocuments,
   listVisits,
 } from "@/lib/queries";
 import { cn, formatBRL, formatDateTime, timeAgo, formatNumber } from "@/lib/utils";
@@ -66,9 +68,10 @@ export async function PropertyDetail({
   // Rurais vivem em /crm/propriedades; urbanos em /crm/imoveis
   if (isRuralType(p.type) !== (section === "propriedades")) redirect(crmPropertyPath(p));
 
-  const [activities, views] = await Promise.all([
+  const [activities, views, documents] = await Promise.all([
     listActivitiesFor("imovel", p.id, 15),
     getPropertyViewStats(p.id),
+    listPropertyDocuments(p.id),
   ]);
   const propertyVisits = allVisits.filter((v) => v.property?.id === p.id);
 
@@ -230,6 +233,9 @@ export async function PropertyDetail({
             </div>
           )}
 
+          {/* Documentos internos */}
+          <PropertyDocuments propertyId={p.id} initial={documents} />
+
           {/* Visitas */}
           <div className="rounded-2xl border border-hairline bg-card p-6">
             <h2 className="font-display text-base font-semibold tracking-tight">
@@ -274,13 +280,6 @@ export async function PropertyDetail({
             )}
           </div>
 
-          {/* Timeline */}
-          <div className="rounded-2xl border border-hairline bg-card p-6">
-            <h2 className="mb-6 font-display text-base font-semibold tracking-tight">
-              Linha do tempo
-            </h2>
-            <Timeline items={activities} />
-          </div>
         </div>
 
         {/* Coluna lateral */}
@@ -375,6 +374,14 @@ export async function PropertyDetail({
                 })}
               </div>
             </div>
+          </div>
+
+          {/* Linha do tempo */}
+          <div className="rounded-2xl border border-hairline bg-card p-5">
+            <h3 className="mb-5 font-display text-sm font-semibold tracking-tight">
+              Linha do tempo
+            </h3>
+            <Timeline items={activities} />
           </div>
 
           <PortalPanel portals={portals} propertyCode={p.code} />
