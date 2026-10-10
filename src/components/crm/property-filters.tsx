@@ -5,12 +5,17 @@ import { Input } from "@/components/ui";
 import { FEATURES, PURPOSE_LABELS, STATUS_LABELS, TYPE_LABELS } from "@/lib/labels";
 import type { PropertyWithImages } from "@/lib/queries";
 import {
+  ACESSO_LABELS,
   AGUA_OPCOES,
   APTIDAO_LABELS,
+  BENFEITORIAS_OPCOES,
   ENERGIA_LABELS,
   formatAlq,
   isRuralType,
   normalizeRural,
+  pricePerAlq,
+  SOLO_LABELS,
+  TOPOGRAFIA_LABELS,
 } from "@/lib/rural";
 import { formatCompact, formatNumber } from "@/lib/utils";
 
@@ -33,12 +38,31 @@ export type PropertyFilters = {
   energia: string[];
   agua: string[];
   kmz: "all" | "with" | "without";
+  topografia: string[];
+  solo: string[];
+  acesso: string[];
+  benfeitorias: string[];
+  docs: string[];
+  ppaFrom: string;
+  ppaTo: string;
+  plantadaMin: string;
+  pastagemMin: string;
+  distMax: "" | "10" | "20" | "50" | "100";
   neighborhoods: string[];
   cities: string[];
   published: "all" | "yes" | "no";
   photos: "all" | "with" | "without";
   views: "all" | "with" | "without";
-  sort: "recent" | "oldest" | "price_desc" | "price_asc" | "area_desc" | "views_desc" | "title";
+  sort:
+    | "recent"
+    | "oldest"
+    | "price_desc"
+    | "price_asc"
+    | "area_desc"
+    | "views_desc"
+    | "title"
+    | "ppa_asc"
+    | "ppa_desc";
 };
 
 export const EMPTY_PROPERTY_FILTERS: PropertyFilters = {
@@ -58,6 +82,16 @@ export const EMPTY_PROPERTY_FILTERS: PropertyFilters = {
   energia: [],
   agua: [],
   kmz: "all",
+  topografia: [],
+  solo: [],
+  acesso: [],
+  benfeitorias: [],
+  docs: [],
+  ppaFrom: "",
+  ppaTo: "",
+  plantadaMin: "",
+  pastagemMin: "",
+  distMax: "",
   neighborhoods: [],
   cities: [],
   published: "all",
@@ -73,6 +107,18 @@ const PRICE_PRESETS = [
   { label: "3 – 10 mi", from: "3000000", to: "10000000" },
   { label: "Acima de 10 mi", from: "10000000", to: "" },
 ];
+
+const DOCS = [
+  { id: "matricula", label: "Matrícula" },
+  { id: "car", label: "CAR" },
+  { id: "ccir", label: "CCIR" },
+  { id: "nirf", label: "NIRF / ITR" },
+] as const;
+
+/** Preço por alqueire (0 quando sem área) */
+function ppaOf(p: PropertyWithImages) {
+  return pricePerAlq(p.price, normalizeRural(p.rural).totalAlq) ?? 0;
+}
 
 const norm = (s: string) =>
   s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
@@ -121,6 +167,20 @@ export function applyPropertyFilters(
       if (f.agua.length && !f.agua.some((x) => r.agua.includes(x))) return false;
       if (f.kmz === "with" && !r.kmzUrl) return false;
       if (f.kmz === "without" && r.kmzUrl) return false;
+      if (f.topografia.length && !f.topografia.includes(r.topografia)) return false;
+      if (f.solo.length && !f.solo.includes(r.solo)) return false;
+      if (f.acesso.length && !f.acesso.includes(r.acesso)) return false;
+      if (f.benfeitorias.length && !f.benfeitorias.every((b) => r.benfeitorias.includes(b)))
+        return false;
+      if (f.docs.length && !f.docs.every((d) => String(r[d as keyof typeof r] ?? "").trim()))
+        return false;
+      const ppa = ppaOf(p);
+      if (f.ppaFrom && ppa < Number(f.ppaFrom)) return false;
+      if (f.ppaTo && (!ppa || ppa > Number(f.ppaTo))) return false;
+      if (f.plantadaMin && (r.plantadaAlq ?? 0) < Number(f.plantadaMin)) return false;
+      if (f.pastagemMin && (r.pastagemAlq ?? 0) < Number(f.pastagemMin)) return false;
+      if (f.distMax && (r.distanciaCidadeKm == null || r.distanciaCidadeKm > Number(f.distMax)))
+        return false;
     }
 
     if (f.neighborhoods.length && !f.neighborhoods.includes(p.neighborhood)) return false;
@@ -146,6 +206,10 @@ export function applyPropertyFilters(
       return out.sort((a, b) => areaOf(b, rural) - areaOf(a, rural));
     case "views_desc":
       return out.sort((a, b) => (views[b.id]?.total ?? 0) - (views[a.id]?.total ?? 0));
+    case "ppa_asc":
+      return out.sort((a, b) => (ppaOf(a) || Infinity) - (ppaOf(b) || Infinity));
+    case "ppa_desc":
+      return out.sort((a, b) => ppaOf(b) - ppaOf(a));
     case "title":
       return out.sort((a, b) => a.title.localeCompare(b.title, "pt-BR"));
     default:
@@ -197,6 +261,24 @@ export function activePropertyChips(f: PropertyFilters, rural: boolean): ActiveC
       chips.push({ key: `ag-${a}`, label: a, clear: { agua: without(f.agua, a) } });
     if (f.kmz !== "all")
       chips.push({ key: "kmz", label: f.kmz === "with" ? "Com KMZ" : "Sem KMZ", clear: { kmz: "all" } });
+    for (const t of f.topografia)
+      chips.push({ key: `tp-${t}`, label: TOPOGRAFIA_LABELS[t as keyof typeof TOPOGRAFIA_LABELS] ?? t, clear: { topografia: without(f.topografia, t) } });
+    for (const t of f.solo)
+      chips.push({ key: `so-${t}`, label: `Solo ${SOLO_LABELS[t as keyof typeof SOLO_LABELS] ?? t}`, clear: { solo: without(f.solo, t) } });
+    for (const t of f.acesso)
+      chips.push({ key: `ac-${t}`, label: ACESSO_LABELS[t as keyof typeof ACESSO_LABELS] ?? t, clear: { acesso: without(f.acesso, t) } });
+    for (const b of f.benfeitorias)
+      chips.push({ key: `bf-${b}`, label: b, clear: { benfeitorias: without(f.benfeitorias, b) } });
+    for (const d of f.docs)
+      chips.push({ key: `dc-${d}`, label: `Com ${DOCS.find((x) => x.id === d)?.label ?? d}`, clear: { docs: without(f.docs, d) } });
+    if (f.ppaFrom || f.ppaTo)
+      chips.push({ key: "ppa", label: `${range(f.ppaFrom, f.ppaTo, formatCompact)}/alq`, clear: { ppaFrom: "", ppaTo: "" } });
+    if (f.plantadaMin)
+      chips.push({ key: "pl", label: `Lavoura ≥ ${formatAlq(Number(f.plantadaMin))} alq`, clear: { plantadaMin: "" } });
+    if (f.pastagemMin)
+      chips.push({ key: "pa", label: `Pastagem ≥ ${formatAlq(Number(f.pastagemMin))} alq`, clear: { pastagemMin: "" } });
+    if (f.distMax)
+      chips.push({ key: "di", label: `Até ${f.distMax} km da cidade`, clear: { distMax: "" } });
   }
   for (const n of f.neighborhoods)
     chips.push({ key: `n-${n}`, label: n, clear: { neighborhoods: without(f.neighborhoods, n) } });
@@ -285,7 +367,20 @@ export function PropertyFiltersPanel({
   views: Views;
   rural: boolean;
 }) {
-  type ListKey = "statuses" | "types" | "features" | "aptidoes" | "energia" | "agua" | "neighborhoods" | "cities";
+  type ListKey =
+    | "statuses"
+    | "types"
+    | "features"
+    | "aptidoes"
+    | "energia"
+    | "agua"
+    | "neighborhoods"
+    | "cities"
+    | "topografia"
+    | "solo"
+    | "acesso"
+    | "benfeitorias"
+    | "docs";
   const toggle = (key: ListKey, v: string) =>
     onChange({ [key]: f[key].includes(v) ? f[key].filter((x) => x !== v) : [...f[key], v] });
   const count = (pred: (p: PropertyWithImages) => boolean) => items.filter(pred).length;
@@ -404,6 +499,60 @@ export function PropertyFiltersPanel({
               ))}
             </div>
           </FilterGroup>
+          <FilterGroup title="Preço por alqueire (R$)">
+            <Range
+              from={f.ppaFrom}
+              to={f.ppaTo}
+              onFrom={(ppaFrom) => onChange({ ppaFrom })}
+              onTo={(ppaTo) => onChange({ ppaTo })}
+            />
+          </FilterGroup>
+          <FilterGroup title="Lavoura / pastagem mínima (alqueires)">
+            <div className="flex items-center gap-2">
+              <Input type="number" value={f.plantadaMin} onChange={(e) => onChange({ plantadaMin: e.target.value })} placeholder="Lavoura ≥" className="min-w-0 flex-1 font-mono tabular" />
+              <Input type="number" value={f.pastagemMin} onChange={(e) => onChange({ pastagemMin: e.target.value })} placeholder="Pastagem ≥" className="min-w-0 flex-1 font-mono tabular" />
+            </div>
+          </FilterGroup>
+          <FilterGroup title="Distância da cidade">
+            <TriState
+              value={f.distMax}
+              onChange={(distMax) => onChange({ distMax })}
+              options={[
+                { id: "", label: "Qualquer" },
+                { id: "10", label: "Até 10 km" },
+                { id: "20", label: "Até 20 km" },
+                { id: "50", label: "Até 50 km" },
+                { id: "100", label: "Até 100 km" },
+              ]}
+            />
+          </FilterGroup>
+          <FilterGroup title="Topografia">
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(TOPOGRAFIA_LABELS).map(([k, label]) => (
+                <FilterChip key={k} on={f.topografia.includes(k)} onClick={() => toggle("topografia", k)} count={count((p) => normalizeRural(p.rural).topografia === k)}>
+                  {label}
+                </FilterChip>
+              ))}
+            </div>
+          </FilterGroup>
+          <FilterGroup title="Solo">
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(SOLO_LABELS).map(([k, label]) => (
+                <FilterChip key={k} on={f.solo.includes(k)} onClick={() => toggle("solo", k)} count={count((p) => normalizeRural(p.rural).solo === k)}>
+                  {label}
+                </FilterChip>
+              ))}
+            </div>
+          </FilterGroup>
+          <FilterGroup title="Acesso">
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(ACESSO_LABELS).map(([k, label]) => (
+                <FilterChip key={k} on={f.acesso.includes(k)} onClick={() => toggle("acesso", k)} count={count((p) => normalizeRural(p.rural).acesso === k)}>
+                  {label}
+                </FilterChip>
+              ))}
+            </div>
+          </FilterGroup>
           <FilterGroup title="Água">
             <div className="flex flex-wrap gap-2">
               {AGUA_OPCOES.map((x) => (
@@ -418,6 +567,24 @@ export function PropertyFiltersPanel({
               {Object.entries(ENERGIA_LABELS).map(([k, label]) => (
                 <FilterChip key={k} on={f.energia.includes(k)} onClick={() => toggle("energia", k)} count={count((p) => normalizeRural(p.rural).energia === k)}>
                   {label}
+                </FilterChip>
+              ))}
+            </div>
+          </FilterGroup>
+          <FilterGroup title="Benfeitorias (precisa ter todas)">
+            <div className="flex flex-wrap gap-2">
+              {BENFEITORIAS_OPCOES.map((x) => (
+                <FilterChip key={x} on={f.benfeitorias.includes(x)} onClick={() => toggle("benfeitorias", x)} count={count((p) => normalizeRural(p.rural).benfeitorias.includes(x))}>
+                  {x}
+                </FilterChip>
+              ))}
+            </div>
+          </FilterGroup>
+          <FilterGroup title="Documentação informada">
+            <div className="flex flex-wrap gap-2">
+              {DOCS.map((d) => (
+                <FilterChip key={d.id} on={f.docs.includes(d.id)} onClick={() => toggle("docs", d.id)} count={count((p) => !!String(normalizeRural(p.rural)[d.id] ?? "").trim())}>
+                  {d.label}
                 </FilterChip>
               ))}
             </div>

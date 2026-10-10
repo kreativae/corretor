@@ -150,6 +150,8 @@ export function PropertiesTable({
           <option value="price_asc">Menor preço</option>
           <option value="area_desc">Maior área</option>
           <option value="views_desc">Mais vistos</option>
+          {rural && <option value="ppa_asc">Menor R$/alqueire</option>}
+          {rural && <option value="ppa_desc">Maior R$/alqueire</option>}
           <option value="title">Título (A–Z)</option>
         </Select>
         <Link href={rural ? "/crm/propriedades/nova" : "/crm/imoveis/novo"}>
