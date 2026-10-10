@@ -97,7 +97,7 @@ export default async function ImovelPage({ params }: { params: Params }) {
     <div>
       <PropertyTracker propertyId={p.id} />
       <SiteHeader orgName={wl.orgName} hasRural={published.some((x) => isRuralType(x.type))} />
-      <main className="container-x pb-24 pt-24 md:pt-32">
+      <main className="container-x pb-32 pt-24 md:pt-32 lg:pb-24">
         {/* Breadcrumb + título */}
         <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-subtle">
           <Link href="/imoveis" className="transition-colors hover:text-ink">
@@ -138,12 +138,12 @@ export default async function ImovelPage({ params }: { params: Params }) {
           />
         </div>
 
-        <div className="mt-12 grid gap-12 lg:grid-cols-[1fr_370px]">
+        <div className="mt-8 grid gap-10 md:mt-12 md:gap-12 lg:grid-cols-[1fr_370px]">
           {/* Coluna principal */}
           <div>
             <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-hairline bg-hairline sm:grid-cols-4">
               {specs.map((s) => (
-                <div key={s.label} className="bg-card p-5">
+                <div key={s.label} className="bg-card p-4 md:p-5">
                   <s.icon className="size-4.5 text-subtle" />
                   <p className="mt-3 font-mono text-lg font-medium tabular">
                     {s.value}
@@ -155,7 +155,7 @@ export default async function ImovelPage({ params }: { params: Params }) {
 
             {p.description && (
               <>
-                <h2 className="mt-12 font-display text-2xl font-semibold tracking-tight">
+                <h2 className="mt-10 font-display text-xl font-semibold tracking-tight md:mt-12 md:text-2xl">
                   Sobre o imóvel
                 </h2>
                 <p className="mt-4 max-w-2xl whitespace-pre-line text-[15px] leading-relaxed text-subtle">
@@ -166,10 +166,10 @@ export default async function ImovelPage({ params }: { params: Params }) {
 
             {rural && (
               <>
-                <h2 className="mt-12 font-display text-2xl font-semibold tracking-tight">
+                <h2 className="mt-10 font-display text-xl font-semibold tracking-tight md:mt-12 md:text-2xl">
                   A propriedade
                 </h2>
-                <div className="mt-5 rounded-2xl border border-hairline bg-card p-6">
+                <div className="mt-5 rounded-2xl border border-hairline bg-card p-4 md:p-6">
                   <RuralDetails r={r} mapHref={`/imoveis/${p.code}/mapa`} />
                 </div>
               </>
@@ -177,7 +177,7 @@ export default async function ImovelPage({ params }: { params: Params }) {
 
             {p.features.length > 0 && (
               <>
-                <h2 className="mt-12 font-display text-2xl font-semibold tracking-tight">
+                <h2 className="mt-10 font-display text-xl font-semibold tracking-tight md:mt-12 md:text-2xl">
                   Comodidades
                 </h2>
                 <div className="mt-5 flex flex-wrap gap-2">
@@ -194,7 +194,7 @@ export default async function ImovelPage({ params }: { params: Params }) {
               </>
             )}
 
-            <h2 className="mt-12 font-display text-2xl font-semibold tracking-tight">
+            <h2 className="mt-10 font-display text-xl font-semibold tracking-tight md:mt-12 md:text-2xl">
               Localização
             </h2>
             <div className="grid-bg relative mt-5 overflow-hidden rounded-2xl border border-hairline p-6">
@@ -223,12 +223,13 @@ export default async function ImovelPage({ params }: { params: Params }) {
           </div>
 
           {/* Sidebar */}
-          <aside className="lg:sticky lg:top-28 lg:self-start">
-            <div className="rounded-2xl border border-hairline bg-card p-6">
+          {/* No celular, o preço vem logo depois das fotos */}
+          <aside className="order-first lg:sticky lg:top-28 lg:order-none lg:self-start">
+            <div className="rounded-2xl border border-hairline bg-card p-5 md:p-6">
               <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-subtle">
                 {p.code} · {TYPE_LABELS[p.type]}
               </p>
-              <p className="mt-3 font-mono text-3xl font-medium tabular tracking-tight">
+              <p className="mt-3 font-mono text-2xl font-medium tabular tracking-tight md:text-3xl">
                 {formatBRL(p.price)}
                 {p.purpose === "aluguel" && (
                   <span className="text-base text-subtle"> /mês</span>
@@ -299,7 +300,7 @@ export default async function ImovelPage({ params }: { params: Params }) {
         </div>
 
         {/* Agendamento */}
-        <section id="agendar" className="mt-20 grid gap-10 border-t border-hairline pt-16 lg:grid-cols-2">
+        <section id="agendar" className="mt-14 grid scroll-mt-24 gap-8 border-t border-hairline pt-12 md:mt-20 md:gap-10 md:pt-16 lg:grid-cols-2">
           <div>
             <p className="font-mono text-[11px] uppercase tracking-[0.24em] text-subtle">
               {content.detail.visitEyebrow}
@@ -324,7 +325,7 @@ export default async function ImovelPage({ params }: { params: Params }) {
 
         {/* Relacionados */}
         {related.length > 0 && (
-          <section className="mt-20 border-t border-hairline pt-16">
+          <section className="mt-14 border-t border-hairline pt-12 md:mt-20 md:pt-16">
             <div className="mb-10 flex items-end justify-between">
               <h2 className="font-display text-3xl font-semibold tracking-tight">
                 Na mesma régua
@@ -344,6 +345,37 @@ export default async function ImovelPage({ params }: { params: Params }) {
           </section>
         )}
       </main>
+
+      {/* Celular: barra fixa com preço e contato */}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-hairline bg-canvas/90 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl lg:hidden">
+        <div className="flex items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-mono text-[10px] uppercase tracking-[0.16em] text-subtle">
+              {p.code} · {p.purpose === "venda" ? "Venda" : "Aluguel"}
+            </p>
+            <p className="truncate font-mono text-base font-medium tabular">
+              {formatBRL(p.price)}
+              {p.purpose === "aluguel" && <span className="text-xs text-subtle"> /mês</span>}
+            </p>
+          </div>
+          <a
+            href={`https://wa.me/${wl.phone}?text=${waText}`}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="WhatsApp"
+            className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent text-on-accent"
+          >
+            <MessageCircle className="size-5" />
+          </a>
+          <a
+            href="#agendar"
+            className="flex h-11 shrink-0 items-center justify-center rounded-full bg-ink px-5 text-sm font-medium text-canvas"
+          >
+            Agendar visita
+          </a>
+        </div>
+      </div>
+
       <SiteFooter
         orgName={wl.orgName}
         phone={wl.phone}
@@ -351,6 +383,8 @@ export default async function ImovelPage({ params }: { params: Params }) {
         email={wl.email}
         instagram={wl.instagram}
       />
+      {/* Espaço para a barra fixa do celular não cobrir o rodapé */}
+      <div className="h-20 lg:hidden" />
     </div>
   );
 }

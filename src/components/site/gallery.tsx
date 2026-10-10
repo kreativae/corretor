@@ -2,11 +2,14 @@
 
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight, Expand, X } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export function Gallery({ images, title }: { images: string[]; title: string }) {
   const [open, setOpen] = useState(false);
   const [index, setIndex] = useState(0);
+  // Carrossel do celular: foto visível e início do toque (para deslizar no lightbox)
+  const [slide, setSlide] = useState(0);
+  const touchX = useRef<number | null>(null);
 
   const show = useCallback(
     (i: number) => setIndex((i + images.length) % images.length),
@@ -38,7 +41,52 @@ export function Gallery({ images, title }: { images: string[]; title: string }) 
 
   return (
     <>
-      <div className="grid gap-3 lg:grid-cols-3">
+      {/* Celular: carrossel de deslizar com todas as fotos */}
+      <div className="relative lg:hidden">
+        <div
+          className="-mx-5 flex snap-x snap-mandatory overflow-x-auto [scrollbar-width:none] sm:mx-0 sm:rounded-2xl"
+          onScroll={(e) => {
+            const el = e.currentTarget;
+            setSlide(Math.round(el.scrollLeft / el.clientWidth));
+          }}
+        >
+          {images.map((src, i) => (
+            <button
+              key={src + i}
+              onClick={() => openAt(i)}
+              className="relative aspect-[4/3] w-full shrink-0 snap-center bg-soft"
+              aria-label={`Ampliar foto ${i + 1}`}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={src}
+                alt={i === 0 ? title : `${title} — foto ${i + 1}`}
+                loading={i === 0 ? "eager" : "lazy"}
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+            </button>
+          ))}
+        </div>
+        <span className="pointer-events-none absolute bottom-3 right-3 flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1.5 font-mono text-[11px] tabular text-white backdrop-blur-md">
+          <Expand className="size-3" />
+          {slide + 1} / {images.length}
+        </span>
+        {images.length > 1 && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center gap-1.5">
+            {images.slice(0, 8).map((_, i) => (
+              <span
+                key={i}
+                className={cn(
+                  "size-1.5 rounded-full transition-all",
+                  i === Math.min(slide, 7) ? "w-4 bg-white" : "bg-white/50",
+                )}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="hidden gap-3 lg:grid lg:grid-cols-3">
         <button
           onClick={() => openAt(0)}
           className="group relative aspect-[16/11] overflow-hidden rounded-2xl bg-soft lg:col-span-2 lg:row-span-2 lg:aspect-auto"
@@ -79,6 +127,15 @@ export function Gallery({ images, title }: { images: string[]; title: string }) 
           open ? "visible opacity-100" : "invisible opacity-0",
         )}
         onClick={() => setOpen(false)}
+        onTouchStart={(e) => {
+          touchX.current = e.touches[0].clientX;
+        }}
+        onTouchEnd={(e) => {
+          if (touchX.current == null) return;
+          const dx = e.changedTouches[0].clientX - touchX.current;
+          touchX.current = null;
+          if (Math.abs(dx) > 50) show(index + (dx < 0 ? 1 : -1));
+        }}
       >
         <p className="absolute left-6 top-6 font-mono text-sm tabular text-white/70">
           {String(index + 1).padStart(2, "0")} / {String(images.length).padStart(2, "0")}
