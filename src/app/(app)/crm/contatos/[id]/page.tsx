@@ -1,9 +1,12 @@
 import { crmPropertyPath } from "@/lib/rural";
 import { ContactActions } from "@/components/crm/contact-actions";
 import { Timeline } from "@/components/crm/timeline";
-import { Badge } from "@/components/ui";
+import { MobileSection } from "@/components/crm/mobile-section";
+import { Badge, Button } from "@/components/ui";
 import {
   CONTACT_TYPE_LABELS,
+  DEAL_STAGE_LABELS,
+  DEAL_STAGES,
   SOURCE_LABELS,
   TYPE_LABELS,
   VISIT_STATUS_LABELS,
@@ -22,6 +25,7 @@ import {
   ArrowLeft,
   Building2,
   Mail,
+  MessageCircle,
   Phone,
   Sparkles,
 } from "lucide-react";
@@ -52,6 +56,9 @@ export default async function ContatoPage({
   ]);
 
   const myVisits = allVisits.filter((v) => v.contact?.id === c.id);
+  const phoneDigits = c.phone.replace(/\D/g, "");
+  const wa =
+    phoneDigits.length >= 10 ? (phoneDigits.startsWith("55") ? phoneDigits : `55${phoneDigits}`) : null;
   const myDeals = allDeals.filter((d) => d.contact?.id === c.id);
 
   return (
@@ -66,12 +73,12 @@ export default async function ContatoPage({
           >
             <ArrowLeft className="size-4.5" />
           </Link>
-          <div className="flex items-center gap-4">
-            <span className="flex size-14 items-center justify-center rounded-2xl bg-ink font-mono text-base font-semibold text-canvas">
+          <div className="flex min-w-0 items-center gap-3 md:gap-4">
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-ink font-mono text-sm font-semibold text-canvas md:size-14 md:text-base">
               {initials(c.name)}
             </span>
-            <div>
-              <h1 className="font-display text-2xl font-semibold tracking-tight md:text-3xl">
+            <div className="min-w-0">
+              <h1 className="font-display text-xl font-semibold tracking-tight md:text-3xl">
                 {c.name}
               </h1>
               <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -84,12 +91,41 @@ export default async function ContatoPage({
             </div>
           </div>
         </div>
+
+        {/* Contato rápido */}
+        <div className="grid w-full grid-cols-3 gap-2 sm:flex sm:w-auto">
+          {wa && (
+            <a href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer">
+              <Button variant="accent" size="sm" className="w-full">
+                <MessageCircle className="size-3.5" />
+                WhatsApp
+              </Button>
+            </a>
+          )}
+          {phoneDigits && (
+            <a href={`tel:${phoneDigits}`}>
+              <Button variant="outline" size="sm" className="w-full">
+                <Phone className="size-3.5" />
+                Ligar
+              </Button>
+            </a>
+          )}
+          {c.email && (
+            <a href={`mailto:${c.email}`}>
+              <Button variant="outline" size="sm" className="w-full">
+                <Mail className="size-3.5" />
+                E-mail
+              </Button>
+            </a>
+          )}
+        </div>
       </div>
 
+      {/* No celular as colunas viram uma lista só, reordenada (ações antes do Smart Match) */}
       <div className="grid gap-5 lg:grid-cols-[1.6fr_1fr]">
-        <div className="space-y-5">
+        <div className="contents lg:block lg:space-y-5">
           {/* Perfil de busca */}
-          <div className="rounded-2xl border border-hairline bg-card p-6">
+          <div className="order-1 rounded-2xl border border-hairline bg-card p-4 md:p-6 lg:order-none">
             <h2 className="font-display text-base font-semibold tracking-tight">
               Perfil de busca
             </h2>
@@ -138,7 +174,7 @@ export default async function ContatoPage({
           </div>
 
           {/* Smart match */}
-          <div className="rounded-2xl border border-hairline bg-card p-6">
+          <div className="order-5 rounded-2xl border border-hairline bg-card p-4 md:p-6 lg:order-none">
             <div className="flex items-center justify-between">
               <h2 className="flex items-center gap-2 font-display text-base font-semibold tracking-tight">
                 <Sparkles className="size-4 text-accent" />
@@ -207,7 +243,8 @@ export default async function ContatoPage({
         </div>
 
         {/* Coluna lateral */}
-        <div className="space-y-5">
+        <div className="contents lg:block lg:space-y-5">
+          <div className="order-2 lg:order-none">
           <ContactActions
             contactId={c.id}
             contactName={c.name}
@@ -218,9 +255,10 @@ export default async function ContatoPage({
             dealsCount={myDeals.length}
             visitsCount={myVisits.length}
           />
+          </div>
 
           {/* Negociações */}
-          <div className="rounded-2xl border border-hairline bg-card p-5">
+          <div className="order-3 rounded-2xl border border-hairline bg-card p-4 md:p-5 lg:order-none">
             <h3 className="font-display text-sm font-semibold tracking-tight">
               Negociações
               <span className="ml-2 font-mono text-[11px] font-normal text-subtle">
@@ -233,16 +271,25 @@ export default async function ContatoPage({
               </p>
             ) : (
               <div className="mt-3 space-y-2">
-                {myDeals.map(({ deal }) => (
+                {myDeals.map(({ deal, property }) => (
                   <div
                     key={deal.id}
-                    className="flex items-center justify-between rounded-xl bg-soft px-3.5 py-3 text-sm"
+                    className="flex items-center justify-between gap-3 rounded-xl bg-soft px-3.5 py-3 text-sm"
                   >
-                    <span className="font-medium capitalize">
-                      {deal.stage.replace("_", " ")}
+                    <span className="min-w-0">
+                      <span className="flex items-center gap-1.5 font-medium">
+                        <span
+                          className="size-1.5 shrink-0 rounded-full"
+                          style={{ background: DEAL_STAGES.find((st) => st.id === deal.stage)?.dot }}
+                        />
+                        {DEAL_STAGE_LABELS[deal.stage] ?? deal.stage}
+                      </span>
+                      <span className="mt-0.5 block truncate text-[11px] text-subtle">
+                        {property ? `${property.code} · ${property.title}` : "Imóvel a definir"}
+                      </span>
                     </span>
-                    <span className="font-mono text-xs tabular text-subtle">
-                      {formatBRL(deal.value)}
+                    <span className="shrink-0 font-mono text-xs tabular text-subtle">
+                      {deal.value ? formatBRL(deal.value) : "—"}
                     </span>
                   </div>
                 ))}
@@ -251,7 +298,7 @@ export default async function ContatoPage({
           </div>
 
           {/* Visitas */}
-          <div className="rounded-2xl border border-hairline bg-card p-5">
+          <div className="order-4 rounded-2xl border border-hairline bg-card p-4 md:p-5 lg:order-none">
             <h3 className="font-display text-sm font-semibold tracking-tight">
               Visitas
               <span className="ml-2 font-mono text-[11px] font-normal text-subtle">
@@ -283,13 +330,14 @@ export default async function ContatoPage({
             )}
           </div>
 
-          {/* Timeline */}
-          <div className="rounded-2xl border border-hairline bg-card p-5">
-            <h3 className="mb-5 font-display text-sm font-semibold tracking-tight">
-              Linha do tempo
-            </h3>
+          {/* Linha do tempo — sanfona no celular */}
+          <MobileSection
+            className="order-6 rounded-2xl border border-hairline bg-card p-4 md:p-5 lg:order-none"
+            title="Linha do tempo"
+            meta={activities[0] ? timeAgo(activities[0].createdAt) : undefined}
+          >
             <Timeline items={activities} />
-          </div>
+          </MobileSection>
         </div>
       </div>
     </div>
