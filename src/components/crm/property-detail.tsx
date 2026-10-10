@@ -11,6 +11,7 @@ import {
   ruralAreas,
 } from "@/lib/rural";
 import { AdExporterModal } from "@/components/crm/ad-exporter-modal";
+import { MobileSection } from "@/components/crm/mobile-section";
 import { PortalPanel } from "@/components/crm/portal-panel";
 import { PropertyDocuments } from "@/components/crm/property-documents";
 import { Timeline } from "@/components/crm/timeline";
@@ -171,35 +172,34 @@ export async function PropertyDetail({
         </div>
       </div>
 
-      {/* Celular: preço e local logo no topo (o cartão completo fica no fim) */}
-      <div className="flex items-end justify-between gap-3 rounded-2xl border border-hairline bg-card p-4 lg:hidden">
-        <div className="min-w-0">
-          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-subtle">
-            {p.purpose === "aluguel" ? "Aluguel" : "Venda"}
-          </p>
-          <p className="mt-1 font-mono text-xl font-medium tabular tracking-tight">{formatBRL(p.price)}</p>
-          <p className="mt-1 truncate text-xs text-subtle">
-            {p.neighborhood}, {p.city} — {p.state}
-          </p>
-        </div>
-        <p className="shrink-0 text-right font-mono text-xs tabular text-subtle">
-          {rural
-            ? pricePerAlq(p.price, r.totalAlq)
-              ? `${formatBRL(pricePerAlq(p.price, r.totalAlq))}/alq`
-              : ""
-            : p.area
-              ? `${formatBRL(Math.round(p.price / p.area))}/m²`
-              : ""}
-          <span className="block">{views.total.toLocaleString("pt-BR")} visualizações</span>
-        </p>
-      </div>
-
+      {/* No celular as colunas viram uma lista só, na ordem de uso */}
       <div className="grid gap-5 lg:grid-cols-[1.6fr_1fr]">
-        <div className="space-y-5">
+        <div className="contents lg:block lg:space-y-5">
           {/* Galeria */}
-          <div className="rounded-2xl border border-hairline bg-card p-4">
+          <div className="order-1 rounded-2xl border border-hairline bg-card p-3 md:p-4 lg:order-none">
+            {p.images.length > 0 && (
+              /* Celular: carrossel com todas as fotos, de arrastar para o lado */
+              <div className="-mx-1 flex snap-x snap-mandatory gap-2 overflow-x-auto px-1 [scrollbar-width:none] md:hidden">
+                {p.images.map((img, i) => (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    key={img.id}
+                    src={img.url}
+                    alt={i === 0 ? p.title : ""}
+                    loading={i === 0 ? "eager" : "lazy"}
+                    className="aspect-[4/3] w-[85%] shrink-0 snap-center rounded-xl object-cover"
+                  />
+                ))}
+              </div>
+            )}
+            {p.images.length > 0 && (
+              <p className="mt-2 text-center font-mono text-[10px] uppercase tracking-wider text-subtle md:hidden">
+                {p.images.length} {p.images.length === 1 ? "foto" : "fotos"}
+                {p.images.length > 1 ? " · arraste para o lado" : ""}
+              </p>
+            )}
             {p.images.length ? (
-              <div className="grid grid-cols-3 gap-3">
+              <div className="hidden grid-cols-3 gap-3 md:grid">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={p.images[0].url}
@@ -225,7 +225,7 @@ export async function PropertyDetail({
           </div>
 
           {/* Specs + descrição */}
-          <div className="rounded-2xl border border-hairline bg-card p-4 md:p-6">
+          <div className="order-3 rounded-2xl border border-hairline bg-card p-4 md:p-6 lg:order-none">
             <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-hairline bg-hairline sm:grid-cols-4">
               {specs.map((s) => (
                 <div key={s.label} className="bg-card p-4">
@@ -258,7 +258,7 @@ export async function PropertyDetail({
           </div>
 
           {rural && (
-            <div className="rounded-2xl border border-hairline bg-card p-4 md:p-6">
+            <div className="order-4 rounded-2xl border border-hairline bg-card p-4 md:p-6 lg:order-none">
               <h2 className="mb-5 font-display text-base font-semibold tracking-tight">
                 Dados da propriedade
               </h2>
@@ -267,10 +267,12 @@ export async function PropertyDetail({
           )}
 
           {/* Documentos internos */}
-          <PropertyDocuments propertyId={p.id} initial={documents} />
+          <div className="order-5 lg:order-none">
+            <PropertyDocuments propertyId={p.id} initial={documents} />
+          </div>
 
           {/* Visitas */}
-          <div className="rounded-2xl border border-hairline bg-card p-4 md:p-6">
+          <div className="order-6 rounded-2xl border border-hairline bg-card p-4 md:p-6 lg:order-none">
             <h2 className="font-display text-base font-semibold tracking-tight">
               Visitas deste imóvel
               <span className="ml-2 font-mono text-[11px] font-normal text-subtle">
@@ -316,8 +318,9 @@ export async function PropertyDetail({
         </div>
 
         {/* Coluna lateral */}
-        <div className="space-y-5">
-          <div className="rounded-2xl border border-hairline bg-card p-5">
+        <div className="contents lg:block lg:space-y-5">
+          {/* Preço — no celular logo depois das fotos */}
+          <div className="order-2 rounded-2xl border border-hairline bg-card p-4 md:p-5 lg:order-none">
             <p className="font-mono text-[10.5px] uppercase tracking-[0.18em] text-subtle">
               {p.purpose === "aluguel" ? "Aluguel" : "Venda"}
             </p>
@@ -358,7 +361,7 @@ export async function PropertyDetail({
           </div>
 
           {/* Desempenho (analytics) */}
-          <div className="card-elev rounded-2xl border border-hairline bg-card p-5">
+          <div className="card-elev order-7 rounded-2xl border border-hairline bg-card p-4 md:p-5 lg:order-none">
             <h3 className="font-display text-sm font-semibold tracking-tight">
               Desempenho
             </h3>
@@ -409,15 +412,18 @@ export async function PropertyDetail({
             </div>
           </div>
 
-          {/* Linha do tempo */}
-          <div className="rounded-2xl border border-hairline bg-card p-5">
-            <h3 className="mb-5 font-display text-sm font-semibold tracking-tight">
-              Linha do tempo
-            </h3>
+          {/* Linha do tempo — sanfona no celular */}
+          <MobileSection
+            className="order-8 rounded-2xl border border-hairline bg-card p-4 md:p-5 lg:order-none"
+            title="Linha do tempo"
+            meta={activities[0] ? timeAgo(activities[0].createdAt) : undefined}
+          >
             <Timeline items={activities} />
-          </div>
+          </MobileSection>
 
-          <PortalPanel portals={portals} propertyCode={p.code} />
+          <div className="order-9 lg:order-none">
+            <PortalPanel portals={portals} propertyCode={p.code} />
+          </div>
         </div>
       </div>
     </div>
