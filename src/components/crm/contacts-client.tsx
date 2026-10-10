@@ -3,6 +3,7 @@
 import {
   activeFilterChips,
   applyContactFilters,
+  budgetOf,
   ContactFiltersPanel,
   contactsToCsv,
   EMPTY_FILTERS,
@@ -10,6 +11,7 @@ import {
   type ContactMeta,
 } from "@/components/crm/contact-filters";
 import { ActiveChips, FilterButton, FilterSheet } from "@/components/crm/filter-sheet";
+import { StatCard } from "@/components/crm/stat-card";
 import { LeadDrawer } from "@/components/crm/lead-drawer";
 import { Badge, Button, Field, Input, Modal, Select, Textarea } from "@/components/ui";
 import {
@@ -20,7 +22,22 @@ import {
 import type { Contact } from "@/db/schema";
 import { cn, formatCompact, initials, timeAgo } from "@/lib/utils";
 import { isRuralType } from "@/lib/rural";
-import { ArrowUpRight, Building2, Cloud, Download, Layers, Plus, Search, Tractor, UserPlus } from "lucide-react";
+import {
+  ArrowUpRight,
+  Building2,
+  CalendarCheck,
+  Cloud,
+  Columns3,
+  Download,
+  Layers,
+  Plus,
+  Search,
+  Sparkles,
+  Tractor,
+  UserPlus,
+  Users,
+  Wallet,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -121,6 +138,34 @@ export function ContactsClient({
     () => applyContactFilters(inTab, filters, meta),
     [inTab, filters, meta],
   );
+
+  // Indicadores do recorte (respeitam aba, busca e filtros)
+  const stats = useMemo(() => {
+    const limite = new Date().getTime() - 30 * 86_400_000;
+    const novos = filtered.filter((c) => new Date(c.createdAt).getTime() >= limite).length;
+    const leads = filtered.filter((c) => c.type === "lead").length;
+    const clientes = filtered.filter((c) => c.type === "cliente").length;
+    const emFunil = filtered.filter((c) =>
+      (meta[c.id]?.stages ?? []).some((st) => st !== "fechado"),
+    ).length;
+    const fechados = filtered.filter((c) => (meta[c.id]?.stages ?? []).includes("fechado")).length;
+    const visitaMarcada = filtered.filter((c) => (meta[c.id]?.visitsUpcoming ?? 0) > 0).length;
+    const jaVisitaram = filtered.filter((c) => (meta[c.id]?.visitsDone ?? 0) > 0).length;
+    const budgets = filtered.map(budgetOf).filter((b) => b > 0);
+    return {
+      total: filtered.length,
+      leads,
+      clientes,
+      novos,
+      pctNovos: filtered.length ? Math.round((novos / filtered.length) * 100) : 0,
+      emFunil,
+      fechados,
+      visitaMarcada,
+      jaVisitaram,
+      orcamento: budgets.length ? Math.round(budgets.reduce((a, b) => a + b, 0) / budgets.length) : 0,
+      comOrcamento: budgets.length,
+    };
+  }, [filtered, meta]);
 
   // Imóveis ligados a algum contato (para o filtro por imóvel)
   const linkedProperties = useMemo(() => {
@@ -264,6 +309,45 @@ export function ContactsClient({
         />
       </FilterSheet>
       <ActiveChips chips={chips} onClear={patch} onClearAll={resetFilters} />
+
+      {/* Indicadores */}
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <StatCard
+          label="Contatos"
+          value={stats.total}
+          caption={`${stats.leads} ${stats.leads === 1 ? "lead" : "leads"} · ${stats.clientes} ${stats.clientes === 1 ? "cliente" : "clientes"}`}
+          icon={<Users className="size-4" />}
+        />
+        <StatCard
+          label="Novos em 30 dias"
+          value={stats.novos}
+          caption={stats.total ? `${stats.pctNovos}% da lista` : "Nenhum contato na lista"}
+          icon={<Sparkles className="size-4" />}
+        />
+        <StatCard
+          label="Em negociação"
+          value={stats.emFunil}
+          caption={stats.fechados ? `${stats.fechados} já ${stats.fechados === 1 ? "fechou" : "fecharam"} negócio` : "Com negociação aberta no pipeline"}
+          icon={<Columns3 className="size-4" />}
+        />
+        <StatCard
+          label="Visita marcada"
+          value={stats.visitaMarcada}
+          caption={`${stats.jaVisitaram} já ${stats.jaVisitaram === 1 ? "visitou" : "visitaram"} algum imóvel`}
+          icon={<CalendarCheck className="size-4" />}
+        />
+        <StatCard
+          label="Orçamento médio"
+          value={stats.orcamento}
+          format="brl"
+          caption={
+            stats.comOrcamento
+              ? `${stats.comOrcamento} de ${stats.total} informaram orçamento`
+              : "Ninguém informou orçamento"
+          }
+          icon={<Wallet className="size-4" />}
+        />
+      </div>
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
         <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-subtle">
