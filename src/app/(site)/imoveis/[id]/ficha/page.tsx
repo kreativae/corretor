@@ -64,11 +64,12 @@ export default async function FichaPage({
       type: "svg",
       margin: 0,
       errorCorrectionLevel: "M",
+      color: { dark: "#2B2B5DFF", light: "#FFFFFFFF" },
     });
   }
 
   return (
-    <div className="ficha-page min-h-screen overflow-x-auto bg-neutral-200 px-2 py-2 pb-28 sm:px-0 sm:py-8 print:bg-white print:p-0">
+    <div className="ficha-page min-h-screen overflow-x-auto bg-[#DCDCE8] px-2 py-2 pb-28 sm:px-0 sm:py-8 print:bg-white print:p-0">
       <PrintBar
         backHref={user ? crmPropertyPath(p) : `/imoveis/${p.code}`}
         share={{

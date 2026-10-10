@@ -134,7 +134,7 @@ export function PrintBar({
 
   return (
     <div className="no-print fixed inset-x-0 bottom-4 z-50 flex flex-wrap items-center justify-center gap-2 px-3 pb-[env(safe-area-inset-bottom)] sm:bottom-6">
-      <button onClick={goBack} className={`${btn} bg-neutral-900 text-white`} aria-label="Voltar">
+      <button onClick={goBack} className={`${btn} bg-[#2B2B5D] text-white`} aria-label="Voltar">
         <ArrowLeft className="size-4" />
         <span className="hidden sm:inline">Voltar</span>
       </button>
@@ -143,7 +143,7 @@ export function PrintBar({
           <button
             onClick={() => input.current?.click()}
             disabled={progress !== null}
-            className={`${btn} bg-white text-neutral-900 disabled:opacity-70`}
+            className={`${btn} bg-white text-[#2B2B5D] disabled:opacity-70`}
           >
             {progress !== null ? (
               <>
@@ -172,7 +172,7 @@ export function PrintBar({
       )}
       <button
         onClick={() => window.print()}
-        className={`${btn} bg-white text-neutral-900`}
+        className={`${btn} bg-white text-[#2B2B5D]`}
         aria-label="Imprimir"
       >
         <Printer className="size-4" />
@@ -182,7 +182,7 @@ export function PrintBar({
       <button
         onClick={sharePdf}
         disabled={sharing}
-        className={`${btn} h-12 bg-emerald-500 px-6 text-[15px] font-semibold text-neutral-950 ring-4 ring-emerald-500/25 sm:px-7`}
+        className={`${btn} h-12 bg-[#F47525] px-6 text-[15px] font-semibold text-[#1c1c45] ring-4 ring-[#F47525]/25 sm:px-7`}
       >
         {sharing ? <Loader2 className="size-4.5 animate-spin" /> : <Share2 className="size-4.5" />}
         {sharing ? "Gerando PDF…" : "Compartilhar PDF"}

@@ -126,9 +126,9 @@ export function FichaSheet({
   ).filter(Boolean);
 
   return (
-    <article className="ficha-sheet mx-auto flex h-[297mm] w-[210mm] flex-col overflow-hidden bg-white px-[13mm] pb-[10mm] pt-[12mm] text-neutral-900 shadow-sm print:shadow-none">
+    <article className="ficha-sheet mx-auto flex h-[297mm] w-[210mm] flex-col overflow-hidden bg-white px-[13mm] pb-[10mm] pt-[12mm] text-[#2B2B5D] shadow-sm print:shadow-none">
       {/* Cabeçalho */}
-      <header className="flex shrink-0 items-center justify-between border-b border-neutral-200 pb-[4mm]">
+      <header className="flex shrink-0 items-center justify-between border-b-2 border-[#2B2B5D] pb-[4mm]">
         {logoUrl ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img src={logoUrl} alt={orgName} className="h-9 w-auto max-w-[60mm] object-contain" />
@@ -141,14 +141,20 @@ export function FichaSheet({
               <Monogram className="size-9" color={BRAND_NAVY} />
             )}
             <div>
-              {showName && <p className="text-sm font-semibold tracking-tight">{orgName}</p>}
+              {showName && (
+                /* Nome no estilo do logotipo: primeiro nome fino, resto pesado */
+                <p className="font-brand text-[15px] uppercase leading-none">
+                  <span className="font-extralight">{orgName.split(" ")[0]}</span>{" "}
+                  <span className="font-extrabold">{orgName.split(" ").slice(1).join(" ")}</span>
+                </p>
+              )}
               {showDomain && (
-                <p className="text-[9px] uppercase tracking-[0.2em] text-neutral-500">{domain}</p>
+                <p className="mt-1 text-[9px] uppercase tracking-[0.2em] text-[#6A6A86]">{domain}</p>
               )}
             </div>
           </div>
         )}
-        <div className="text-right font-mono text-[10px] uppercase tracking-wider text-neutral-500">
+        <div className="text-right font-mono text-[10px] uppercase tracking-wider text-[#6A6A86]">
           <p>Ref. {p.code}</p>
           <p>{today}</p>
         </div>
@@ -157,27 +163,27 @@ export function FichaSheet({
       {/* Título + preço */}
       <div className="mt-[5mm] flex shrink-0 items-start justify-between gap-6">
         <div className="min-w-0">
-          <p className="text-[9.5px] font-medium uppercase tracking-[0.18em] text-emerald-700">
+          <p className="text-[9.5px] font-medium uppercase tracking-[0.18em] text-[#D9601A]">
             {TYPE_LABELS[p.type]} · {p.purpose === "venda" ? "Venda" : "Aluguel"} ·{" "}
             {STATUS_LABELS[p.status]}
           </p>
-          <h1 className="mt-1.5 line-clamp-2 text-[22px] font-semibold leading-tight tracking-tight">
+          <h1 className="mt-1.5 line-clamp-2 font-display text-[22px] font-bold leading-tight tracking-tight">
             {p.title}
           </h1>
-          <p className="mt-1 truncate text-xs text-neutral-500">
+          <p className="mt-1 truncate text-xs text-[#6A6A86]">
             {p.street ? `${p.street}, ` : ""}
             {p.neighborhood} — {p.city}/{p.state}
           </p>
         </div>
         <div className="shrink-0 text-right">
-          <p className="text-[9.5px] uppercase tracking-[0.2em] text-neutral-400">
+          <p className="text-[9.5px] uppercase tracking-[0.2em] text-[#9A9AB5]">
             {p.purpose === "venda" ? "Valor de venda" : "Aluguel"}
           </p>
           <p className="mt-1 font-mono text-[24px] font-medium leading-none tabular">
             {formatBRL(p.price)}
           </p>
           {costs.length > 0 && (
-            <p className="mt-1.5 text-[10.5px] text-neutral-500">{costs.join(" · ")}</p>
+            <p className="mt-1.5 text-[10.5px] text-[#6A6A86]">{costs.join(" · ")}</p>
           )}
         </div>
       </div>
@@ -213,16 +219,16 @@ export function FichaSheet({
 
       {/* Características */}
       <div
-        className="mt-[5mm] grid shrink-0 gap-px overflow-hidden rounded-md border border-neutral-200 bg-neutral-200"
+        className="mt-[5mm] grid shrink-0 gap-px overflow-hidden rounded-md border border-[#DCDCE8] bg-[#DCDCE8]"
         style={{ gridTemplateColumns: `repeat(${specs.length}, minmax(0, 1fr))` }}
       >
         {specs.map((s) => (
-          <div key={s.label} className="bg-neutral-50 px-3 py-2.5">
-            <s.icon className="size-3.5 text-neutral-400" />
+          <div key={s.label} className="bg-[#F3F3F8] px-3 py-2.5">
+            <s.icon className="size-3.5 text-[#9A9AB5]" />
             <p className="mt-1 font-mono text-[15px] font-medium leading-tight tabular">
               {s.value}
             </p>
-            <p className="truncate text-[10px] text-neutral-500">{s.label}</p>
+            <p className="truncate text-[10px] text-[#6A6A86]">{s.label}</p>
           </div>
         ))}
       </div>
@@ -234,22 +240,22 @@ export function FichaSheet({
         }`}
       >
         <section className="flex min-h-0 flex-col">
-          <h2 className="shrink-0 text-[9.5px] font-semibold uppercase tracking-[0.2em] text-neutral-400">
+          <h2 className="shrink-0 text-[9.5px] font-semibold uppercase tracking-[0.2em] text-[#9A9AB5]">
             {rural ? "Sobre a propriedade" : "Sobre o imóvel"}
           </h2>
-          <p className="ficha-fade mt-2 min-h-0 flex-1 overflow-hidden whitespace-pre-line text-[11px] leading-[1.55] text-neutral-700">
+          <p className="ficha-fade mt-2 min-h-0 flex-1 overflow-hidden whitespace-pre-line text-[11px] leading-[1.55] text-[#45456E]">
             {p.description || "—"}
           </p>
         </section>
         {rural && (
           <section className="flex min-h-0 flex-col overflow-hidden">
-            <h2 className="shrink-0 text-[9.5px] font-semibold uppercase tracking-[0.2em] text-neutral-400">
+            <h2 className="shrink-0 text-[9.5px] font-semibold uppercase tracking-[0.2em] text-[#9A9AB5]">
               A propriedade
             </h2>
             <dl className="mt-2 min-h-0 flex-1 space-y-1 overflow-hidden text-[10.5px] leading-snug">
               {ruralRows.map(([k, v]) => (
-                <div key={k} className="flex gap-2 border-b border-neutral-100 pb-1">
-                  <dt className="w-[24mm] shrink-0 text-neutral-500">{k}</dt>
+                <div key={k} className="flex gap-2 border-b border-[#EAEAF2] pb-1">
+                  <dt className="w-[24mm] shrink-0 text-[#6A6A86]">{k}</dt>
                   <dd className="line-clamp-2 min-w-0 font-medium">{v}</dd>
                 </div>
               ))}
@@ -258,18 +264,18 @@ export function FichaSheet({
         )}
         {!rural && features.length > 0 && (
           <section className="min-h-0 overflow-hidden">
-            <h2 className="text-[9.5px] font-semibold uppercase tracking-[0.2em] text-neutral-400">
+            <h2 className="text-[9.5px] font-semibold uppercase tracking-[0.2em] text-[#9A9AB5]">
               Comodidades
             </h2>
             <ul className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5">
               {features.map((f) => (
                 <li key={f} className="flex min-w-0 items-start gap-1.5 text-[10.5px] leading-snug">
-                  <Check className="mt-0.5 size-3 shrink-0 text-emerald-600" />
+                  <Check className="mt-0.5 size-3 shrink-0 text-[#F47525]" />
                   <span className="line-clamp-2">{f}</span>
                 </li>
               ))}
               {extraFeatures > 0 && (
-                <li className="col-span-2 pl-[18px] text-[10px] text-neutral-500">
+                <li className="col-span-2 pl-[18px] text-[10px] text-[#6A6A86]">
                   + {extraFeatures} outras
                 </li>
               )}
@@ -280,13 +286,13 @@ export function FichaSheet({
 
       {/* Rodapé */}
       <footer
-        className={`mt-[5mm] flex shrink-0 items-center justify-between gap-4 rounded-md bg-neutral-900 px-4 text-white ${
+        className={`mt-[5mm] flex shrink-0 items-center justify-between gap-4 rounded-md bg-[#2B2B5D] px-4 text-white ${
           qrSvg ? "py-2.5" : "py-3"
         }`}
       >
         <div className="min-w-0">
           <p className="truncate text-[12px] font-semibold">{brokerName}</p>
-          <p className="truncate text-[10px] text-neutral-400">{brokerRole}</p>
+          <p className="truncate text-[10px] text-[#9A9AB5]">{brokerRole}</p>
         </div>
         {phone && (
           <a
@@ -301,7 +307,7 @@ export function FichaSheet({
           </a>
         )}
         {showDomain && !qrSvg && (
-          <p className="shrink-0 text-right text-[9px] uppercase tracking-[0.16em] text-neutral-400">
+          <p className="shrink-0 text-right text-[9px] uppercase tracking-[0.16em] text-[#9A9AB5]">
             {domain}
           </p>
         )}
@@ -317,7 +323,7 @@ export function FichaSheet({
               <p className="text-[11px] font-semibold leading-tight">
                 {qrKind === "mapa" ? "Veja a propriedade no mapa" : "Fale com um consultor"}
               </p>
-              <p className="mt-0.5 text-[9px] leading-snug text-neutral-400">
+              <p className="mt-0.5 text-[9px] leading-snug text-[#9A9AB5]">
                 {qrKind === "mapa"
                   ? "Perímetro em satélite, rota e KMZ"
                   : "Aponte a câmera e deixe seu contato"}

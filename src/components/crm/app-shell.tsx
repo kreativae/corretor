@@ -1,6 +1,7 @@
 "use client";
 
 import { Mark, Wordmark } from "@/components/brand";
+import { KreativCredit } from "@/components/kreativ-credit";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button, Kbd } from "@/components/ui";
 import { CommandPalette } from "@/components/crm/command-palette";
@@ -192,6 +193,7 @@ export function AppShell({
           </div>
         </div>
       </div>
+      <KreativCredit className="justify-center px-4 pb-4 text-center text-[10.5px] text-subtle" />
     </div>
   );
 
