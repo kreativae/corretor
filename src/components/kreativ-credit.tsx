@@ -2,12 +2,18 @@ import { cn } from "@/lib/utils";
 import { Heart } from "lucide-react";
 
 /** Crédito de desenvolvimento (rodapé do site e barra lateral do CRM). */
-export function KreativCredit({ className }: { className?: string }) {
+export function KreativCredit({ className, short }: { className?: string; short?: boolean }) {
   return (
     <p className={cn("inline-flex flex-wrap items-center gap-1", className)}>
-      Desenvolvido com muito carinho
-      <Heart className="size-3 fill-red-500 text-red-500" aria-label="amor" />
-      por
+      {short ? (
+        "Desenvolvido por"
+      ) : (
+        <>
+          Desenvolvido com muito carinho
+          <Heart className="size-3 fill-red-500 text-red-500" aria-label="amor" />
+          por
+        </>
+      )}
       <a
         href="https://www.kreativ.ae/"
         target="_blank"

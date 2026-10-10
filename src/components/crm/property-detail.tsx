@@ -121,7 +121,7 @@ export async function PropertyDetail({
                 className={cn(
                   "border",
                   p.published
-                    ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-500"
+                    ? "border-[#2B2B5D]/20 bg-[#2B2B5D]/[0.07] text-[#2B2B5D] dark:border-white/15 dark:bg-white/10 dark:text-white"
                     : "border-hairline bg-soft text-subtle",
                 )}
               >

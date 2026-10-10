@@ -183,7 +183,7 @@ Link completo: ${propertyUrl}`;
         variant="outline"
         size="sm"
         onClick={() => setOpen(true)}
-        className="border-emerald-500/30 bg-emerald-500/5 text-emerald-600 hover:bg-emerald-500/10 dark:text-emerald-400"
+        className="border-[#F47525]/35 bg-[#F47525]/10 text-[#B84A12] hover:bg-[#F47525]/15 dark:text-[#F8975A]"
       >
         <Megaphone className="size-3.5" />
         Gerar Anúncio &amp; Kit

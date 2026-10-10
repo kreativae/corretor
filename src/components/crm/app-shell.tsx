@@ -193,7 +193,7 @@ export function AppShell({
           </div>
         </div>
       </div>
-      <KreativCredit className="justify-center px-4 pb-4 text-center text-[10.5px] text-subtle" />
+      <KreativCredit short className="justify-center px-4 pb-4 text-center text-[10.5px] text-subtle" />
     </div>
   );
 
