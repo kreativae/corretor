@@ -19,6 +19,7 @@ import {
 } from "@/lib/queries";
 import type { Contact, Property } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
+import { getFeatures } from "@/lib/features";
 import {
   cn,
   formatBRL,
@@ -49,7 +50,7 @@ export default async function CrmDashboard({
 }) {
   const sp = await searchParams;
   const f = parseOverview(sp);
-  const [allProperties, allContacts, allVisits, allDeals, activities, user, closedDates] =
+  const [allProperties, allContacts, allVisits, allDeals, activities, user, closedDates, features] =
     await Promise.all([
       listProperties(),
       listContacts(),
@@ -58,6 +59,7 @@ export default async function CrmDashboard({
       listActivities(10),
       getCurrentUser(),
       listDealClosedDates(),
+      getFeatures(),
     ]);
 
   const now = new Date();
@@ -228,7 +230,12 @@ export default async function CrmDashboard({
       />
 
       {/* KPIs */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div
+        className={cn(
+          "grid gap-4 sm:grid-cols-2 lg:grid-cols-3",
+          !features.closedDeals && "xl:grid-cols-5",
+        )}
+      >
         <StatCard
           label="Imóveis ativos"
           value={active}
@@ -268,6 +275,7 @@ export default async function CrmDashboard({
           }
           icon={<Columns3 className="size-4" />}
         />
+        {features.closedDeals && (
         <StatCard
           label="Negócios fechados"
           value={closedValue}
@@ -275,6 +283,7 @@ export default async function CrmDashboard({
           caption={`${closedInPeriod.length} ${closedInPeriod.length === 1 ? "negócio" : "negócios"} · ${periodLabel}`}
           icon={<Handshake className="size-4" />}
         />
+        )}
       </div>
 
       {/* Portfólio: imóveis x rurais */}
