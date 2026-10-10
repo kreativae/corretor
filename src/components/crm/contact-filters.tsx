@@ -11,8 +11,8 @@ import {
 } from "@/lib/labels";
 import { isRuralType } from "@/lib/rural";
 import { cn, formatCompact } from "@/lib/utils";
-import { Building2, RotateCcw, Tractor, X } from "lucide-react";
-import type { ReactNode } from "react";
+import { Building2, Tractor } from "lucide-react";
+import { FilterChip, FilterGroup, type ActiveChip } from "@/components/crm/filter-sheet";
 
 /** Relacionamento do contato com o funil e a agenda (calculado no servidor). */
 export type ContactMeta = {
@@ -203,8 +203,8 @@ export function applyContactFilters(
 export function activeFilterChips(
   f: ContactFilters,
   propertyName: (id: string) => string,
-): { key: string; label: string; clear: Partial<ContactFilters> }[] {
-  const chips: { key: string; label: string; clear: Partial<ContactFilters> }[] = [];
+): ActiveChip<ContactFilters>[] {
+  const chips: ActiveChip<ContactFilters>[] = [];
   const without = (arr: string[], v: string) => arr.filter((x) => x !== v);
   for (const t of f.types)
     chips.push({ key: `t-${t}`, label: CONTACT_TYPE_LABELS[t], clear: { types: without(f.types, t) } });
@@ -247,54 +247,15 @@ export function activeFilterChips(
 
 /* ─────────────────────────── UI ─────────────────────────── */
 
-function Chip({
-  on,
-  onClick,
-  children,
-  count,
-}: {
-  on: boolean;
-  onClick: () => void;
-  children: ReactNode;
-  count?: number;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all",
-        on
-          ? "border-transparent bg-ink text-canvas"
-          : "border-hairline text-subtle hover:border-ink/30 hover:text-ink",
-      )}
-    >
-      {children}
-      {count != null && <span className="font-mono text-[10px] opacity-60">{count}</span>}
-    </button>
-  );
-}
-
-function Group({ title, children, className }: { title: string; children: ReactNode; className?: string }) {
-  return (
-    <div className={className}>
-      <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.18em] text-subtle">{title}</p>
-      {children}
-    </div>
-  );
-}
-
 export function ContactFiltersPanel({
   value: f,
   onChange,
-  onReset,
   contacts,
   meta,
   properties,
 }: {
   value: ContactFilters;
   onChange: (patch: Partial<ContactFilters>) => void;
-  onReset: () => void;
   /** Contatos da aba atual — base para as contagens */
   contacts: Contact[];
   meta: Record<string, ContactMeta>;
@@ -318,40 +279,39 @@ export function ContactFiltersPanel({
     Object.entries(TYPE_LABELS)
       .filter(([k]) => isRuralType(k) === rural)
       .map(([k, v]) => (
-        <Chip
+        <FilterChip
           key={k}
           on={f.interests.includes(k)}
           onClick={() => toggle("interests", k)}
           count={count((c) => c.interestTypes.includes(k))}
         >
           {v}
-        </Chip>
+        </FilterChip>
       ));
 
   return (
-    <div className="mt-3 rounded-2xl border border-hairline bg-card p-5">
-      <div className="grid gap-x-8 gap-y-6 lg:grid-cols-2">
-        <Group title="Tipo de contato">
+    <>
+        <FilterGroup title="Tipo de contato">
           <div className="flex flex-wrap gap-2">
             {Object.entries(CONTACT_TYPE_LABELS).map(([k, v]) => (
-              <Chip key={k} on={f.types.includes(k)} onClick={() => toggle("types", k)} count={count((c) => c.type === k)}>
+              <FilterChip key={k} on={f.types.includes(k)} onClick={() => toggle("types", k)} count={count((c) => c.type === k)}>
                 {v}
-              </Chip>
+              </FilterChip>
             ))}
           </div>
-        </Group>
+        </FilterGroup>
 
-        <Group title="De onde veio">
+        <FilterGroup title="De onde veio">
           <div className="flex flex-wrap gap-2">
             {Object.entries(SOURCE_LABELS).map(([k, v]) => (
-              <Chip key={k} on={f.sources.includes(k)} onClick={() => toggle("sources", k)} count={count((c) => c.source === k)}>
+              <FilterChip key={k} on={f.sources.includes(k)} onClick={() => toggle("sources", k)} count={count((c) => c.source === k)}>
                 {v}
-              </Chip>
+              </FilterChip>
             ))}
           </div>
-        </Group>
+        </FilterGroup>
 
-        <Group title="O que quer comprar" className="lg:col-span-2">
+        <FilterGroup title="O que quer comprar">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <Building2 className="size-3.5 text-subtle" />
@@ -362,12 +322,12 @@ export function ContactFiltersPanel({
               {interestChips(true)}
             </div>
           </div>
-        </Group>
+        </FilterGroup>
 
-        <Group title="Quanto quer gastar (R$)" className="lg:col-span-2">
+        <FilterGroup title="Quanto quer gastar (R$)">
           <div className="flex flex-wrap items-center gap-2">
             {BUDGET_PRESETS.map((p) => (
-              <Chip
+              <FilterChip
                 key={p.label}
                 on={!f.noBudget && f.budgetFrom === p.from && f.budgetTo === p.to}
                 onClick={() =>
@@ -377,23 +337,23 @@ export function ContactFiltersPanel({
                 }
               >
                 {p.label}
-              </Chip>
+              </FilterChip>
             ))}
-            <Chip
+            <FilterChip
               on={f.noBudget}
               onClick={() => onChange({ noBudget: !f.noBudget, budgetFrom: "", budgetTo: "" })}
               count={count((c) => !c.budgetMin && !c.budgetMax)}
             >
               Não informou
-            </Chip>
+            </FilterChip>
           </div>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
+          <div className="mt-3 flex items-center gap-2">
             <Input
               type="number"
               value={f.budgetFrom}
               onChange={(e) => onChange({ budgetFrom: e.target.value, noBudget: false })}
               placeholder="De"
-              className="w-40 font-mono tabular"
+              className="min-w-0 flex-1 font-mono tabular"
             />
             <span className="text-xs text-subtle">até</span>
             <Input
@@ -401,15 +361,15 @@ export function ContactFiltersPanel({
               value={f.budgetTo}
               onChange={(e) => onChange({ budgetTo: e.target.value, noBudget: false })}
               placeholder="Sem limite"
-              className="w-40 font-mono tabular"
+              className="min-w-0 flex-1 font-mono tabular"
             />
           </div>
-        </Group>
+        </FilterGroup>
 
-        <Group title="Etapa no funil">
+        <FilterGroup title="Etapa no funil">
           <div className="flex flex-wrap gap-2">
             {DEAL_STAGES.map((s) => (
-              <Chip
+              <FilterChip
                 key={s.id}
                 on={f.stages.includes(s.id)}
                 onClick={() => toggle("stages", s.id)}
@@ -417,41 +377,41 @@ export function ContactFiltersPanel({
               >
                 <span className="size-1.5 rounded-full" style={{ background: s.dot }} />
                 {s.label}
-              </Chip>
+              </FilterChip>
             ))}
-            <Chip
+            <FilterChip
               on={f.stages.includes(NO_DEAL)}
               onClick={() => toggle("stages", NO_DEAL)}
               count={count((c) => !(meta[c.id]?.stages.length))}
             >
               Fora do funil
-            </Chip>
+            </FilterChip>
           </div>
-        </Group>
+        </FilterGroup>
 
-        <Group title="Visitas">
+        <FilterGroup title="Visitas">
           <div className="flex flex-wrap gap-2">
             {(Object.keys(VISIT_LABELS) as ContactFilters["visits"][]).map((k) => (
-              <Chip key={k} on={f.visits === k} onClick={() => onChange({ visits: k })}>
+              <FilterChip key={k} on={f.visits === k} onClick={() => onChange({ visits: k })}>
                 {VISIT_LABELS[k]}
-              </Chip>
+              </FilterChip>
             ))}
           </div>
-        </Group>
+        </FilterGroup>
 
         {hoods.length > 0 && (
-          <Group title="Bairros de interesse" className="lg:col-span-2">
+          <FilterGroup title="Bairros de interesse">
             <div className="flex max-h-28 flex-wrap gap-2 overflow-y-auto">
               {hoods.map(([n, qty]) => (
-                <Chip key={n} on={f.neighborhoods.includes(n)} onClick={() => toggle("neighborhoods", n)} count={qty}>
+                <FilterChip key={n} on={f.neighborhoods.includes(n)} onClick={() => toggle("neighborhoods", n)} count={qty}>
                   {n}
-                </Chip>
+                </FilterChip>
               ))}
             </div>
-          </Group>
+          </FilterGroup>
         )}
 
-        <Group title="Imóvel vinculado (negociação ou visita)">
+        <FilterGroup title="Imóvel vinculado (negociação ou visita)">
           <Select value={f.property} onChange={(e) => onChange({ property: e.target.value })}>
             <option value="all">Qualquer imóvel</option>
             {properties.map((p) => (
@@ -460,14 +420,14 @@ export function ContactFiltersPanel({
               </option>
             ))}
           </Select>
-        </Group>
+        </FilterGroup>
 
-        <Group title="Entrou na base">
+        <FilterGroup title="Entrou na base">
           <div className="flex flex-wrap gap-2">
             {(Object.keys(PERIOD_LABELS) as ContactFilters["period"][]).map((k) => (
-              <Chip key={k} on={f.period === k} onClick={() => onChange({ period: k })}>
+              <FilterChip key={k} on={f.period === k} onClick={() => onChange({ period: k })}>
                 {PERIOD_LABELS[k]}
-              </Chip>
+              </FilterChip>
             ))}
           </div>
           {f.period === "custom" && (
@@ -477,61 +437,24 @@ export function ContactFiltersPanel({
               <Input type="date" value={f.dateTo} onChange={(e) => onChange({ dateTo: e.target.value })} className="w-auto" />
             </div>
           )}
-        </Group>
+        </FilterGroup>
 
-        <Group title="E-mail">
+        <FilterGroup title="E-mail">
           <div className="flex flex-wrap gap-2">
-            <Chip on={f.email === "all"} onClick={() => onChange({ email: "all" })}>Todos</Chip>
-            <Chip on={f.email === "with"} onClick={() => onChange({ email: "with" })} count={count((c) => !!c.email)}>Com e-mail</Chip>
-            <Chip on={f.email === "without"} onClick={() => onChange({ email: "without" })} count={count((c) => !c.email)}>Sem e-mail</Chip>
+            <FilterChip on={f.email === "all"} onClick={() => onChange({ email: "all" })}>Todos</FilterChip>
+            <FilterChip on={f.email === "with"} onClick={() => onChange({ email: "with" })} count={count((c) => !!c.email)}>Com e-mail</FilterChip>
+            <FilterChip on={f.email === "without"} onClick={() => onChange({ email: "without" })} count={count((c) => !c.email)}>Sem e-mail</FilterChip>
           </div>
-        </Group>
+        </FilterGroup>
 
-        <Group title="Google Contacts">
+        <FilterGroup title="Google Contacts">
           <div className="flex flex-wrap gap-2">
-            <Chip on={f.google === "all"} onClick={() => onChange({ google: "all" })}>Todos</Chip>
-            <Chip on={f.google === "yes"} onClick={() => onChange({ google: "yes" })} count={count((c) => !!c.googleResourceName)}>Sincronizados</Chip>
-            <Chip on={f.google === "no"} onClick={() => onChange({ google: "no" })} count={count((c) => !c.googleResourceName)}>Só no CRM</Chip>
+            <FilterChip on={f.google === "all"} onClick={() => onChange({ google: "all" })}>Todos</FilterChip>
+            <FilterChip on={f.google === "yes"} onClick={() => onChange({ google: "yes" })} count={count((c) => !!c.googleResourceName)}>Sincronizados</FilterChip>
+            <FilterChip on={f.google === "no"} onClick={() => onChange({ google: "no" })} count={count((c) => !c.googleResourceName)}>Só no CRM</FilterChip>
           </div>
-        </Group>
-      </div>
-
-      <div className="mt-6 flex justify-end border-t border-hairline pt-4">
-        <button
-          type="button"
-          onClick={onReset}
-          className="inline-flex items-center gap-1.5 text-xs font-medium text-subtle hover:text-ink"
-        >
-          <RotateCcw className="size-3.5" />
-          Limpar todos os filtros
-        </button>
-      </div>
-    </div>
-  );
-}
-
-export function ActiveFilterChips({
-  chips,
-  onClear,
-}: {
-  chips: { key: string; label: string; clear: Partial<ContactFilters> }[];
-  onClear: (patch: Partial<ContactFilters>) => void;
-}) {
-  if (!chips.length) return null;
-  return (
-    <div className="mt-3 flex flex-wrap gap-1.5">
-      {chips.map((c) => (
-        <button
-          key={c.key}
-          type="button"
-          onClick={() => onClear(c.clear)}
-          className="inline-flex items-center gap-1 rounded-full bg-accent/10 px-2.5 py-1 text-[11px] font-medium text-ink hover:bg-accent/20"
-        >
-          {c.label}
-          <X className="size-3 text-subtle" />
-        </button>
-      ))}
-    </div>
+        </FilterGroup>
+    </>
   );
 }
 

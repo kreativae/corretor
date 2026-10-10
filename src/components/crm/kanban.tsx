@@ -1,19 +1,29 @@
 "use client";
 
+import {
+  activeDealChips,
+  applyDealFilters,
+  DealFiltersPanel,
+  EMPTY_DEAL_FILTERS,
+  type DealFilters,
+} from "@/components/crm/deal-filters";
+import { ActiveChips, FilterButton, FilterSheet } from "@/components/crm/filter-sheet";
 import { LeadDrawer } from "@/components/crm/lead-drawer";
 import { Button, Field, Input, Modal, Select } from "@/components/ui";
 import { DEAL_STAGES } from "@/lib/labels";
 import type { DealFull } from "@/lib/queries";
 import { formatAlq, isRuralType, normalizeRural } from "@/lib/rural";
 import { cn, formatCompact, initials } from "@/lib/utils";
-import { Building2, Handshake, Layers, Plus, Tractor } from "lucide-react";
+import { Building2, Handshake, Layers, Plus, Search, Tractor } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 export type PipelineTab = "imoveis" | "rurais" | "todos";
 
 const isRuralDeal = (d: DealFull) => isRuralType(d.property?.type);
+
+const FILTERS_KEY = "crm-deal-filters";
 
 export function Kanban({
   initialDeals,
@@ -57,12 +67,39 @@ export function Kanban({
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ contactId: "", propertyId: "", value: "", stage: "novo" });
 
+  const [filters, setFilters] = useState<DealFilters>(EMPTY_DEAL_FILTERS);
+  const [showFilters, setShowFilters] = useState(false);
+  const patch = (p: Partial<DealFilters>) => setFilters((f) => ({ ...f, ...p }));
+  const resetFilters = () => setFilters((f) => ({ ...EMPTY_DEAL_FILTERS, q: f.q, sort: f.sort }));
+  const closeFilters = useCallback(() => setShowFilters(false), []);
+
+  // Lembra os filtros do usuário neste navegador
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(FILTERS_KEY);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (saved) setFilters({ ...EMPTY_DEAL_FILTERS, ...JSON.parse(saved), q: "" });
+    } catch {}
+  }, []);
+  useEffect(() => {
+    try {
+      localStorage.setItem(FILTERS_KEY, JSON.stringify(filters));
+    } catch {}
+  }, [filters]);
+
+  const filtered = useMemo(() => applyDealFilters(visible, filters), [visible, filters]);
+  const chips = activeDealChips(filters);
+  const totalValue = filtered.reduce((a, d) => a + d.deal.value, 0);
+  const stages = filters.stages.length
+    ? DEAL_STAGES.filter((s) => filters.stages.includes(s.id))
+    : DEAL_STAGES;
+
   const byStage = useMemo(() => {
     const map = new Map<string, DealFull[]>();
     for (const s of DEAL_STAGES) map.set(s.id, []);
-    for (const d of visible) map.get(d.deal.stage)?.push(d);
+    for (const d of filtered) map.get(d.deal.stage)?.push(d);
     return map;
-  }, [visible]);
+  }, [filtered]);
 
   async function move(dealId: string, stage: string) {
     const prev = deals;
@@ -166,8 +203,48 @@ export function Kanban({
         </Button>
       </div>
 
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative min-w-56 flex-1">
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-subtle" />
+          <Input
+            value={filters.q}
+            onChange={(e) => patch({ q: e.target.value })}
+            placeholder="Buscar por contato, código ou imóvel…"
+            className="pl-10"
+          />
+        </div>
+        <FilterButton count={chips.length} onClick={() => setShowFilters(true)} />
+        <Select
+          value={filters.sort}
+          onChange={(e) => patch({ sort: e.target.value as DealFilters["sort"] })}
+          className="w-auto"
+          aria-label="Ordenar cartões"
+        >
+          <option value="recent">Mais recentes</option>
+          <option value="oldest">Mais antigas</option>
+          <option value="value_desc">Maior valor</option>
+          <option value="value_asc">Menor valor</option>
+          <option value="stale">Paradas há mais tempo</option>
+        </Select>
+      </div>
+      <ActiveChips chips={chips} onClear={patch} onClearAll={resetFilters} />
+      <p className="mb-3 mt-4 font-mono text-[11px] uppercase tracking-[0.16em] text-subtle">
+        {filtered.length} de {visible.length} negociações · {formatCompact(totalValue)}
+      </p>
+
+      <FilterSheet
+        open={showFilters}
+        onClose={closeFilters}
+        onReset={resetFilters}
+        title="Filtrar pipeline"
+        activeCount={chips.length}
+        resultLabel={`Ver ${filtered.length} ${filtered.length === 1 ? "negociação" : "negociações"}`}
+      >
+        <DealFiltersPanel value={filters} onChange={patch} deals={visible} />
+      </FilterSheet>
+
       <div className="flex gap-3 overflow-x-auto pb-4">
-        {DEAL_STAGES.map((stage) => {
+        {stages.map((stage) => {
           const items = byStage.get(stage.id) ?? [];
           const sum = items.reduce((a, d) => a + d.deal.value, 0);
           return (

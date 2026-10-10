@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  ActiveFilterChips,
   activeFilterChips,
   applyContactFilters,
   ContactFiltersPanel,
@@ -10,6 +9,7 @@ import {
   type ContactFilters,
   type ContactMeta,
 } from "@/components/crm/contact-filters";
+import { ActiveChips, FilterButton, FilterSheet } from "@/components/crm/filter-sheet";
 import { LeadDrawer } from "@/components/crm/lead-drawer";
 import { Badge, Button, Field, Input, Modal, Select, Textarea } from "@/components/ui";
 import {
@@ -20,10 +20,10 @@ import {
 import type { Contact } from "@/db/schema";
 import { cn, formatCompact, initials, timeAgo } from "@/lib/utils";
 import { isRuralType } from "@/lib/rural";
-import { ArrowUpRight, Building2, Cloud, Download, Layers, Plus, Search, SlidersHorizontal, Tractor, UserPlus } from "lucide-react";
+import { ArrowUpRight, Building2, Cloud, Download, Layers, Plus, Search, Tractor, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 const SOURCE_STYLES: Record<string, string> = {
@@ -65,6 +65,8 @@ export function ContactsClient({
   const [filters, setFilters] = useState<ContactFilters>(EMPTY_FILTERS);
   const [showFilters, setShowFilters] = useState(false);
   const patch = (p: Partial<ContactFilters>) => setFilters((f) => ({ ...f, ...p }));
+  const resetFilters = () => setFilters((f) => ({ ...EMPTY_FILTERS, q: f.q, sort: f.sort }));
+  const closeFilters = useCallback(() => setShowFilters(false), []);
 
   // Lembra os filtros do usuário neste navegador
   useEffect(() => {
@@ -226,18 +228,7 @@ export function ContactsClient({
             className="pl-10"
           />
         </div>
-        <Button
-          variant={showFilters || chips.length ? "primary" : "outline"}
-          onClick={() => setShowFilters((v) => !v)}
-        >
-          <SlidersHorizontal className="size-4" />
-          Filtros
-          {chips.length > 0 && (
-            <span className="rounded-full bg-accent px-1.5 font-mono text-[10px] text-on-accent">
-              {chips.length}
-            </span>
-          )}
-        </Button>
+        <FilterButton count={chips.length} onClick={() => setShowFilters(true)} />
         <Select
           value={filters.sort}
           onChange={(e) => patch({ sort: e.target.value as ContactFilters["sort"] })}
@@ -256,29 +247,27 @@ export function ContactsClient({
         </Button>
       </div>
 
-      {showFilters && (
+      <FilterSheet
+        open={showFilters}
+        onClose={closeFilters}
+        onReset={resetFilters}
+        title="Filtrar contatos"
+        activeCount={chips.length}
+        resultLabel={`Ver ${filtered.length} ${filtered.length === 1 ? "contato" : "contatos"}`}
+      >
         <ContactFiltersPanel
           value={filters}
           onChange={patch}
-          onReset={() => setFilters({ ...EMPTY_FILTERS, sort: filters.sort })}
           contacts={inTab}
           meta={meta}
           properties={linkedProperties}
         />
-      )}
-      <ActiveFilterChips chips={chips} onClear={patch} />
+      </FilterSheet>
+      <ActiveChips chips={chips} onClear={patch} onClearAll={resetFilters} />
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
         <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-subtle">
           {filtered.length} de {inTab.length} contatos
-          {chips.length > 0 && (
-            <button
-              onClick={() => setFilters({ ...EMPTY_FILTERS, sort: filters.sort })}
-              className="ml-3 normal-case tracking-normal text-ink underline underline-offset-4"
-            >
-              limpar filtros
-            </button>
-          )}
         </p>
         <button
           onClick={exportCsv}
