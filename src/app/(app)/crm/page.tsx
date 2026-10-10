@@ -1,3 +1,4 @@
+import { MobileSection } from "@/components/crm/mobile-section";
 import { OverviewFiltersBar } from "@/components/crm/overview-filters-bar";
 import { StatCard } from "@/components/crm/stat-card";
 import { StatsGrid } from "@/components/crm/stats-grid";
@@ -260,7 +261,7 @@ export default async function CrmDashboard({
             {firstName ? `, ${firstName}` : ""}.
           </h1>
         </div>
-        <p className="max-w-xs text-right text-xs leading-relaxed text-subtle">
+        <p className="hidden max-w-xs text-right text-xs leading-relaxed text-subtle md:block">
           {active} imóveis ativos ·{" "}
           {rurais.length > 0 && `${activeRurais.length} rurais ativas · `}
           {newLeads} novos leads ({periodLabel}) ·{" "}
@@ -404,7 +405,7 @@ export default async function CrmDashboard({
           <Link
             key={c.href}
             href={c.href}
-            className="card-elev group rounded-2xl border border-hairline bg-card p-6 transition-colors hover:border-hairline-strong"
+            className="card-elev group rounded-2xl border border-hairline bg-card p-4 transition-colors hover:border-hairline-strong md:p-6"
           >
             <div className="flex items-center justify-between">
               <h2 className="flex items-center gap-2 font-display text-base font-semibold tracking-tight">
@@ -415,11 +416,11 @@ export default async function CrmDashboard({
             </div>
             <div className="mt-5 grid grid-cols-3 gap-3">
               <div>
-                <p className="font-mono text-2xl font-medium tabular">{c.data.disponiveis}</p>
+                <p className="font-mono text-lg font-medium tabular md:text-2xl">{c.data.disponiveis}</p>
                 <p className="text-[11px] text-subtle">disponíveis de {c.data.total}</p>
               </div>
               <div>
-                <p className="font-mono text-2xl font-medium tabular">
+                <p className="font-mono text-lg font-medium tabular md:text-2xl">
                   {c.rural ? formatAlq(c.data.alq) : c.data.publicados}
                 </p>
                 <p className="text-[11px] text-subtle">
@@ -427,7 +428,7 @@ export default async function CrmDashboard({
                 </p>
               </div>
               <div>
-                <p className="font-mono text-2xl font-medium tabular">{formatCompact(c.data.vgv)}</p>
+                <p className="font-mono text-lg font-medium tabular md:text-2xl">{formatCompact(c.data.vgv)}</p>
                 <p className="text-[11px] text-subtle">VGV disponível</p>
               </div>
             </div>
@@ -455,7 +456,7 @@ export default async function CrmDashboard({
 
       <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
         {/* Pipeline por estágio */}
-        <div className="card-elev rounded-2xl border border-hairline bg-card p-6">
+        <div className="card-elev rounded-2xl border border-hairline bg-card p-4 md:p-6">
           <div className="flex items-center justify-between">
             <h2 className="font-display text-base font-semibold tracking-tight">
               Pipeline
@@ -470,7 +471,7 @@ export default async function CrmDashboard({
           </div>
           <div className="mt-6 space-y-4">
             {stageData.map((s) => (
-              <div key={s.id} className="grid grid-cols-[120px_1fr_auto] items-center gap-3">
+              <div key={s.id} className="grid grid-cols-[104px_1fr_auto] items-center gap-2.5 md:grid-cols-[120px_1fr_auto] md:gap-3">
                 <span className="flex items-center gap-2 text-xs text-subtle">
                   <span
                     className="size-2 rounded-full"
@@ -526,8 +527,8 @@ export default async function CrmDashboard({
           </div>
         </div>
 
-        {/* Próximas visitas */}
-        <div className="card-elev rounded-2xl border border-hairline bg-card p-6">
+        {/* Próximas visitas — no celular vem antes do pipeline */}
+        <div className="card-elev order-first rounded-2xl border border-hairline bg-card p-4 md:p-6 lg:order-none">
           <div className="flex items-center justify-between">
             <h2 className="font-display text-base font-semibold tracking-tight">
               Próximas visitas
@@ -574,20 +575,23 @@ export default async function CrmDashboard({
             ))}
           </div>
 
-          <div className="mt-5 border-t border-hairline pt-5">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="font-display text-base font-semibold tracking-tight">
-                Atividade recente
-              </h2>
-              <span className="font-mono text-[10px] uppercase tracking-wider text-subtle">
-                {formatBRL(pipelineValue)} em jogo
-              </span>
-            </div>
+          <MobileSection
+            className="mt-5 border-t border-hairline pt-5"
+            title="Atividade recente"
+            meta={
+              <>
+                <span className="md:hidden">
+                  {activities[0] ? timeAgo(activities[0].createdAt) : "—"}
+                </span>
+                <span className="hidden md:inline">{formatBRL(pipelineValue)} em jogo</span>
+              </>
+            }
+          >
             <Timeline items={activities.slice(0, 7)} />
             <p className="mt-4 text-right font-mono text-[10px] uppercase tracking-wider text-subtle">
               última: {activities[0] ? timeAgo(activities[0].createdAt) : "—"}
             </p>
-          </div>
+          </MobileSection>
         </div>
       </div>
     </div>
