@@ -381,6 +381,10 @@ export function IntegrationsClient({
   const [newKey, setNewKey] = useState({ label: "", scope: "leitura" });
   const [revealed, setRevealed] = useState<string | null>(null);
   const [origin, setOrigin] = useState("");
+  // Google fica recolhido (sanfona); abre sozinho na volta do OAuth
+  const [googleOpen, setGoogleOpen] = useState(
+    () => !!(searchParams.get("connected") || searchParams.get("error")),
+  );
 
   useEffect(() => {
     setOrigin(window.location.origin);
@@ -453,33 +457,80 @@ export function IntegrationsClient({
 
   return (
     <div className="space-y-10">
-      {/* Google Workspace */}
-      <section>
-        <div className="mb-4">
-          <h2 className={sectionTitle}>Google Workspace</h2>
-          <p className="mt-1 text-xs text-subtle">
-            Contatos e agenda sincronizados nos dois sentidos via OAuth 2.0.
-          </p>
-        </div>
-        <div className="mb-4 rounded-2xl border border-blue-500/20 bg-blue-500/5 p-4">
-          <p className="text-xs font-semibold text-blue-600 dark:text-blue-400">
-            Preparação no Google Cloud Console
-          </p>
-          <ol className="mt-2 list-inside list-decimal space-y-1 text-[11.5px] leading-relaxed text-subtle">
-            <li>Ative Google People API e Google Calendar API no projeto.</li>
-            <li>Crie credenciais OAuth 2.0 do tipo “Aplicativo da Web”.</li>
-            <li>Cadastre exatamente a URI de redirecionamento abaixo.</li>
-          </ol>
-          <div className="mt-3">
-            <Copyable
-              text={`${origin || "https://seu-dominio.com"}/api/integrations/google/callback`}
-            />
+      {/* Google Workspace — sanfona */}
+      <section className="card-elev rounded-2xl border border-hairline bg-card">
+        <button
+          type="button"
+          onClick={() => setGoogleOpen((v) => !v)}
+          aria-expanded={googleOpen}
+          className="flex w-full items-center gap-3 p-6 text-left"
+        >
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-soft text-subtle">
+            <GoogleGlyph />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className={cn(sectionTitle, "block")}>Integrações Google</span>
+            <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-subtle">
+              {googleOpen ? (
+                "Contatos e agenda sincronizados nos dois sentidos via OAuth 2.0."
+              ) : (
+                <>
+                  {google.map((i) => (
+                    <span key={i.id} className="inline-flex items-center gap-1.5">
+                      <span
+                        className={cn(
+                          "size-2 rounded-full",
+                          i.connected ? "bg-emerald-500" : "bg-hairline-strong",
+                        )}
+                      />
+                      {i.name.replace(/^Google\s+/, "")}
+                      <span className="opacity-70">
+                        {i.connected ? (i.accountEmail ? `· ${i.accountEmail}` : "· conectado") : "· desconectado"}
+                      </span>
+                    </span>
+                  ))}
+                  <span>— clique para configurar</span>
+                </>
+              )}
+            </span>
+          </span>
+          <ChevronDown
+            className={cn(
+              "size-4 shrink-0 text-subtle transition-transform duration-300",
+              googleOpen && "rotate-180",
+            )}
+          />
+        </button>
+        <div
+          className={cn(
+            "grid transition-[grid-template-rows] duration-500 ease-expo",
+            googleOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+          )}
+        >
+          <div className="min-h-0 overflow-hidden" inert={!googleOpen}>
+            <div className="border-t border-hairline p-6">
+              <div className="mb-4 rounded-2xl border border-blue-500/20 bg-blue-500/5 p-4">
+                <p className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+                  Preparação no Google Cloud Console
+                </p>
+                <ol className="mt-2 list-inside list-decimal space-y-1 text-[11.5px] leading-relaxed text-subtle">
+                  <li>Ative Google People API e Google Calendar API no projeto.</li>
+                  <li>Crie credenciais OAuth 2.0 do tipo “Aplicativo da Web”.</li>
+                  <li>Cadastre exatamente a URI de redirecionamento abaixo.</li>
+                </ol>
+                <div className="mt-3">
+                  <Copyable
+                    text={`${origin || "https://seu-dominio.com"}/api/integrations/google/callback`}
+                  />
+                </div>
+              </div>
+              <div className="space-y-3">
+                {google.map((i) => (
+                  <IntegrationCard key={i.id} item={i} />
+                ))}
+              </div>
+            </div>
           </div>
-        </div>
-        <div className="space-y-3">
-          {google.map((i) => (
-            <IntegrationCard key={i.id} item={i} />
-          ))}
         </div>
       </section>
 
@@ -680,5 +731,17 @@ export function IntegrationsClient({
         )}
       </Modal>
     </div>
+  );
+}
+
+/** Logo "G" do Google, em cores */
+function GoogleGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-5" aria-hidden>
+      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z" />
+      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z" />
+      <path fill="#FBBC05" d="M5.84 14.1A6.6 6.6 0 0 1 5.5 12c0-.73.13-1.44.34-2.1V7.06H2.18A11 11 0 0 0 1 12c0 1.78.43 3.45 1.18 4.94l3.66-2.84z" />
+      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z" />
+    </svg>
   );
 }
