@@ -64,7 +64,7 @@ export function VisitForm({
           <span className="font-medium text-ink">
             {new Date(form.date + "T12:00").toLocaleDateString("pt-BR")} às {form.time}
           </span>
-          . Um curador confirma pelo seu WhatsApp em até 30 min.
+          . Um corretor confirma pelo seu WhatsApp em até 30 min.
         </p>
         <Button variant="outline" size="sm" className="mt-6" onClick={() => setDone(false)}>
           Agendar outro horário

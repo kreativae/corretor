@@ -1,3 +1,4 @@
+import { HomeSearch } from "@/components/site/home-search";
 import { LeadForm } from "@/components/site/lead-form";
 import { isRuralType } from "@/lib/rural";
 import { PropertyCard } from "@/components/site/property-card";
@@ -5,8 +6,22 @@ import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 import { listDeals, listPublishedProperties, getWhiteLabel } from "@/lib/queries";
 import { getSiteContent } from "@/lib/site-content";
-import { cn, parseYouTubeUrl } from "@/lib/utils";
-import { ArrowDown, ArrowRight, ArrowUpRight } from "lucide-react";
+import { searchHref } from "@/lib/site-search";
+import { TYPE_LABELS } from "@/lib/labels";
+import { parseYouTubeUrl, plural } from "@/lib/utils";
+import {
+  ArrowRight,
+  ArrowUpRight,
+  Building,
+  Building2,
+  Home,
+  KeyRound,
+  LandPlot,
+  MessageCircle,
+  Sofa,
+  Tractor,
+  type LucideIcon,
+} from "lucide-react";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -19,8 +34,11 @@ export default async function HomePage() {
     getSiteContent(),
   ]);
 
-  const neighborhoods = [...new Set(published.map((p) => p.neighborhood))];
-  const featured = published.slice(0, 5);
+  const urban = published.filter((p) => !isRuralType(p.type));
+  const rural = published.filter((p) => isRuralType(p.type));
+  const neighborhoods = [...new Set(published.map((p) => p.neighborhood).filter(Boolean))];
+  const cities = [...new Set(published.map((p) => p.city).filter(Boolean))];
+  const featured = urban.slice(0, 6);
   const closed = deals.filter((d) => d.deal.stage === "fechado").length;
   const vgv = published
     .filter((p) => p.purpose === "venda")
@@ -40,23 +58,62 @@ export default async function HomePage() {
     return { n: raw, label: s.label, suffix, format: s.value === "auto:vgv" ? ("brl" as const) : undefined };
   });
 
-  const marqueeItems = neighborhoods.length
-    ? neighborhoods
-    : ["Jardins", "Higienópolis", "Pinheiros", "Itaim Bibi", "Moema"];
-
   const heroYouTubeId = parseYouTubeUrl(content.hero.videoUrl);
+
+  const count = (fn: (p: (typeof published)[number]) => boolean) => published.filter(fn).length;
+  const urbanTypes = URBAN_ORDER.filter((t) => urban.some((p) => p.type === t));
+
+  // Atalhos por categoria (só os que têm imóveis)
+  const categories: { label: string; href: string; n: number; icon: LucideIcon }[] = [
+    ...urbanTypes.map((t) => ({
+      label: TYPE_PLURAL[t] ?? TYPE_LABELS[t],
+      href: searchHref({ tipo: t }),
+      n: count((p) => p.type === t),
+      icon: TYPE_ICONS[t] ?? Home,
+    })),
+    {
+      label: "Para alugar",
+      href: searchHref({ finalidade: "aluguel" }),
+      n: count((p) => !isRuralType(p.type) && p.purpose === "aluguel"),
+      icon: KeyRound,
+    },
+    {
+      label: "Propriedades rurais",
+      href: searchHref({ categoria: "rurais" }),
+      n: rural.length,
+      icon: Tractor,
+    },
+  ].filter((c) => c.n > 0);
+
+  // Atalhos rápidos (filtros comuns) — só aparecem se trouxerem resultado
+  const quick = [
+    { label: "Até R$ 500 mil", href: searchHref({ finalidade: "venda", precoMax: "500000" }), n: count((p) => !isRuralType(p.type) && p.purpose === "venda" && p.price <= 500000) },
+    { label: "3+ quartos", href: searchHref({ quartos: 3 }), n: count((p) => !isRuralType(p.type) && p.bedrooms >= 3) },
+    { label: "Com piscina", href: searchHref({ caracteristica: "Piscina" }), n: count((p) => !isRuralType(p.type) && p.features.includes("Piscina")) },
+    { label: "Pet friendly", href: searchHref({ caracteristica: "Pet friendly" }), n: count((p) => !isRuralType(p.type) && p.features.includes("Pet friendly")) },
+    { label: "Aluguel até R$ 5 mil", href: searchHref({ finalidade: "aluguel", precoMax: "5000" }), n: count((p) => !isRuralType(p.type) && p.purpose === "aluguel" && p.price <= 5000) },
+  ].filter((q) => q.n > 0);
+
+  // Bairros com mais imóveis, com a foto de um deles
+  const byHood = new Map<string, { n: number; cover: string | null; city: string }>();
+  for (const p of urban) {
+    if (!p.neighborhood) continue;
+    const cur = byHood.get(p.neighborhood) ?? { n: 0, cover: null, city: p.city };
+    byHood.set(p.neighborhood, { n: cur.n + 1, cover: cur.cover ?? p.cover, city: cur.city });
+  }
+  const hoods = [...byHood.entries()].sort((a, b) => b[1].n - a[1].n).slice(0, 8);
+
+  const whatsapp = `https://wa.me/${wl.phone}?text=${encodeURIComponent(content.cta.whatsappMessage)}`;
 
   return (
     <div className="bg-canvas">
-      <SiteHeader overHero orgName={wl.orgName} hasRural={published.some((x) => isRuralType(x.type))} />
+      <SiteHeader overHero orgName={wl.orgName} hasRural={rural.length > 0} />
 
-      {/* ───────────── HERO ───────────── */}
-      {/* Hero sempre escuro, independente do tema (vídeo + overlay + texto branco) */}
-      <section className="dark relative flex min-h-[100svh] flex-col overflow-hidden md:h-[100svh] md:min-h-[640px]">
+      {/* ───────────── HERO + BUSCA ───────────── */}
+      {/* Sempre escuro (vídeo + overlay); a busca é o protagonista */}
+      <section className="dark relative overflow-hidden">
         <div className="absolute inset-0">
           {heroYouTubeId ? (
-            /* Vídeo do YouTube — embed em modo capa (cover), mudo e em loop.
-               Escala 16:9 além do viewport para cobrir qualquer proporção. */
             <div className="absolute left-1/2 top-1/2 aspect-video w-[max(100vw,177.78vh)] -translate-x-1/2 -translate-y-1/2 overflow-hidden">
               <iframe
                 src={`https://www.youtube-nocookie.com/embed/${heroYouTubeId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${heroYouTubeId}&rel=0&modestbranding=1&playsinline=1&disablekb=1&iv_load_policy=3&fs=0`}
@@ -75,316 +132,223 @@ export default async function HomePage() {
               loop
               playsInline
               poster={content.hero.posterUrl}
-              className="h-full w-full scale-105 object-cover"
-              data-parallax="6"
+              className="h-full w-full object-cover"
             >
               <source src={content.hero.videoUrl} type="video/mp4" />
             </video>
           )}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/25 to-[#0a0a0a]" />
-          <div className="absolute inset-0 bg-black/20" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/45 to-black/75" />
         </div>
 
-        <div className="container-x relative z-10 flex flex-1 flex-col justify-end pb-8 pt-28 text-white md:pb-14 md:pt-0">
-          <p
-            data-reveal
-            className="mb-5 inline-flex items-center gap-2.5 font-mono text-[10.5px] uppercase tracking-[0.22em] text-white/80 md:mb-6 md:text-[11px] md:tracking-[0.24em]"
-          >
-            <span className="size-1.5 rounded-full bg-accent" />
-            {wl.orgName} — {content.hero.eyebrow}
-          </p>
-
-          <h1
-            data-words
-            data-delay="0.15"
-            className="max-w-5xl text-balance font-display text-[13vw] font-semibold leading-[0.98] tracking-[-0.03em] sm:text-7xl md:text-8xl lg:text-[7.5rem]"
-          >
-            {content.hero.title}
-          </h1>
-
-          <div className="mt-6 flex flex-col gap-5 md:mt-8 md:flex-row md:items-end md:justify-between md:gap-6">
+        <div className="container-x relative z-10 flex min-h-[640px] flex-col justify-center pb-10 pt-28 text-white md:min-h-[78svh] md:pb-16 md:pt-32">
+          <div className="mx-auto w-full max-w-5xl">
             <p
               data-reveal
-              data-delay="0.35"
-              className="max-w-md text-sm leading-relaxed text-white/75 md:text-[15px]"
+              className="mb-4 inline-flex items-center gap-2.5 font-mono text-[10.5px] uppercase tracking-[0.22em] text-white/75 md:text-[11px]"
             >
+              <span className="size-1.5 rounded-full bg-accent" />
+              {wl.orgName} — {content.hero.eyebrow}
+            </p>
+            <h1
+              data-words
+              data-delay="0.1"
+              className="max-w-3xl text-balance font-display text-[2.6rem] font-semibold leading-[1.02] tracking-[-0.03em] sm:text-6xl md:text-7xl"
+            >
+              {content.hero.title}
+            </h1>
+            <p data-reveal data-delay="0.25" className="mt-4 max-w-xl text-sm leading-relaxed text-white/75 md:mt-5 md:text-base">
               {content.hero.subtitle}
             </p>
-            <div
-              data-reveal
-              data-delay="0.45"
-              className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-center"
-            >
-              <Link
-                href="/imoveis"
-                className="group inline-flex h-12 items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-white px-4 text-sm font-medium text-black sm:gap-2 sm:px-6 transition-all duration-300 ease-expo hover:scale-[1.03] active:scale-[0.98]"
-              >
-                {content.hero.ctaPrimary}
-                <ArrowRight className="size-4 transition-transform duration-300 group-hover:translate-x-1" />
-              </Link>
+
+            <div data-reveal data-delay="0.35" className="mt-7 md:mt-9">
+              <HomeSearch
+                urbanTypes={urbanTypes}
+                places={[...neighborhoods, ...cities.filter((c) => !neighborhoods.includes(c))]}
+                neighborhoods={neighborhoods}
+                cities={cities}
+                hasRural={rural.length > 0}
+                hasRent={urban.some((p) => p.purpose === "aluguel")}
+                buttonLabel={content.hero.ctaPrimary}
+              />
+            </div>
+
+            {quick.length > 0 && (
+              <div data-reveal data-delay="0.45" className="-mx-5 mt-4 flex gap-2 overflow-x-auto px-5 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0">
+                {quick.map((q) => (
+                  <Link
+                    key={q.label}
+                    href={q.href}
+                    className="shrink-0 rounded-full border border-white/20 bg-white/5 px-3.5 py-1.5 text-xs font-medium text-white/85 backdrop-blur-sm transition-colors hover:border-white/50 hover:text-white"
+                  >
+                    {q.label}
+                  </Link>
+                ))}
+              </div>
+            )}
+
+            <div data-reveal data-delay="0.5" className="mt-8 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-white/15 pt-5 sm:flex sm:flex-wrap sm:items-center sm:gap-x-8 md:mt-10">
+              {heroStats.map((s, i) => (
+                <div key={i} className="flex flex-col sm:flex-row sm:items-baseline sm:gap-2">
+                  <p className="font-mono text-lg font-medium tabular md:text-xl">
+                    <span data-counter={s.n} data-format={s.format ?? "int"}>
+                      0
+                    </span>
+                    {s.suffix}
+                  </p>
+                  <p className="text-xs text-white/60">{s.label}</p>
+                </div>
+              ))}
               <a
-                href="#colecao"
-                className="inline-flex h-12 items-center justify-center gap-2 whitespace-nowrap rounded-full border border-white/25 px-4 text-sm font-medium text-white sm:px-6 backdrop-blur-sm transition-colors duration-300 hover:border-white/60"
+                href={whatsapp}
+                target="_blank"
+                rel="noreferrer"
+                className="col-span-2 mt-1 inline-flex items-center gap-1.5 text-xs font-medium text-white/80 underline-offset-4 transition-colors hover:text-white hover:underline sm:ml-auto sm:mt-0"
               >
+                <MessageCircle className="size-3.5" />
                 {content.hero.ctaSecondary}
               </a>
             </div>
           </div>
+        </div>
+      </section>
 
-          {/* Stats */}
-          <div
-            data-reveal
-            data-delay="0.55"
-            className="mt-8 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-white/15 pt-5 md:mt-12 md:grid-cols-4 md:gap-6 md:pt-6"
-          >
-            {heroStats.map((s, i) => (
-              <div key={i}>
-                <p className="font-mono text-xl font-medium tabular md:text-3xl">
-                  <span data-counter={s.n} data-format={s.format ?? "int"}>
-                    0
+      {/* ───────────── CATEGORIAS ───────────── */}
+      {categories.length > 0 && (
+        <section className="container-x pt-10 md:pt-16">
+          <div className="-mx-5 flex gap-3 overflow-x-auto px-5 pb-1 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-[repeat(auto-fit,minmax(150px,1fr))] sm:px-0">
+            {categories.map((c) => (
+              <Link
+                key={c.label}
+                href={c.href}
+                className="group flex w-36 shrink-0 flex-col gap-4 rounded-2xl border border-hairline bg-card p-4 transition-all duration-300 hover:-translate-y-0.5 hover:border-hairline-strong sm:w-auto"
+              >
+                <span className="flex size-10 items-center justify-center rounded-xl bg-soft text-ink transition-colors group-hover:bg-accent group-hover:text-on-accent">
+                  <c.icon className="size-5" />
+                </span>
+                <span>
+                  <span className="block text-sm font-medium leading-tight">{c.label}</span>
+                  <span className="mt-1 block font-mono text-[11px] text-subtle">
+                    {c.n} {plural(c.n, "opção", "opções")}
                   </span>
-                  {s.suffix}
-                </p>
-                <p className="mt-1 text-xs text-white/60">{s.label}</p>
+                </span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ───────────── DESTAQUES ───────────── */}
+      {featured.length > 0 && (
+        <section id="destaques" className="container-x scroll-mt-20 py-12 md:py-20">
+          <SectionHead eyebrow={content.collection.eyebrow} title={content.collection.title}>
+            <Link
+              href="/imoveis"
+              className="group inline-flex items-center gap-2 text-sm font-medium text-subtle transition-colors hover:text-ink"
+            >
+              {content.collection.linkLabel}
+              <ArrowUpRight className="size-4 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+            </Link>
+          </SectionHead>
+          <div className="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-2 [scrollbar-width:none] sm:mx-0 sm:grid sm:snap-none sm:grid-cols-2 sm:gap-x-6 sm:gap-y-10 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-3">
+            {featured.map((p, i) => (
+              <div key={p.id} data-reveal data-delay={`${(i % 3) * 0.06}`} className="w-[84%] shrink-0 snap-center sm:w-auto">
+                <PropertyCard property={p} />
               </div>
             ))}
           </div>
-        </div>
-
-        <div className="absolute bottom-10 right-6 z-10 hidden md:right-10 lg:block">
-          <div className="flex size-12 animate-bounce items-center justify-center rounded-full border border-white/20 text-white/70 [animation-duration:2.4s]">
-            <ArrowDown className="size-4" />
-          </div>
-        </div>
-      </section>
-
-      {/* ───────────── MARQUEE ───────────── */}
-      <section className="overflow-hidden border-b border-hairline py-4 md:py-5">
-        <div className="animate-marquee flex w-max items-center gap-10">
-          {[...marqueeItems, ...marqueeItems].map((n, i) => (
-            <span
-              key={i}
-              className="flex items-center gap-10 whitespace-nowrap font-mono text-xs uppercase tracking-[0.28em] text-subtle"
-            >
-              {n}
-              <span className="size-1 rounded-full bg-accent" />
-            </span>
-          ))}
-        </div>
-      </section>
-
-      {/* ───────────── COLEÇÃO ───────────── */}
-      <section id="colecao" className="container-x scroll-mt-16 py-14 md:py-32">
-        <div className="mb-8 flex flex-wrap items-end justify-between gap-4 md:mb-12 md:gap-6">
-          <div>
-            <p
-              data-reveal
-              className="font-mono text-[11px] uppercase tracking-[0.24em] text-subtle"
-            >
-              {content.collection.eyebrow}
-            </p>
-            <h2
-              data-words
-              className="mt-3 max-w-xl text-balance font-display text-3xl font-semibold tracking-[-0.02em] sm:text-4xl md:text-6xl"
-            >
-              {content.collection.title}
-            </h2>
-          </div>
           <Link
-            data-reveal
             href="/imoveis"
-            className="group inline-flex items-center gap-2 text-sm font-medium text-subtle transition-colors hover:text-ink"
+            className="mt-8 flex h-12 items-center justify-center gap-2 rounded-full border border-hairline-strong text-sm font-medium transition-colors hover:bg-soft sm:mx-auto sm:w-fit sm:px-8"
           >
-            {content.collection.linkLabel}
-            <ArrowUpRight className="size-4 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+            Ver todos os {urban.length} imóveis
+            <ArrowRight className="size-4" />
           </Link>
-        </div>
+        </section>
+      )}
 
-        {/* Celular: carrossel de deslizar; do tablet para cima, grade */}
-        <div className="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-2 [scrollbar-width:none] sm:mx-0 sm:grid sm:snap-none sm:grid-cols-2 sm:gap-x-6 sm:gap-y-12 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-3">
-          {featured.map((p, i) => (
-            <div
-              key={p.id}
-              data-reveal
-              data-delay={`${(i % 3) * 0.08}`}
-              className={cn(
-                "w-[84%] shrink-0 snap-center sm:w-auto",
-                i === 0 && "sm:col-span-2",
-              )}
-            >
-              <PropertyCard property={p} featured={i === 0} />
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ───────────── EXPERIÊNCIA ───────────── */}
-      <section id="experiencia" className="border-t border-hairline bg-soft/60">
-        <div className="container-x grid gap-10 py-14 md:gap-14 md:py-32 lg:grid-cols-2 lg:gap-20">
-          <div className="lg:sticky lg:top-32 lg:self-start">
-            <p
-              data-reveal
-              className="font-mono text-[11px] uppercase tracking-[0.24em] text-subtle"
-            >
-              {content.experience.eyebrow}
-            </p>
-            <h2
-              data-words
-              className="mt-4 text-balance font-display text-3xl font-semibold leading-[1.05] tracking-[-0.02em] sm:text-4xl md:text-5xl"
-            >
-              {content.experience.title}
-            </h2>
-            <p
-              data-reveal
-              className="mt-5 max-w-md text-sm leading-relaxed text-subtle md:mt-6 md:text-[15px]"
-            >
-              {content.experience.body}
-            </p>
-
-            <div className="mt-8 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-hairline bg-hairline md:mt-12">
-              {content.experience.stats.map((s, i) => (
-                <div key={i} className="bg-card p-4 md:p-6">
-                  <p className="font-mono text-2xl font-medium tabular md:text-3xl">
-                    <span
-                      data-counter={parseFloat(s.value.replace(/[^\d.]/g, "")) || 0}
-                      data-format="int"
-                    >
-                      0
-                    </span>
-                    {s.value.replace(/[\d.,\s]/g, "")}
-                  </p>
-                  <p className="mt-2 text-xs leading-relaxed text-subtle">
-                    {s.label}
-                  </p>
-                </div>
+      {/* ───────────── BAIRROS ───────────── */}
+      {hoods.length > 1 && (
+        <section className="border-t border-hairline bg-soft/50">
+          <div className="container-x py-12 md:py-20">
+            <SectionHead eyebrow="Por região" title="Buscar por bairro" />
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 lg:grid-cols-4">
+              {hoods.map(([name, h]) => (
+                <Link
+                  key={name}
+                  href={searchHref({ bairro: name })}
+                  className="group relative aspect-[4/3] overflow-hidden rounded-2xl bg-soft"
+                >
+                  {h.cover ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={h.cover}
+                      alt=""
+                      loading="lazy"
+                      className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-expo group-hover:scale-[1.06]"
+                    />
+                  ) : (
+                    <div className="grid-bg absolute inset-0 opacity-60" />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
+                  <div className="absolute inset-x-0 bottom-0 p-3.5 text-white md:p-4">
+                    <p className="font-display text-base font-semibold leading-tight tracking-tight md:text-lg">{name}</p>
+                    <p className="mt-0.5 text-[11px] text-white/75">
+                      {h.n} {plural(h.n, "imóvel", "imóveis")}
+                      {cities.length > 1 && ` · ${h.city}`}
+                    </p>
+                  </div>
+                </Link>
               ))}
             </div>
           </div>
+        </section>
+      )}
 
-          <div className="grid grid-cols-2 gap-3 lg:flex lg:flex-col lg:gap-6">
-            <div data-clip className="overflow-hidden rounded-2xl">
-              <div className="relative aspect-[3/4] overflow-hidden lg:aspect-[4/5]">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={content.experience.imageA}
-                  alt="Ambiente do portfólio"
-                  loading="lazy"
-                  data-parallax="7"
-                  className="absolute inset-0 h-[116%] w-full object-cover"
-                />
-              </div>
-            </div>
-            <div data-clip className="overflow-hidden rounded-2xl">
-              <div className="relative aspect-[3/4] overflow-hidden lg:aspect-[16/10]">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={content.experience.imageB}
-                  alt="Fachada do portfólio"
-                  loading="lazy"
-                  data-parallax="7"
-                  className="absolute inset-0 h-[116%] w-full object-cover"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ───────────── COMO FUNCIONA ───────────── */}
-      <section className="container-x py-14 md:py-32">
-        <p
-          data-reveal
-          className="font-mono text-[11px] uppercase tracking-[0.24em] text-subtle"
-        >
-          {content.process.eyebrow}
-        </p>
-        <h2
-          data-words
-          className="mt-4 max-w-2xl text-balance font-display text-3xl font-semibold tracking-[-0.02em] sm:text-4xl md:text-6xl"
-        >
-          {content.process.title}
-        </h2>
-
-        <div className="mt-10 grid gap-8 md:mt-14 md:grid-cols-3 md:gap-10">
-          {content.process.steps.map((s, i) => (
-            <div
-              key={i}
-              data-reveal
-              data-delay={`${i * 0.1}`}
-              className="border-t border-hairline-strong pt-6"
+      {/* ───────────── RURAIS ───────────── */}
+      {rural.length > 0 && (
+        <section className="container-x py-12 md:py-20">
+          <SectionHead eyebrow="No campo" title="Propriedades rurais">
+            <Link
+              href={searchHref({ categoria: "rurais" })}
+              className="group inline-flex items-center gap-2 text-sm font-medium text-subtle transition-colors hover:text-ink"
             >
-              <p className="font-mono text-xs text-subtle">{s.n}</p>
-              <h3 className="mt-3 font-display text-xl font-semibold tracking-tight md:mt-4 md:text-2xl">
-                {s.title}
-              </h3>
-              <p className="mt-3 text-sm leading-relaxed text-subtle">{s.body}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+              Ver {rural.length} {plural(rural.length, "propriedade", "propriedades")}
+              <ArrowUpRight className="size-4 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+            </Link>
+          </SectionHead>
+          <div className="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-2 [scrollbar-width:none] sm:mx-0 sm:grid sm:snap-none sm:grid-cols-2 sm:gap-x-6 sm:gap-y-10 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-3">
+            {rural.slice(0, 3).map((p) => (
+              <div key={p.id} className="w-[84%] shrink-0 snap-center sm:w-auto">
+                <PropertyCard property={p} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
-      {/* ───────────── FALE COM A GENTE ───────────── */}
-      <section id="fale-conosco" className="container-x scroll-mt-24 pb-14 md:pb-28">
-        <div className="grid gap-8 rounded-3xl border border-hairline bg-card p-5 md:grid-cols-[0.8fr_1.2fr] md:gap-10 md:p-12">
+      {/* ───────────── NÃO ENCONTROU? ───────────── */}
+      <section id="fale-conosco" className="container-x scroll-mt-24 pb-14 pt-2 md:pb-24">
+        <div className="grid gap-8 rounded-3xl border border-hairline bg-card p-5 md:grid-cols-[0.85fr_1.15fr] md:gap-12 md:p-12">
           <div data-reveal>
             <p className="font-mono text-[11px] uppercase tracking-[0.24em] text-subtle">
-              Fale com a gente
+              A gente busca pra você
             </p>
-            <h2 className="mt-3 font-display text-2xl font-semibold tracking-tight sm:text-3xl md:text-4xl">
-              Conte o que você procura.
+            <h2 className="mt-3 text-balance font-display text-2xl font-semibold tracking-tight sm:text-3xl md:text-4xl">
+              {content.cta.title}
             </h2>
-            <p className="mt-4 max-w-sm text-sm leading-relaxed text-subtle">
-              Imóvel na cidade ou propriedade rural: deixe seu contato e um corretor
-              retorna pelo WhatsApp.
-            </p>
+            <p className="mt-4 max-w-sm text-sm leading-relaxed text-subtle">{content.cta.body}</p>
+            <a
+              href={whatsapp}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-6 inline-flex h-11 items-center gap-2 rounded-full border border-hairline-strong px-5 text-sm font-medium transition-colors hover:bg-soft"
+            >
+              <MessageCircle className="size-4" />
+              {content.cta.secondary}
+            </a>
           </div>
           <div data-reveal data-delay="0.1">
             <LeadForm />
-          </div>
-        </div>
-      </section>
-
-      {/* ───────────── CTA FINAL ───────────── */}
-      <section className="container-x pb-14 md:pb-32">
-        <div
-          data-reveal
-          className="relative overflow-hidden rounded-3xl border border-hairline bg-soft px-5 py-12 text-center sm:px-8 md:py-24"
-        >
-          <div className="grid-bg pointer-events-none absolute inset-0 opacity-60" />
-          <div className="relative">
-            <h2
-              data-words
-              className="mx-auto max-w-3xl text-balance font-display text-3xl font-semibold tracking-[-0.02em] sm:text-4xl md:text-6xl"
-            >
-              {content.cta.title}
-            </h2>
-            <p
-              data-reveal
-              className="mx-auto mt-5 max-w-md text-sm leading-relaxed text-subtle"
-            >
-              {content.cta.body}
-            </p>
-            <div
-              data-reveal
-              data-delay="0.1"
-              className="mt-8 flex flex-col items-stretch justify-center gap-3 sm:mt-9 sm:flex-row sm:flex-wrap sm:items-center"
-            >
-              <Link
-                href="/imoveis"
-                className="group inline-flex h-12 items-center justify-center gap-2 rounded-full bg-accent px-7 text-sm font-medium text-on-accent transition-all duration-300 ease-expo hover:scale-[1.03] active:scale-[0.98]"
-              >
-                {content.cta.primary}
-                <ArrowRight className="size-4 transition-transform duration-300 group-hover:translate-x-1" />
-              </Link>
-              <a
-                href={`https://wa.me/${wl.phone}?text=${encodeURIComponent(content.cta.whatsappMessage)}`}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-hairline-strong px-7 text-sm font-medium transition-colors duration-300 hover:bg-card"
-              >
-                {content.cta.secondary}
-              </a>
-            </div>
           </div>
         </div>
       </section>
@@ -396,6 +360,46 @@ export default async function HomePage() {
         email={wl.email}
         instagram={wl.instagram}
       />
+    </div>
+  );
+}
+
+const URBAN_ORDER = ["apartamento", "casa", "cobertura", "estudio", "terreno"];
+const TYPE_PLURAL: Record<string, string> = {
+  apartamento: "Apartamentos",
+  casa: "Casas",
+  cobertura: "Coberturas",
+  estudio: "Estúdios",
+  terreno: "Terrenos",
+};
+const TYPE_ICONS: Record<string, LucideIcon> = {
+  apartamento: Building2,
+  casa: Home,
+  cobertura: Building,
+  estudio: Sofa,
+  terreno: LandPlot,
+};
+
+function SectionHead({
+  eyebrow,
+  title,
+  children,
+}: {
+  eyebrow: string;
+  title: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-3 md:mb-10">
+      <div>
+        <p data-reveal className="font-mono text-[11px] uppercase tracking-[0.24em] text-subtle">
+          {eyebrow}
+        </p>
+        <h2 className="mt-2 text-balance font-display text-2xl font-semibold tracking-[-0.02em] sm:text-3xl md:text-5xl">
+          {title}
+        </h2>
+      </div>
+      {children}
     </div>
   );
 }

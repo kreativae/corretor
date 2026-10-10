@@ -16,9 +16,10 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function ImoveisPage({
   searchParams,
 }: {
-  searchParams: Promise<{ categoria?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { categoria } = await searchParams;
+  const sp = await searchParams;
+  const categoria = sp.categoria;
   const [wl, properties, content] = await Promise.all([
     getWhiteLabel(),
     listPublishedProperties(),
@@ -42,9 +43,10 @@ export default async function ImoveisPage({
           {content.listing.title}
         </h1>
         <ImoveisBrowser
-          key={categoria === "rurais" ? "rurais" : "urbanos"}
+          key={JSON.stringify(sp)}
           properties={properties}
           initialCategoria={categoria === "rurais" ? "rurais" : "urbanos"}
+          initialSearch={sp}
         />
       </main>
       <SiteFooter

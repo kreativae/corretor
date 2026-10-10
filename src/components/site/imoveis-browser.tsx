@@ -13,6 +13,7 @@ import { EmptyState, Input, Select } from "@/components/ui";
 import { TYPE_LABELS } from "@/lib/labels";
 import type { PropertyWithImages } from "@/lib/queries";
 import { APTIDAO_LABELS, isRuralType, RURAL_TYPES } from "@/lib/rural";
+import { filtersFromSearch, type SiteSearchParams } from "@/lib/site-search";
 import { cn, plural } from "@/lib/utils";
 import { Building2, ChevronDown, Search, SlidersHorizontal, Tractor } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
@@ -55,9 +56,12 @@ function QuickChip({
 export function ImoveisBrowser({
   properties,
   initialCategoria = "urbanos",
+  initialSearch = {},
 }: {
   properties: PropertyWithImages[];
   initialCategoria?: Categoria;
+  /** Parâmetros da URL (busca vinda da home) */
+  initialSearch?: SiteSearchParams;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -71,7 +75,10 @@ export function ImoveisBrowser({
   const base = rural ? rurais : urbanos;
   const TYPES: string[] = rural ? [...RURAL_TYPES] : URBAN_TYPES;
 
-  const [filters, setFilters] = useState<PropertyFilters>(EMPTY_PROPERTY_FILTERS);
+  const [filters, setFilters] = useState<PropertyFilters>(() => ({
+    ...EMPTY_PROPERTY_FILTERS,
+    ...filtersFromSearch(initialSearch),
+  }));
   const [showFilters, setShowFilters] = useState(false);
   // No celular, os atalhos de tipo/finalidade ficam recolhidos
   const [showQuick, setShowQuick] = useState(false);
@@ -248,7 +255,7 @@ export function ImoveisBrowser({
           <EmptyState
             icon={<Building2 className="size-5" />}
             title="Nada por aqui — ainda"
-            description="Tente ampliar os filtros ou fale com um curador: temos imóveis off-market que não entram na vitrine."
+            description="Tente ampliar os filtros ou fale com um corretor: temos imóveis que ainda não estão no site."
             action={
               <button
                 onClick={() => setFilters(EMPTY_PROPERTY_FILTERS)}

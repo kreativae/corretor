@@ -43,8 +43,9 @@ export function SiteFooter({
           <ul className="mt-5 space-y-3 text-sm">
             {[
               { href: "/imoveis", label: "Todos os imóveis" },
-              { href: "/#colecao", label: "Coleção" },
-              { href: "/#experiencia", label: "Experiência" },
+              { href: "/imoveis?finalidade=venda", label: "Comprar" },
+              { href: "/imoveis?finalidade=aluguel", label: "Alugar" },
+              { href: "/#fale-conosco", label: "Fale com um corretor" },
               { href: "/login", label: "Acessar plataforma" },
             ].map((l) => (
               <li key={l.href}>

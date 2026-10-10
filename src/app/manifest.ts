@@ -6,7 +6,7 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
   return {
     name: `${wl.orgName} — ImobManager`,
     short_name: brandShortName(wl),
-    description: "Imóveis excepcionais, curadoria autoral.",
+    description: "Casas, apartamentos e imóveis rurais à venda e para alugar.",
     start_url: "/",
     display: "standalone",
     background_color: "#0a0a0a",

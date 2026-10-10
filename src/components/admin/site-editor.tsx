@@ -6,9 +6,7 @@ import type { SiteContent } from "@/lib/site-content";
 import { cn, parseYouTubeUrl } from "@/lib/utils";
 import {
   ExternalLink,
-  Image as ImageIcon,
   LayoutTemplate,
-  ListChecks,
   Megaphone,
   PanelBottom,
   RotateCcw,
@@ -24,8 +22,6 @@ type TabId =
   | "seo"
   | "hero"
   | "collection"
-  | "experience"
-  | "process"
   | "cta"
   | "pages"
   | "footer";
@@ -33,10 +29,8 @@ type TabId =
 const TABS: { id: TabId; label: string; icon: typeof Search }[] = [
   { id: "seo", label: "SEO & meta", icon: Search },
   { id: "hero", label: "Hero", icon: LayoutTemplate },
-  { id: "collection", label: "Coleção", icon: Sparkles },
-  { id: "experience", label: "Experiência", icon: ImageIcon },
-  { id: "process", label: "Processo", icon: ListChecks },
-  { id: "cta", label: "Chamada final", icon: Megaphone },
+  { id: "collection", label: "Destaques", icon: Sparkles },
+  { id: "cta", label: "Não encontrou?", icon: Megaphone },
   { id: "pages", label: "Listagem & imóvel", icon: LayoutTemplate },
   { id: "footer", label: "Rodapé", icon: PanelBottom },
 ];
@@ -190,13 +184,13 @@ export function SiteEditor({
                     onChange={(e) => patch("hero", { subtitle: e.target.value })}
                   />
                 </Field>
-                <Field label="Botão primário">
+                <Field label="Botão da busca">
                   <Input
                     value={c.hero.ctaPrimary}
                     onChange={(e) => patch("hero", { ctaPrimary: e.target.value })}
                   />
                 </Field>
-                <Field label="Botão secundário">
+                <Field label="Link de WhatsApp (abaixo da busca)">
                   <Input
                     value={c.hero.ctaSecondary}
                     onChange={(e) => patch("hero", { ctaSecondary: e.target.value })}
@@ -307,7 +301,7 @@ export function SiteEditor({
         {tab === "collection" && (
           <section className={card}>
             <h2 className="mb-5 font-display text-base font-semibold tracking-tight">
-              Seção de coleção
+              Seção de destaques
             </h2>
             <div className="space-y-4">
               <Field label="Linha de apoio">
@@ -332,151 +326,11 @@ export function SiteEditor({
           </section>
         )}
 
-        {/* ─────── EXPERIÊNCIA ─────── */}
-        {tab === "experience" && (
-          <>
-            <section className={card}>
-              <h2 className="mb-5 font-display text-base font-semibold tracking-tight">
-                Seção experiência
-              </h2>
-              <div className="space-y-4">
-                <Field label="Linha de apoio">
-                  <Input
-                    value={c.experience.eyebrow}
-                    onChange={(e) => patch("experience", { eyebrow: e.target.value })}
-                  />
-                </Field>
-                <Field label="Título">
-                  <Input
-                    value={c.experience.title}
-                    onChange={(e) => patch("experience", { title: e.target.value })}
-                  />
-                </Field>
-                <Field label="Texto de apoio">
-                  <Textarea
-                    rows={4}
-                    value={c.experience.body}
-                    onChange={(e) => patch("experience", { body: e.target.value })}
-                  />
-                </Field>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label="Imagem vertical (URL)">
-                    <Input
-                      value={c.experience.imageA}
-                      onChange={(e) => patch("experience", { imageA: e.target.value })}
-                      className="font-mono text-xs"
-                    />
-                  </Field>
-                  <Field label="Imagem horizontal (URL)">
-                    <Input
-                      value={c.experience.imageB}
-                      onChange={(e) => patch("experience", { imageB: e.target.value })}
-                      className="font-mono text-xs"
-                    />
-                  </Field>
-                </div>
-              </div>
-            </section>
-
-            <section className={card}>
-              <h2 className="mb-5 font-display text-base font-semibold tracking-tight">
-                Números da seção
-              </h2>
-              <div className="space-y-3">
-                {c.experience.stats.map((s, i) => (
-                  <div key={i} className="grid gap-3 sm:grid-cols-[160px_1fr]">
-                    <Input
-                      value={s.value}
-                      onChange={(e) => {
-                        const stats = [...c.experience.stats];
-                        stats[i] = { ...s, value: e.target.value };
-                        patch("experience", { stats });
-                      }}
-                      className="font-mono text-xs"
-                    />
-                    <Input
-                      value={s.label}
-                      onChange={(e) => {
-                        const stats = [...c.experience.stats];
-                        stats[i] = { ...s, label: e.target.value };
-                        patch("experience", { stats });
-                      }}
-                    />
-                  </div>
-                ))}
-              </div>
-            </section>
-          </>
-        )}
-
-        {/* ─────── PROCESSO ─────── */}
-        {tab === "process" && (
-          <section className={card}>
-            <h2 className="mb-5 font-display text-base font-semibold tracking-tight">
-              Seção processo
-            </h2>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Linha de apoio">
-                <Input
-                  value={c.process.eyebrow}
-                  onChange={(e) => patch("process", { eyebrow: e.target.value })}
-                />
-              </Field>
-              <Field label="Título">
-                <Input
-                  value={c.process.title}
-                  onChange={(e) => patch("process", { title: e.target.value })}
-                />
-              </Field>
-            </div>
-            <div className="mt-6 space-y-4">
-              {c.process.steps.map((s, i) => (
-                <div key={i} className="rounded-xl border border-hairline p-4">
-                  <div className="grid gap-3 sm:grid-cols-[90px_1fr]">
-                    <Field label="Nº">
-                      <Input
-                        value={s.n}
-                        onChange={(e) => {
-                          const steps = [...c.process.steps];
-                          steps[i] = { ...s, n: e.target.value };
-                          patch("process", { steps });
-                        }}
-                        className="font-mono"
-                      />
-                    </Field>
-                    <Field label="Título do passo">
-                      <Input
-                        value={s.title}
-                        onChange={(e) => {
-                          const steps = [...c.process.steps];
-                          steps[i] = { ...s, title: e.target.value };
-                          patch("process", { steps });
-                        }}
-                      />
-                    </Field>
-                  </div>
-                  <Field label="Descrição" className="mt-3">
-                    <Textarea
-                      rows={2}
-                      value={s.body}
-                      onChange={(e) => {
-                        const steps = [...c.process.steps];
-                        steps[i] = { ...s, body: e.target.value };
-                        patch("process", { steps });
-                      }}
-                    />
-                  </Field>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
         {/* ─────── CTA ─────── */}
         {tab === "cta" && (
           <section className={card}>
             <h2 className="mb-5 font-display text-base font-semibold tracking-tight">
-              Chamada final (antes do rodapé)
+              Não encontrou? (contato antes do rodapé)
             </h2>
             <div className="space-y-4">
               <Field label="Título">
@@ -492,20 +346,12 @@ export function SiteEditor({
                   onChange={(e) => patch("cta", { body: e.target.value })}
                 />
               </Field>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Botão primário">
-                  <Input
-                    value={c.cta.primary}
-                    onChange={(e) => patch("cta", { primary: e.target.value })}
-                  />
-                </Field>
-                <Field label="Botão WhatsApp">
-                  <Input
-                    value={c.cta.secondary}
-                    onChange={(e) => patch("cta", { secondary: e.target.value })}
-                  />
-                </Field>
-              </div>
+              <Field label="Botão WhatsApp">
+                <Input
+                  value={c.cta.secondary}
+                  onChange={(e) => patch("cta", { secondary: e.target.value })}
+                />
+              </Field>
               <Field
                 label="Mensagem pré-preenchida do WhatsApp"
                 hint="Enviada quando o visitante clica no botão"

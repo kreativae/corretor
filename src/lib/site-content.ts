@@ -55,31 +55,31 @@ export type SiteContent = {
 
 export const DEFAULT_CONTENT: SiteContent = {
   seo: {
-    title: "NORD Imóveis — Imobiliária boutique em São Paulo",
+    title: "NORD Imóveis — Casas, apartamentos e imóveis rurais",
     description:
-      "Imóveis excepcionais, curadoria autoral e uma experiência de compra à altura.",
+      "Encontre casas, apartamentos e propriedades rurais à venda e para alugar. Busque por bairro, tipo e preço.",
   },
   hero: {
     eyebrow: "São Paulo, Brasil",
-    title: "Espaços com assinatura.",
+    title: "Encontre a casa ideal.",
     subtitle:
-      "Curadoria autoral de imóveis excepcionais. Do primeiro café à entrega das chaves — uma experiência à altura do endereço.",
-    ctaPrimary: "Explorar coleção",
-    ctaSecondary: "Conhecer a casa",
+      "Apartamentos, casas e propriedades rurais à venda e para alugar. Busque pelo bairro, tipo e preço — e fale direto com um corretor.",
+    ctaPrimary: "Buscar",
+    ctaSecondary: "Prefere ajuda? Fale com um corretor",
     videoUrl:
       "https://videos.pexels.com/video-files/39024321/16605501_3840_2160_30fps.mp4",
     posterUrl:
       "https://images.pexels.com/videos/39024321/aerial-photography-aerial-view-cinematic-coastal-landscape-39024321.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=1080&w=1920",
     stats: [
-      { value: "auto:properties", label: "Imóveis em curadoria" },
+      { value: "auto:properties", label: "Imóveis disponíveis" },
       { value: "auto:neighborhoods", label: "Bairros atendidos" },
       { value: "340", label: "Chaves entregues" },
       { value: "auto:vgv", label: "Em portfólio" },
     ],
   },
   collection: {
-    eyebrow: "01 — Coleção",
-    title: "Selecionados desta temporada",
+    eyebrow: "Destaques",
+    title: "Imóveis em destaque",
     linkLabel: "Ver todos os imóveis",
   },
   experience: {
@@ -119,21 +119,21 @@ export const DEFAULT_CONTENT: SiteContent = {
     ],
   },
   cta: {
-    title: "O próximo capítulo começa com uma visita.",
-    body: "Agende uma visita guiada ou converse com um curador — sem compromisso, sem roteiro de vendas.",
-    primary: "Agendar visita",
+    title: "Não encontrou o que procura?",
+    body: "Conte o que você precisa e um corretor busca pra você — inclusive imóveis que ainda não estão no site.",
+    primary: "Ver todos os imóveis",
     secondary: "Falar no WhatsApp",
     whatsappMessage: "Olá! Quero conhecer os imóveis disponíveis.",
   },
   listing: {
-    eyebrow: "Portfólio completo",
+    eyebrow: "Imóveis à venda e para alugar",
     title: "Encontre o seu endereço.",
   },
   detail: {
     visitEyebrow: "Visita guiada",
     visitTitle: "Veja com os próprios olhos.",
     visitBullets: [
-      "Tour guiado por um curador sênior",
+      "Visita acompanhada por um corretor",
       "Análise honesta de prós e contras",
       "Simulação de financiamento na hora",
     ],
@@ -142,13 +142,44 @@ export const DEFAULT_CONTENT: SiteContent = {
     brokerRole: "",
   },
   footer: {
-    tagline: "Espaços com assinatura, escolhidos para durar.",
+    tagline: "Imóveis à venda e para alugar, com atendimento direto do corretor.",
     address: "Rua Oscar Freire, 1200\nJardins, São Paulo — SP",
     email: "contato@nordimoveis.com.br",
     creci: "CRECI 24.315-J",
     coords: "23°33′S 46°38′W — São Paulo",
   },
 };
+
+/** Textos padrão antigos (site "autoral") trocados pelos novos quando ainda
+ *  estão salvos sem edição — quem personalizou mantém o próprio texto. */
+const LEGACY_DEFAULTS: Record<string, string> = {
+  "Espaços com assinatura.": DEFAULT_CONTENT.hero.title,
+  "Curadoria autoral de imóveis excepcionais. Do primeiro café à entrega das chaves — uma experiência à altura do endereço.":
+    DEFAULT_CONTENT.hero.subtitle,
+  "Explorar coleção": DEFAULT_CONTENT.hero.ctaPrimary,
+  "Conhecer a casa": DEFAULT_CONTENT.hero.ctaSecondary,
+  "Imóveis em curadoria": "Imóveis disponíveis",
+  "01 — Coleção": DEFAULT_CONTENT.collection.eyebrow,
+  "Selecionados desta temporada": DEFAULT_CONTENT.collection.title,
+  "O próximo capítulo começa com uma visita.": DEFAULT_CONTENT.cta.title,
+  "Agende uma visita guiada ou converse com um curador — sem compromisso, sem roteiro de vendas.":
+    DEFAULT_CONTENT.cta.body,
+  "Agendar visita": DEFAULT_CONTENT.cta.primary,
+  "NORD Imóveis — Imobiliária boutique em São Paulo": DEFAULT_CONTENT.seo.title,
+  "Imóveis excepcionais, curadoria autoral e uma experiência de compra à altura.":
+    DEFAULT_CONTENT.seo.description,
+  "Tour guiado por um curador sênior": "Visita acompanhada por um corretor",
+  "Espaços com assinatura, escolhidos para durar.": DEFAULT_CONTENT.footer.tagline,
+  "Portfólio completo": DEFAULT_CONTENT.listing.eyebrow,
+};
+
+function upgrade<T>(v: T): T {
+  if (typeof v === "string") return (LEGACY_DEFAULTS[v] ?? v) as T;
+  if (Array.isArray(v)) return v.map(upgrade) as T;
+  if (v && typeof v === "object")
+    return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, upgrade(x)])) as T;
+  return v;
+}
 
 /** Faz merge profundo do conteúdo salvo sobre os defaults. */
 export async function getSiteContent(): Promise<SiteContent> {
@@ -157,7 +188,17 @@ export async function getSiteContent(): Promise<SiteContent> {
       .select()
       .from(settings)
       .where(eq(settings.key, "siteContent"));
-    const saved = (rows[0]?.value ?? {}) as Partial<SiteContent>;
+    const raw = (rows[0]?.value ?? {}) as Partial<SiteContent>;
+    const saved = {
+      ...raw,
+      seo: upgrade(raw.seo),
+      hero: upgrade(raw.hero),
+      collection: upgrade(raw.collection),
+      cta: upgrade(raw.cta),
+      listing: upgrade(raw.listing),
+      detail: upgrade(raw.detail),
+      footer: upgrade(raw.footer),
+    };
     return {
       seo: { ...DEFAULT_CONTENT.seo, ...saved.seo },
       hero: { ...DEFAULT_CONTENT.hero, ...saved.hero },

@@ -9,10 +9,10 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 const LINKS = [
-  { href: "/imoveis", label: "Imóveis" },
+  { href: "/imoveis?finalidade=venda", label: "Comprar" },
+  { href: "/imoveis?finalidade=aluguel", label: "Alugar" },
   { href: "/imoveis?categoria=rurais", label: "Rurais" },
-  { href: "/#colecao", label: "Coleção" },
-  { href: "/#experiencia", label: "Experiência" },
+  { href: "/imoveis", label: "Todos os imóveis" },
   { href: "/#fale-conosco", label: "Contato" },
 ];
 
@@ -74,9 +74,9 @@ export function SiteHeader({
                 <LogIn className="size-3.5" />
               </Button>
             </Link>
-            <Link href="/imoveis" className="hidden sm:block">
+            <Link href="/#fale-conosco" className="hidden sm:block">
               <Button variant="accent" size="sm" className="h-9 px-4">
-                Agendar visita
+                Falar com corretor
                 <ArrowUpRight className="size-3.5" />
               </Button>
             </Link>
@@ -134,9 +134,9 @@ export function SiteHeader({
               <LogIn className="size-4" />
             </Button>
           </Link>
-          <Link href="/imoveis" onClick={() => setOpen(false)}>
+          <Link href="/#fale-conosco" onClick={() => setOpen(false)}>
             <Button variant="accent" size="lg" className="w-full">
-              Agendar visita
+              Falar com corretor
               <ArrowUpRight className="size-4" />
             </Button>
           </Link>
