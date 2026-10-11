@@ -1,4 +1,4 @@
-import { HomeSearch } from "@/components/site/home-search";
+import { HeroSearchProvider, HeroTitle, HomeSearch } from "@/components/site/home-search";
 import { LeadForm } from "@/components/site/lead-form";
 import { APTIDAO_LABELS, isRuralType, normalizeRural } from "@/lib/rural";
 import { PropertyCard } from "@/components/site/property-card";
@@ -204,6 +204,7 @@ export default async function HomePage() {
         </div>
 
         <div className="container-x relative z-10 flex min-h-[640px] flex-col justify-center pb-10 pt-28 text-white md:min-h-[78svh] md:pb-16 md:pt-32">
+          <HeroSearchProvider>
           <div className="mx-auto w-full max-w-5xl">
             <p
               data-reveal
@@ -212,13 +213,11 @@ export default async function HomePage() {
               <span className="size-1.5 rounded-full bg-accent" />
               {wl.orgName} — {content.hero.eyebrow}
             </p>
-            <h1
-              data-words
-              data-delay="0.1"
+            <HeroTitle
+              title={content.hero.title}
+              titleRural={content.hero.titleRural}
               className="max-w-3xl text-balance font-display text-[2.6rem] font-semibold leading-[1.02] tracking-[-0.03em] sm:text-6xl md:text-7xl"
-            >
-              {content.hero.title}
-            </h1>
+            />
             <p data-reveal data-delay="0.25" className="mt-4 max-w-xl text-sm leading-relaxed text-white/75 md:mt-5 md:text-base">
               {content.hero.subtitle}
             </p>
@@ -259,6 +258,7 @@ export default async function HomePage() {
               </a>
             </div>
           </div>
+          </HeroSearchProvider>
         </div>
       </section>
 

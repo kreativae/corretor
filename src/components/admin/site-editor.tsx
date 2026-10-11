@@ -174,10 +174,17 @@ export function SiteEditor({
                     onChange={(e) => patch("hero", { eyebrow: e.target.value })}
                   />
                 </Field>
-                <Field label="Título principal" className="sm:col-span-2">
+                <Field label="Título principal" hint="Abas Comprar e Alugar">
                   <Input
                     value={c.hero.title}
                     onChange={(e) => patch("hero", { title: e.target.value })}
+                    className="font-display text-base"
+                  />
+                </Field>
+                <Field label="Título na aba Rurais" hint="Troca quando o visitante escolhe Rurais">
+                  <Input
+                    value={c.hero.titleRural}
+                    onChange={(e) => patch("hero", { titleRural: e.target.value })}
                     className="font-display text-base"
                   />
                 </Field>

@@ -7,9 +7,38 @@ import { cn } from "@/lib/utils";
 import { ChevronDown, MapPin, Search } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { createContext, useContext, useState, type ReactNode } from "react";
 
 type Tab = "venda" | "aluguel" | "rurais";
+
+/** Aba da busca compartilhada com o título do hero */
+const TabContext = createContext<[Tab, (t: Tab) => void] | null>(null);
+
+export function HeroSearchProvider({ children }: { children: ReactNode }) {
+  const state = useState<Tab>("venda");
+  return <TabContext.Provider value={state}>{children}</TabContext.Provider>;
+}
+
+/** Título do hero: muda para o texto de rurais quando essa aba está ativa */
+export function HeroTitle({
+  title,
+  titleRural,
+  className,
+}: {
+  title: string;
+  titleRural: string;
+  className?: string;
+}) {
+  const tab = useContext(TabContext)?.[0] ?? "venda";
+  const rural = tab === "rurais" && titleRural.trim();
+  return (
+    <h1 className={className}>
+      <span key={rural ? "r" : "u"} className="block animate-blur-in">
+        {rural ? titleRural : title}
+      </span>
+    </h1>
+  );
+}
 
 const PRICES: Record<Exclude<Tab, "rurais">, { v: string; label: string }[]> = {
   venda: [
@@ -100,7 +129,9 @@ export function HomeSearch({
   quick?: Record<Tab, { label: string; href: string; n: number }[]>;
 }) {
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>("venda");
+  const shared = useContext(TabContext);
+  const local = useState<Tab>("venda");
+  const [tab, setTab] = shared ?? local;
   const [where, setWhere] = useState("");
   const [tipo, setTipo] = useState("");
   const [preco, setPreco] = useState("");

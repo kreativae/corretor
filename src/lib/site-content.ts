@@ -8,6 +8,8 @@ export type SiteContent = {
   hero: {
     eyebrow: string;
     title: string;
+    /** Título quando a busca está na aba Rurais */
+    titleRural: string;
     subtitle: string;
     ctaPrimary: string;
     ctaSecondary: string;
@@ -73,6 +75,7 @@ export const DEFAULT_CONTENT: SiteContent = {
   hero: {
     eyebrow: "Negócios imobiliários",
     title: "Encontre a casa ideal.",
+    titleRural: "Encontre a propriedade ideal.",
     subtitle:
       "Apartamentos, casas e propriedades rurais à venda e para alugar. Busque pelo bairro, tipo e preço — e fale direto com um corretor.",
     ctaPrimary: "Buscar",
