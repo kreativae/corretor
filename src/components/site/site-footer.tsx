@@ -22,58 +22,80 @@ export function SiteFooter({
   // Nome da marca sem o "Imóveis" (ex.: CARLOS AMÂNCIO)
   const brandName = orgName.replace(/\s+(im[óo]veis|imobili[áa]ria)$/i, "");
 
+  const phoneLabel =
+    footer.phone.trim() ||
+    (phone
+      ? `+${phone.slice(0, 2)} (${phone.slice(2, 4)}) ${phone.slice(4, phone.length - 4)}-${phone.slice(-4)}`
+      : "");
+  const phoneDigits = (footer.phone.trim() || phone).replace(/\D/g, "");
+  const mail = footer.email.trim() || email || "";
+  const bigName = footer.bigName.trim() || brandName;
+
   return (
     <footer id="contato" className="border-t border-hairline">
       <div className="container-x grid gap-14 py-16 md:grid-cols-[1.4fr_1fr_1fr] md:py-24">
         <div>
           <Mark className="size-12" />
-          <p className="mt-6 max-w-xs font-display text-2xl font-medium leading-snug tracking-tight">
-            {footer.tagline}
-          </p>
-          <Link href="/login" className="mt-6 inline-flex">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-hairline px-3.5 py-2 text-xs font-medium text-subtle transition-colors hover:border-hairline-strong hover:text-ink">
-              Área do corretor
-              <ArrowUpRight className="size-3.5" />
-            </span>
-          </Link>
+          {footer.tagline && (
+            <p className="mt-6 max-w-xs font-display text-2xl font-medium leading-snug tracking-tight">
+              {footer.tagline}
+            </p>
+          )}
+          {footer.buttonLabel && (
+            <Link href="/login" className="mt-6 inline-flex">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-hairline px-3.5 py-2 text-xs font-medium text-subtle transition-colors hover:border-hairline-strong hover:text-ink">
+                {footer.buttonLabel}
+                <ArrowUpRight className="size-3.5" />
+              </span>
+            </Link>
+          )}
         </div>
 
         <div>
           <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-subtle">
-            Navegação
+            {footer.navTitle}
           </p>
           <ul className="mt-5 space-y-3 text-sm">
-            {[
-              { href: "/imoveis", label: "Todos os imóveis" },
-              { href: "/imoveis?finalidade=venda", label: "Comprar" },
-              { href: "/imoveis?finalidade=aluguel", label: "Alugar" },
-              { href: "/#fale-conosco", label: "Fale com um corretor" },
-              { href: "/login", label: "Acessar plataforma" },
-            ].map((l) => (
-              <li key={l.href}>
-                <Link
-                  href={l.href}
-                  className="text-subtle transition-colors hover:text-ink"
-                >
-                  {l.label}
-                </Link>
-              </li>
-            ))}
+            {footer.links
+              .filter((l) => l.label.trim() && /^(\/|#|https?:|mailto:|tel:)/.test(l.href.trim()))
+              .map((l, i) => (
+                <li key={i}>
+                  <Link
+                    href={l.href}
+                    {...(/^https?:/.test(l.href) ? { target: "_blank", rel: "noreferrer" } : {})}
+                    className="text-subtle transition-colors hover:text-ink"
+                  >
+                    {l.label}
+                  </Link>
+                </li>
+              ))}
           </ul>
         </div>
 
         <div>
           <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-subtle">
-            Contato
+            {footer.contactTitle}
           </p>
           <ul className="mt-5 space-y-3 text-sm text-subtle">
-            {phone && (
+            {phoneLabel && (
               <li className="font-mono tabular">
-                +{phone.slice(0, 2)} ({phone.slice(2, 4)}) {phone.slice(4, 9)}-
-                {phone.slice(9)}
+                <a
+                  href={`https://wa.me/${phoneDigits}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="transition-colors hover:text-ink"
+                >
+                  {phoneLabel}
+                </a>
               </li>
             )}
-            {(email || footer.email) && <li>{email || footer.email}</li>}
+            {mail && (
+              <li>
+                <a href={`mailto:${mail}`} className="transition-colors hover:text-ink">
+                  {mail}
+                </a>
+              </li>
+            )}
             {igHandle && (
               <li>
                 <a
@@ -91,19 +113,22 @@ export function SiteFooter({
         </div>
       </div>
 
-      <div className="container-x overflow-hidden pb-8">
-        <p
-          aria-hidden
-          className="text-outline select-none whitespace-nowrap text-center font-brand text-[10vw] font-extrabold uppercase leading-[0.9] tracking-tight md:text-[8.5vw]"
-        >
-          {brandName}
-        </p>
-      </div>
+      {footer.showBigName && (
+        <div className="container-x overflow-hidden pb-8">
+          <p
+            aria-hidden
+            className="text-outline select-none whitespace-nowrap text-center font-brand text-[10vw] font-extrabold uppercase leading-[0.9] tracking-tight md:text-[8.5vw]"
+          >
+            {bigName}
+          </p>
+        </div>
+      )}
 
       <div className="border-t border-hairline">
         <div className="container-x flex flex-col items-center justify-between gap-3 py-6 text-[11px] text-subtle md:flex-row">
           <p>
-            © {year} {orgName} — {footer.creci}
+            © {year} {orgName}
+            {footer.creci && ` — ${footer.creci}`}
           </p>
           {footer.coords && <p className="font-mono uppercase tracking-[0.18em]">{footer.coords}</p>}
           <KreativCredit />

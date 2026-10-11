@@ -1,18 +1,22 @@
 "use client";
 
-import { Button, Field, Input, Textarea } from "@/components/ui";
+import { Button, Field, Input, Switch, Textarea } from "@/components/ui";
 import type { WhiteLabel } from "@/lib/queries";
 import type { SiteContent } from "@/lib/site-content";
 import { cn, parseYouTubeUrl } from "@/lib/utils";
 import {
+  ArrowDown,
+  ArrowUp,
   ExternalLink,
   LayoutTemplate,
   Megaphone,
   PanelBottom,
+  Plus,
   RotateCcw,
   Save,
   Search,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -450,12 +454,115 @@ export function SiteEditor({
               Rodapé
             </h2>
             <div className="space-y-4">
-              <Field label="Frase de marca">
-                <Input
+              <Field label="Frase de marca" hint="Vazio = esconde">
+                <Textarea
+                  rows={2}
                   value={c.footer.tagline}
                   onChange={(e) => patch("footer", { tagline: e.target.value })}
                 />
               </Field>
+              <Field label="Botão abaixo da frase" hint="Leva ao login dos corretores. Vazio = esconde">
+                <Input
+                  value={c.footer.buttonLabel}
+                  onChange={(e) => patch("footer", { buttonLabel: e.target.value })}
+                />
+              </Field>
+
+              <div className="border-t border-hairline pt-4">
+                <Field label="Título da coluna de links">
+                  <Input
+                    value={c.footer.navTitle}
+                    onChange={(e) => patch("footer", { navTitle: e.target.value })}
+                  />
+                </Field>
+                <div className="mt-3 space-y-2">
+                  {c.footer.links.map((l, i) => (
+                    <div key={i} className="grid gap-2 sm:grid-cols-[1fr_1.2fr_auto]">
+                      <Input
+                        value={l.label}
+                        placeholder="Texto do link"
+                        onChange={(e) => {
+                          const links = [...c.footer.links];
+                          links[i] = { ...l, label: e.target.value };
+                          patch("footer", { links });
+                        }}
+                      />
+                      <Input
+                        value={l.href}
+                        placeholder="/imoveis ou https://…"
+                        className="font-mono text-xs"
+                        onChange={(e) => {
+                          const links = [...c.footer.links];
+                          links[i] = { ...l, href: e.target.value };
+                          patch("footer", { links });
+                        }}
+                      />
+                      <div className="flex gap-1">
+                        {(
+                          [
+                            [ArrowUp, -1, "Subir"],
+                            [ArrowDown, 1, "Descer"],
+                          ] as const
+                        ).map(([Icon, d, label]) => (
+                          <button
+                            key={label}
+                            type="button"
+                            aria-label={label}
+                            disabled={i + d < 0 || i + d >= c.footer.links.length}
+                            onClick={() => {
+                              const links = [...c.footer.links];
+                              [links[i], links[i + d]] = [links[i + d], links[i]];
+                              patch("footer", { links });
+                            }}
+                            className="inline-flex size-10 items-center justify-center rounded-xl border border-hairline text-subtle transition-colors hover:text-ink disabled:opacity-30"
+                          >
+                            <Icon className="size-4" />
+                          </button>
+                        ))}
+                        <button
+                          type="button"
+                          aria-label="Remover link"
+                          onClick={() =>
+                            patch("footer", { links: c.footer.links.filter((_, j) => j !== i) })
+                          }
+                          className="inline-flex size-10 items-center justify-center rounded-xl border border-hairline text-subtle transition-colors hover:border-red-500/30 hover:text-red-500"
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      patch("footer", { links: [...c.footer.links, { label: "", href: "" }] })
+                    }
+                  >
+                    <Plus className="size-4" />
+                    Adicionar link
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-4 border-t border-hairline pt-4">
+                <Field label="Título da coluna de contato">
+                  <Input
+                    value={c.footer.contactTitle}
+                    onChange={(e) => patch("footer", { contactTitle: e.target.value })}
+                  />
+                </Field>
+                <Field
+                  label="Telefone exibido"
+                  hint={`Vazio = WhatsApp do white label${whiteLabel.phone ? ` (${whiteLabel.phone})` : ""}. Clicar abre o WhatsApp.`}
+                >
+                  <Input
+                    value={c.footer.phone}
+                    placeholder="+55 (43) 99999-9999"
+                    onChange={(e) => patch("footer", { phone: e.target.value })}
+                  />
+                </Field>
+              </div>
               <Field label="Endereço" hint="Quebras de linha são preservadas">
                 <Textarea
                   rows={3}
@@ -464,7 +571,10 @@ export function SiteEditor({
                 />
               </Field>
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="E-mail de contato">
+                <Field
+                  label="E-mail de contato"
+                  hint={`Vazio = e-mail do white label${whiteLabel.email ? ` (${whiteLabel.email})` : ""}`}
+                >
                   <Input
                     value={c.footer.email}
                     onChange={(e) => patch("footer", { email: e.target.value })}
@@ -477,7 +587,27 @@ export function SiteEditor({
                   />
                 </Field>
               </div>
-              <Field label="Coordenadas / assinatura">
+              <div className="space-y-3 border-t border-hairline pt-4">
+                <div className="flex items-center justify-between gap-4">
+                  <span>
+                    <span className="block text-sm font-medium">Nome grande vazado</span>
+                    <span className="block text-xs text-subtle">Letreiro em contorno antes da última linha</span>
+                  </span>
+                  <Switch
+                    checked={c.footer.showBigName}
+                    onChange={(v) => patch("footer", { showBigName: v })}
+                  />
+                </div>
+                {c.footer.showBigName && (
+                  <Field label="Texto do letreiro" hint="Vazio = nome da marca sem “Imóveis”">
+                    <Input
+                      value={c.footer.bigName}
+                      onChange={(e) => patch("footer", { bigName: e.target.value })}
+                    />
+                  </Field>
+                )}
+              </div>
+              <Field label="Coordenadas / assinatura" hint="Aparece na última linha. Vazio = esconde">
                 <Input
                   value={c.footer.coords}
                   onChange={(e) => patch("footer", { coords: e.target.value })}

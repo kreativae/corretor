@@ -46,8 +46,19 @@ export type SiteContent = {
   };
   footer: {
     tagline: string;
-    address: string;
+    /** Botão abaixo da frase (vazio = esconde) */
+    buttonLabel: string;
+    navTitle: string;
+    links: { label: string; href: string }[];
+    contactTitle: string;
+    /** Telefone exibido (vazio = WhatsApp do white label) */
+    phone: string;
+    /** E-mail exibido (vazio = e-mail do white label) */
     email: string;
+    address: string;
+    /** Nome grande vazado (vazio = nome da marca) */
+    bigName: string;
+    showBigName: boolean;
     creci: string;
     coords: string;
   };
@@ -143,8 +154,21 @@ export const DEFAULT_CONTENT: SiteContent = {
   },
   footer: {
     tagline: "Imóveis à venda e para alugar, com atendimento direto do corretor.",
-    address: "",
+    buttonLabel: "Área do corretor",
+    navTitle: "Navegação",
+    links: [
+      { label: "Todos os imóveis", href: "/imoveis" },
+      { label: "Comprar", href: "/imoveis?finalidade=venda" },
+      { label: "Alugar", href: "/imoveis?finalidade=aluguel" },
+      { label: "Fale com um corretor", href: "/#fale-conosco" },
+      { label: "Acessar plataforma", href: "/login" },
+    ],
+    contactTitle: "Contato",
+    phone: "",
     email: "",
+    address: "",
+    bigName: "",
+    showBigName: true,
     creci: "CRECI F27617",
     coords: "",
   },
@@ -214,7 +238,11 @@ export async function getSiteContent(): Promise<SiteContent> {
       cta: { ...DEFAULT_CONTENT.cta, ...saved.cta },
       listing: { ...DEFAULT_CONTENT.listing, ...saved.listing },
       detail: { ...DEFAULT_CONTENT.detail, ...saved.detail },
-      footer: { ...DEFAULT_CONTENT.footer, ...saved.footer },
+      footer: {
+        ...DEFAULT_CONTENT.footer,
+        ...saved.footer,
+        links: Array.isArray(saved.footer?.links) ? saved.footer.links : DEFAULT_CONTENT.footer.links,
+      },
     };
   } catch {
     return DEFAULT_CONTENT;
