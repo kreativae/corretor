@@ -17,6 +17,7 @@ export function filtersFromSearch(sp: SiteSearchParams): Partial<PropertyFilters
   const fin = one(sp.finalidade);
   const quartos = Math.min(Number(digits(one(sp.quartos))) || 0, 4);
   const vagas = Math.min(Number(digits(one(sp.vagas))) || 0, 4);
+  const suites = Math.min(Number(digits(one(sp.suites))) || 0, 4);
   return {
     q: one(sp.q).slice(0, 80),
     purpose: fin === "venda" || fin === "aluguel" ? fin : "all",
@@ -29,7 +30,15 @@ export function filtersFromSearch(sp: SiteSearchParams): Partial<PropertyFilters
     areaTo: digits(one(sp.areaMax)),
     bedrooms: quartos,
     garage: vagas,
+    suites,
     features: list(sp.caracteristica),
+    // Rurais
+    aptidoes: list(sp.aptidao),
+    agua: list(sp.agua),
+    energia: list(sp.energia),
+    acesso: list(sp.acesso),
+    benfeitorias: list(sp.benfeitoria),
+    kmz: one(sp.kmz) === "1" ? "with" : "all",
   };
 }
 
@@ -39,12 +48,21 @@ export function searchHref(p: {
   tipo?: string;
   bairro?: string;
   cidade?: string;
+  precoMin?: string;
   precoMax?: string;
   /** Área mínima/máxima (m² nos urbanos, alqueires nos rurais) */
   areaMin?: string;
   areaMax?: string;
   quartos?: number;
+  suites?: number;
+  vagas?: number;
   caracteristica?: string;
+  aptidao?: string;
+  agua?: string;
+  energia?: string;
+  acesso?: string;
+  benfeitoria?: string;
+  kmz?: "1";
   q?: string;
 }) {
   const q = new URLSearchParams();

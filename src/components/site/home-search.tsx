@@ -5,6 +5,7 @@ import { RURAL_TYPES } from "@/lib/rural";
 import { searchHref } from "@/lib/site-search";
 import { cn } from "@/lib/utils";
 import { ChevronDown, MapPin, Search } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 
@@ -84,6 +85,7 @@ export function HomeSearch({
   hasRural,
   hasRent,
   buttonLabel,
+  quick,
 }: {
   /** Tipos urbanos com imóveis publicados */
   urbanTypes: string[];
@@ -94,6 +96,8 @@ export function HomeSearch({
   hasRural: boolean;
   hasRent: boolean;
   buttonLabel: string;
+  /** Atalhos por aba (só os que têm resultado) */
+  quick?: Record<Tab, { label: string; href: string; n: number }[]>;
 }) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("venda");
@@ -138,109 +142,129 @@ export function HomeSearch({
     );
   }
 
+  const chips = quick?.[tab] ?? [];
+
   return (
-    <form
-      onSubmit={submit}
-      className="w-full rounded-2xl border border-white/15 bg-[#11112a]/60 p-2.5 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-3"
-    >
-      <div className="mb-2.5 flex gap-1" role="tablist" aria-label="O que você procura">
-        {tabs.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            role="tab"
-            aria-selected={tab === t.id}
-            onClick={() => pick(t.id)}
-            className={cn(
-              "flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-all duration-300 sm:flex-none",
-              tab === t.id ? "bg-white text-black" : "text-white/70 hover:bg-white/10 hover:text-white",
-            )}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      <div
-        className={cn(
-          "grid grid-cols-2 gap-2",
-          tab === "rurais"
-            ? "md:grid-cols-[1.7fr_1fr_1fr_auto]"
-            : "md:grid-cols-[1.3fr_1fr_1fr_1.35fr_auto]",
-        )}
+    <>
+      <form
+        onSubmit={submit}
+        className="w-full rounded-2xl border border-white/15 bg-[#11112a]/60 p-2.5 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-3"
       >
-        <Box label="Onde" className="col-span-2 md:col-span-1">
-          <span className="flex items-center gap-2">
-            <MapPin className="size-4 shrink-0 text-white/50" />
-            <input
-              value={where}
-              onChange={(e) => setWhere(e.target.value)}
-              list="home-search-places"
-              placeholder={tab === "rurais" ? "Cidade ou região" : "Bairro, cidade ou código"}
-              className={control}
-              enterKeyHint="search"
-            />
-          </span>
-          <datalist id="home-search-places">
-            {places.map((p) => (
-              <option key={p} value={p} />
-            ))}
-          </datalist>
-        </Box>
+        <div className="mb-2.5 flex gap-1" role="tablist" aria-label="O que você procura">
+          {tabs.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              aria-selected={tab === t.id}
+              onClick={() => pick(t.id)}
+              className={cn(
+                "flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-all duration-300 sm:flex-none",
+                tab === t.id ? "bg-white text-black" : "text-white/70 hover:bg-white/10 hover:text-white",
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
 
-        <Box label="Tipo">
-          <select value={tipo} onChange={(e) => setTipo(e.target.value)} className={control}>
-            <option value="">Todos</option>
-            {types.map((t) => (
-              <option key={t} value={t}>
-                {TYPE_LABELS[t] ?? t}
-              </option>
-            ))}
-          </select>
-          <ChevronDown className="pointer-events-none absolute bottom-3 right-3 size-4 text-white/50" />
-        </Box>
-
-        <Box label={tab === "rurais" ? "Tamanho" : "Preço até"}>
-          <select value={preco} onChange={(e) => setPreco(e.target.value)} className={control}>
-            <option value="">Qualquer</option>
-            {(tab === "rurais" ? SIZES : PRICES[tab]).map((p) => (
-              <option key={p.v} value={p.v}>
-                {p.label}
-              </option>
-            ))}
-          </select>
-          <ChevronDown className="pointer-events-none absolute bottom-3 right-3 size-4 text-white/50" />
-        </Box>
-
-        {tab !== "rurais" && (
-          <Box label="Quartos" group className="col-span-2 md:col-span-1">
-            <span className="flex gap-1 pt-0.5">
-              {[0, 1, 2, 3, 4].map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  onClick={() => setQuartos(n)}
-                  aria-pressed={quartos === n}
-                  className={cn(
-                    "h-7 flex-1 rounded-md text-xs font-medium transition-colors md:min-w-0",
-                    quartos === n ? "bg-white text-black" : "text-white/70 hover:bg-white/10",
-                  )}
-                >
-                  {n === 0 ? "Todos" : `${n}+`}
-                </button>
-              ))}
-            </span>
-          </Box>
-        )}
-
-        <button
-          type="submit"
-          className="col-span-2 inline-flex h-14 items-center justify-center gap-2 rounded-xl bg-accent px-7 text-[15px] font-semibold text-on-accent transition-all duration-300 ease-expo hover:brightness-110 active:scale-[0.98] md:col-span-1 md:h-auto"
+        <div
+          className={cn(
+            "grid grid-cols-2 gap-2",
+            tab === "rurais"
+              ? "md:grid-cols-[1.7fr_1fr_1fr_auto]"
+              : "md:grid-cols-[1.3fr_1fr_1fr_1.35fr_auto]",
+          )}
         >
-          <Search className="size-4" />
-          {buttonLabel}
-        </button>
-      </div>
-    </form>
+          <Box label="Onde" className="col-span-2 md:col-span-1">
+            <span className="flex items-center gap-2">
+              <MapPin className="size-4 shrink-0 text-white/50" />
+              <input
+                value={where}
+                onChange={(e) => setWhere(e.target.value)}
+                list="home-search-places"
+                placeholder={tab === "rurais" ? "Cidade ou região" : "Bairro, cidade ou código"}
+                className={control}
+                enterKeyHint="search"
+              />
+            </span>
+            <datalist id="home-search-places">
+              {places.map((p) => (
+                <option key={p} value={p} />
+              ))}
+            </datalist>
+          </Box>
+
+          <Box label="Tipo">
+            <select value={tipo} onChange={(e) => setTipo(e.target.value)} className={control}>
+              <option value="">Todos</option>
+              {types.map((t) => (
+                <option key={t} value={t}>
+                  {TYPE_LABELS[t] ?? t}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute bottom-3 right-3 size-4 text-white/50" />
+          </Box>
+
+          <Box label={tab === "rurais" ? "Tamanho" : "Preço até"}>
+            <select value={preco} onChange={(e) => setPreco(e.target.value)} className={control}>
+              <option value="">Qualquer</option>
+              {(tab === "rurais" ? SIZES : PRICES[tab]).map((p) => (
+                <option key={p.v} value={p.v}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute bottom-3 right-3 size-4 text-white/50" />
+          </Box>
+
+          {tab !== "rurais" && (
+            <Box label="Quartos" group className="col-span-2 md:col-span-1">
+              <span className="flex gap-1 pt-0.5">
+                {[0, 1, 2, 3, 4].map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setQuartos(n)}
+                    aria-pressed={quartos === n}
+                    className={cn(
+                      "h-7 flex-1 rounded-md text-xs font-medium transition-colors md:min-w-0",
+                      quartos === n ? "bg-white text-black" : "text-white/70 hover:bg-white/10",
+                    )}
+                  >
+                    {n === 0 ? "Todos" : `${n}+`}
+                  </button>
+                ))}
+              </span>
+            </Box>
+          )}
+
+          <button
+            type="submit"
+            className="col-span-2 inline-flex h-14 items-center justify-center gap-2 rounded-xl bg-accent px-7 text-[15px] font-semibold text-on-accent transition-all duration-300 ease-expo hover:brightness-110 active:scale-[0.98] md:col-span-1 md:h-auto"
+          >
+            <Search className="size-4" />
+            {buttonLabel}
+          </button>
+        </div>
+      </form>
+
+      {/* Atalhos da aba escolhida — cada um já abre a listagem filtrada */}
+      {chips.length > 0 && (
+        <div className="-mx-5 mt-4 flex gap-2 overflow-x-auto px-5 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0">
+          {chips.map((q) => (
+            <Link
+              key={q.label}
+              href={q.href}
+              className="group inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/20 bg-white/5 px-3.5 py-1.5 text-xs font-medium text-white/85 backdrop-blur-sm transition-colors hover:border-white/50 hover:text-white"
+            >
+              {q.label}
+              <span className="font-mono text-[10px] text-white/45 group-hover:text-white/70">{q.n}</span>
+            </Link>
+          ))}
+        </div>
+      )}
+    </>
   );
 }

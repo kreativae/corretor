@@ -1,6 +1,6 @@
 import { HomeSearch } from "@/components/site/home-search";
 import { LeadForm } from "@/components/site/lead-form";
-import { isRuralType } from "@/lib/rural";
+import { APTIDAO_LABELS, isRuralType, normalizeRural } from "@/lib/rural";
 import { PropertyCard } from "@/components/site/property-card";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
@@ -85,14 +85,77 @@ export default async function HomePage() {
     },
   ].filter((c) => c.n > 0);
 
-  // Atalhos rápidos (filtros comuns) — só aparecem se trouxerem resultado
-  const quick = [
-    { label: "Até R$ 500 mil", href: searchHref({ finalidade: "venda", precoMax: "500000" }), n: count((p) => !isRuralType(p.type) && p.purpose === "venda" && p.price <= 500000) },
-    { label: "3+ quartos", href: searchHref({ quartos: 3 }), n: count((p) => !isRuralType(p.type) && p.bedrooms >= 3) },
-    { label: "Com piscina", href: searchHref({ caracteristica: "Piscina" }), n: count((p) => !isRuralType(p.type) && p.features.includes("Piscina")) },
-    { label: "Pet friendly", href: searchHref({ caracteristica: "Pet friendly" }), n: count((p) => !isRuralType(p.type) && p.features.includes("Pet friendly")) },
-    { label: "Aluguel até R$ 5 mil", href: searchHref({ finalidade: "aluguel", precoMax: "5000" }), n: count((p) => !isRuralType(p.type) && p.purpose === "aluguel" && p.price <= 5000) },
-  ].filter((q) => q.n > 0);
+  // Atalhos rápidos por aba da busca — só os que trazem resultado
+  const venda = urban.filter((p) => p.purpose === "venda");
+  const aluguel = urban.filter((p) => p.purpose === "aluguel");
+  type P = (typeof published)[number];
+  const chips = (list: P[], defs: { label: string; href: string; test: (p: P) => boolean }[]) =>
+    defs
+      .map((d) => ({ label: d.label, href: d.href, n: list.filter(d.test).length }))
+      .filter((d) => d.n > 0);
+  const has = (f: string) => (p: P) => p.features.includes(f);
+  const feat = (label: string, f: string, fin: "venda" | "aluguel") => ({
+    label,
+    href: searchHref({ finalidade: fin, caracteristica: f }),
+    test: has(f),
+  });
+  const ru = (p: P) => normalizeRural(p.rural);
+  const quick = {
+    venda: chips(venda, [
+      { label: "Casas", href: searchHref({ finalidade: "venda", tipo: "casa" }), test: (p) => p.type === "casa" },
+      { label: "Apartamentos", href: searchHref({ finalidade: "venda", tipo: "apartamento" }), test: (p) => p.type === "apartamento" },
+      { label: "Até R$ 500 mil", href: searchHref({ finalidade: "venda", precoMax: "500000" }), test: (p) => p.price <= 500000 },
+      { label: "R$ 500 mil a 1 mi", href: searchHref({ finalidade: "venda", precoMin: "500000", precoMax: "1000000" }), test: (p) => p.price >= 500000 && p.price <= 1000000 },
+      { label: "3+ quartos", href: searchHref({ finalidade: "venda", quartos: 3 }), test: (p) => p.bedrooms >= 3 },
+      { label: "Com suíte", href: searchHref({ finalidade: "venda", suites: 1 }), test: (p) => p.suites >= 1 },
+      { label: "2+ vagas", href: searchHref({ finalidade: "venda", vagas: 2 }), test: (p) => p.garage >= 2 },
+      feat("Com piscina", "Piscina", "venda"),
+      feat("Churrasqueira", "Churrasqueira", "venda"),
+      feat("Varanda gourmet", "Varanda gourmet", "venda"),
+      feat("Portaria 24h", "Portaria 24h", "venda"),
+      feat("Pet friendly", "Pet friendly", "venda"),
+      { label: "Terrenos", href: searchHref({ finalidade: "venda", tipo: "terreno" }), test: (p) => p.type === "terreno" },
+    ]),
+    aluguel: chips(aluguel, [
+      { label: "Até R$ 2 mil", href: searchHref({ finalidade: "aluguel", precoMax: "2000" }), test: (p) => p.price <= 2000 },
+      { label: "Até R$ 3 mil", href: searchHref({ finalidade: "aluguel", precoMax: "3000" }), test: (p) => p.price <= 3000 },
+      { label: "Até R$ 5 mil", href: searchHref({ finalidade: "aluguel", precoMax: "5000" }), test: (p) => p.price <= 5000 },
+      { label: "Apartamentos", href: searchHref({ finalidade: "aluguel", tipo: "apartamento" }), test: (p) => p.type === "apartamento" },
+      { label: "Casas", href: searchHref({ finalidade: "aluguel", tipo: "casa" }), test: (p) => p.type === "casa" },
+      { label: "Estúdios", href: searchHref({ finalidade: "aluguel", tipo: "estudio" }), test: (p) => p.type === "estudio" },
+      { label: "2+ quartos", href: searchHref({ finalidade: "aluguel", quartos: 2 }), test: (p) => p.bedrooms >= 2 },
+      { label: "Com vaga", href: searchHref({ finalidade: "aluguel", vagas: 1 }), test: (p) => p.garage >= 1 },
+      feat("Pet friendly", "Pet friendly", "aluguel"),
+      feat("Ar-condicionado", "Ar-condicionado", "aluguel"),
+      feat("Portaria 24h", "Portaria 24h", "aluguel"),
+      feat("Com piscina", "Piscina", "aluguel"),
+    ]),
+    rurais: chips(rural, [
+      { label: "Fazendas", href: searchHref({ categoria: "rurais", tipo: "fazenda" }), test: (p) => p.type === "fazenda" },
+      { label: "Sítios", href: searchHref({ categoria: "rurais", tipo: "sitio" }), test: (p) => p.type === "sitio" },
+      { label: "Chácaras", href: searchHref({ categoria: "rurais", tipo: "chacara" }), test: (p) => p.type === "chacara" },
+      ...Object.entries(APTIDAO_LABELS).map(([id, label]) => ({
+        label,
+        href: searchHref({ categoria: "rurais", aptidao: id }),
+        test: (p: P) => ru(p).aptidao === id,
+      })),
+      { label: "Até 10 alq", href: searchHref({ categoria: "rurais", areaMax: "10" }), test: (p) => (ru(p).totalAlq ?? 0) <= 10 },
+      { label: "Acima de 100 alq", href: searchHref({ categoria: "rurais", areaMin: "100" }), test: (p) => (ru(p).totalAlq ?? 0) >= 100 },
+      ...["Rio", "Nascentes", "Represa / açude", "Poço artesiano"].map((a) => ({
+        label: a === "Represa / açude" ? "Represa / açude" : `Com ${a.toLowerCase()}`,
+        href: searchHref({ categoria: "rurais", agua: a }),
+        test: (p: P) => ru(p).agua.includes(a),
+      })),
+      { label: "Energia trifásica", href: searchHref({ categoria: "rurais", energia: "trifasica" }), test: (p) => ru(p).energia === "trifasica" },
+      { label: "Asfalto até a porteira", href: searchHref({ categoria: "rurais", acesso: "asfalto" }), test: (p) => ru(p).acesso === "asfalto" },
+      ...["Casa sede", "Curral", "Barracão"].map((b) => ({
+        label: b,
+        href: searchHref({ categoria: "rurais", benfeitoria: b }),
+        test: (p: P) => ru(p).benfeitorias.includes(b),
+      })),
+      { label: "Com mapa (KMZ)", href: searchHref({ categoria: "rurais", kmz: "1" }), test: (p) => !!ru(p).kmzUrl },
+    ]),
+  };
 
   // Bairros com mais imóveis, com a foto de um deles
   const byHood = new Map<string, { n: number; cover: string | null; city: string }>();
@@ -169,22 +232,9 @@ export default async function HomePage() {
                 hasRural={rural.length > 0}
                 hasRent={urban.some((p) => p.purpose === "aluguel")}
                 buttonLabel={content.hero.ctaPrimary}
+                quick={quick}
               />
             </div>
-
-            {quick.length > 0 && (
-              <div data-reveal data-delay="0.45" className="-mx-5 mt-4 flex gap-2 overflow-x-auto px-5 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0">
-                {quick.map((q) => (
-                  <Link
-                    key={q.label}
-                    href={q.href}
-                    className="shrink-0 rounded-full border border-white/20 bg-white/5 px-3.5 py-1.5 text-xs font-medium text-white/85 backdrop-blur-sm transition-colors hover:border-white/50 hover:text-white"
-                  >
-                    {q.label}
-                  </Link>
-                ))}
-              </div>
-            )}
 
             <div data-reveal data-delay="0.5" className="mt-8 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-white/15 pt-5 sm:flex sm:flex-wrap sm:items-center sm:gap-x-8 md:mt-10">
               {heroStats.map((s, i) => (
