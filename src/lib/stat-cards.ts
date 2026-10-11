@@ -6,6 +6,7 @@ export const STAT_CARD_PAGES = [
   { key: "pipeline", label: "Pipeline", path: "/crm/pipeline" },
   { key: "contatos", label: "Contatos", path: "/crm/contatos" },
   { key: "agenda", label: "Agenda", path: "/crm/agenda" },
+  { key: "fechados", label: "Negócios fechados", path: "/crm/fechados" },
 ] as const;
 
 export type StatCardKey = (typeof STAT_CARD_PAGES)[number]["key"];
@@ -18,6 +19,7 @@ export const STAT_CARDS_DEFAULTS: StatCards = {
   pipeline: true,
   contatos: true,
   agenda: true,
+  fechados: true,
 };
 
 /** Mantém só páginas conhecidas, como booleano. */
