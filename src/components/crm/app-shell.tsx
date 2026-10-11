@@ -2,6 +2,8 @@
 
 import { Mark, Wordmark } from "@/components/brand";
 import { KreativCredit } from "@/components/kreativ-credit";
+import { StatCardsProvider } from "@/components/crm/stats-grid";
+import type { StatCards } from "@/lib/stat-cards";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button, Kbd } from "@/components/ui";
 import { CommandPalette } from "@/components/crm/command-palette";
@@ -59,12 +61,15 @@ export function AppShell({
   mode = "crm",
   user,
   features,
+  statCards,
 }: {
   children: ReactNode;
   mode?: "crm" | "admin";
   user: ShellUser;
   /** Módulos opcionais ligados em Configurações */
   features?: { closedDeals: boolean };
+  /** Cards de indicadores ligados por página */
+  statCards?: StatCards;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -261,7 +266,9 @@ export function AppShell({
             {mode === "crm" && <HeaderActions />}
           </div>
         </header>
-        <main className="flex-1 px-4 py-8 md:px-8">{children}</main>
+        <main className="flex-1 px-4 py-8 md:px-8">
+          <StatCardsProvider value={statCards}>{children}</StatCardsProvider>
+        </main>
       </div>
 
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />

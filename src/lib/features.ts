@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/db";
 import { settings } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { sanitizeStatCards, STAT_CARDS_DEFAULTS, type StatCards } from "@/lib/stat-cards";
 
 /** Módulos opcionais do CRM, ligados em Configurações. */
 export type Features = {
@@ -17,6 +18,15 @@ export async function getFeatures(): Promise<Features> {
     return { ...FEATURE_DEFAULTS, ...((row?.value ?? {}) as Partial<Features>) };
   } catch {
     return FEATURE_DEFAULTS;
+  }
+}
+
+export async function getStatCards(): Promise<StatCards> {
+  try {
+    const [row] = await db.select().from(settings).where(eq(settings.key, "statCards"));
+    return sanitizeStatCards((row?.value ?? {}) as Record<string, unknown>);
+  } catch {
+    return STAT_CARDS_DEFAULTS;
   }
 }
 

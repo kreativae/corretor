@@ -1,10 +1,26 @@
 "use client";
 
+import { statCardKeyFor, type StatCards } from "@/lib/stat-cards";
 import { cn } from "@/lib/utils";
 import { BarChart3, ChevronDown } from "lucide-react";
-import { Children, useEffect, useState, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
+import {
+  Children,
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
 
 const KEY = "crm-stats-open";
+
+/** Quais páginas exibem os cards (Configurações › Cards de indicadores) */
+const StatCardsContext = createContext<StatCards | undefined>(undefined);
+
+export function StatCardsProvider({ value, children }: { value?: StatCards; children: ReactNode }) {
+  return <StatCardsContext.Provider value={value}>{children}</StatCardsContext.Provider>;
+}
 
 /**
  * Grade de indicadores. No celular fica recolhida (sanfona) para não ocupar
@@ -22,6 +38,8 @@ export function StatsGrid({
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const cards = useContext(StatCardsContext);
+  const page = statCardKeyFor(usePathname());
   const count = Children.toArray(children).filter(Boolean).length;
 
   useEffect(() => {
@@ -39,6 +57,9 @@ export function StatsGrid({
       return !v;
     });
   }
+
+  // Desligado em Configurações para esta página
+  if (cards && page && !cards[page]) return null;
 
   return (
     <div className={className}>

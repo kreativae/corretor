@@ -1,6 +1,6 @@
 import { AppShell } from "@/components/crm/app-shell";
 import { requireUser } from "@/lib/auth";
-import { getFeatures } from "@/lib/features";
+import { getFeatures, getStatCards } from "@/lib/features";
 import { brandShortName, getWhiteLabel } from "@/lib/queries";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
@@ -14,9 +14,13 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function CrmLayout({ children }: { children: ReactNode }) {
-  const [user, features] = await Promise.all([requireUser("/crm"), getFeatures()]);
+  const [user, features, statCards] = await Promise.all([
+    requireUser("/crm"),
+    getFeatures(),
+    getStatCards(),
+  ]);
   return (
-    <AppShell mode="crm" user={user} features={features}>
+    <AppShell mode="crm" user={user} features={features} statCards={statCards}>
       {children}
     </AppShell>
   );
