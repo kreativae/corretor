@@ -74,7 +74,7 @@ export const DEFAULT_CONTENT: SiteContent = {
   },
   hero: {
     eyebrow: "Negócios imobiliários",
-    title: "Encontre a casa ideal.",
+    title: "Encontre o imóvel ideal.",
     titleRural: "Encontre a propriedade ideal.",
     subtitle:
       "Apartamentos, casas e propriedades rurais à venda e para alugar. Busque pelo bairro, tipo e preço — e fale direto com um corretor.",
@@ -181,6 +181,7 @@ export const DEFAULT_CONTENT: SiteContent = {
  *  estão salvos sem edição — quem personalizou mantém o próprio texto. */
 const LEGACY_DEFAULTS: Record<string, string> = {
   "Espaços com assinatura.": DEFAULT_CONTENT.hero.title,
+  "Encontre a casa ideal.": DEFAULT_CONTENT.hero.title,
   "Curadoria autoral de imóveis excepcionais. Do primeiro café à entrega das chaves — uma experiência à altura do endereço.":
     DEFAULT_CONTENT.hero.subtitle,
   "Explorar coleção": DEFAULT_CONTENT.hero.ctaPrimary,

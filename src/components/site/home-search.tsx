@@ -138,7 +138,7 @@ export function HomeSearch({
   const [quartos, setQuartos] = useState(0);
 
   const tabs = [
-    { id: "venda" as const, label: "Comprar" },
+    { id: "venda" as const, label: "Imóveis" },
     ...(hasRent ? [{ id: "aluguel" as const, label: "Alugar" }] : []),
     ...(hasRural ? [{ id: "rurais" as const, label: "Rurais" }] : []),
   ];
