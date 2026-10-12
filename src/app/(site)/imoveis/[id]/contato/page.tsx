@@ -3,7 +3,7 @@ import { Wordmark } from "@/components/brand";
 import { TYPE_LABELS } from "@/lib/labels";
 import { getPropertyByCode, getWhiteLabel } from "@/lib/queries";
 import { formatAlq, isRuralType, normalizeRural } from "@/lib/rural";
-import { formatBRL, formatNumber } from "@/lib/utils";
+import { formatBRL, formatNumber, siteImage } from "@/lib/utils";
 import { ArrowUpRight, MessageCircle } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -60,7 +60,7 @@ export default async function ContatoImovelPage({
         <div className="overflow-hidden rounded-3xl border border-hairline bg-card">
           {p.cover && (
             /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={p.cover} alt={p.title} className="aspect-[16/9] w-full object-cover" />
+            <img src={siteImage(p.cover)} alt={p.title} className="aspect-[16/9] w-full object-cover" />
           )}
           <div className="flex flex-wrap items-end justify-between gap-3 p-5">
             <div className="min-w-0">

@@ -1,12 +1,13 @@
 import { blobToken, isMediaPath } from "@/lib/blob";
 import { get } from "@vercel/blob";
+import { watermark } from "@/lib/watermark";
 
 /**
  * Serve fotos e logos de um Blob Store privado. Os nomes têm sufixo aleatório e
  * nunca mudam, então a resposta é cacheada por 1 ano no navegador e na CDN.
  */
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ path: string[] }> },
 ) {
   const { path } = await params;
@@ -21,6 +22,33 @@ export async function GET(
   if (!result || result.statusCode !== 200) {
     return new Response("Not found", { status: 404 });
   }
+  // ?wm=1: fotos de imóveis exibidas no site saem com marca d'água
+  const wantsMark =
+    new URL(req.url).searchParams.get("wm") === "1" &&
+    pathname.startsWith("imoveis/") &&
+    /^image\/(jpeg|png|webp)/.test(result.blob.contentType ?? "");
+  if (wantsMark) {
+    try {
+      const buf = Buffer.from(await new Response(result.stream).arrayBuffer());
+      const { data, type } = await watermark(buf);
+      return new Response(new Uint8Array(data), {
+        headers: {
+          "Content-Type": type,
+          "Content-Length": String(data.length),
+          "Cache-Control": "public, max-age=31536000, s-maxage=31536000, immutable",
+        },
+      });
+    } catch (e) {
+      console.error("[marca d'água]", e);
+      // Falhou: cai para a foto original abaixo (busca de novo, o stream já foi lido)
+      const again = await get(pathname, { access: "private", token }).catch(() => null);
+      if (!again || again.statusCode !== 200) return new Response("Not found", { status: 404 });
+      return new Response(again.stream, {
+        headers: { "Content-Type": again.blob.contentType, "Cache-Control": "public, max-age=3600" },
+      });
+    }
+  }
+
   return new Response(result.stream, {
     headers: {
       "Content-Type": result.blob.contentType,

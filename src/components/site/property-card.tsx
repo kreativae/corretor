@@ -1,6 +1,6 @@
 import { STATUS_LABELS, TYPE_LABELS } from "@/lib/labels";
 import type { PropertyWithImages } from "@/lib/queries";
-import { cn, formatBRL, formatNumber } from "@/lib/utils";
+import { cn, formatBRL, formatNumber, siteImage } from "@/lib/utils";
 import { APTIDAO_LABELS, formatAlq, isRuralType, normalizeRural } from "@/lib/rural";
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
@@ -36,7 +36,7 @@ export function PropertyCard({
         {p.cover ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
-            src={p.cover}
+            src={siteImage(p.cover)}
             alt={p.title}
             loading="lazy"
             className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-expo group-hover:scale-[1.05]"

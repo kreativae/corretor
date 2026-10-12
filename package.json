@@ -28,6 +28,7 @@
     "react": "19.2.6",
     "react-dom": "19.2.6",
     "server-only": "^0.0.1",
+    "sharp": "^0.34.5",
     "sonner": "^2.0.8",
     "tailwind-merge": "^3.7.0",
     "tsx": "^4.23.15"

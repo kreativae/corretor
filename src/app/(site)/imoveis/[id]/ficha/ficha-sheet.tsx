@@ -15,7 +15,7 @@ import {
 } from "@/lib/rural";
 import { STATUS_LABELS, TYPE_LABELS } from "@/lib/labels";
 import type { PropertyWithImages } from "@/lib/queries";
-import { formatBRL, formatNumber } from "@/lib/utils";
+import { formatBRL, formatNumber, siteImage } from "@/lib/utils";
 import {
   BedDouble,
   Bath,
@@ -74,7 +74,7 @@ export function FichaSheet({
   /** Destino do QR: mapa do KMZ (rurais) ou formulário do consultor */
   qrKind?: "mapa" | "contato";
 }) {
-  const imgs = p.images.map((i) => i.url);
+  const imgs = p.images.map((i) => siteImage(i.url));
   const rural = isRuralType(p.type);
   const r = normalizeRural(p.rural);
   const areas = ruralAreas(r);

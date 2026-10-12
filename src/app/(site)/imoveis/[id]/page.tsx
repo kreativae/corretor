@@ -23,7 +23,7 @@ import {
   listPublishedProperties,
 } from "@/lib/queries";
 import { getSiteContent } from "@/lib/site-content";
-import { cn, formatBRL, initials, formatNumber } from "@/lib/utils";
+import { cn, formatBRL, initials, formatNumber, siteImage } from "@/lib/utils";
 import {
   BedDouble,
   Car,
@@ -133,7 +133,7 @@ export default async function ImovelPage({ params }: { params: Params }) {
         {/* Galeria */}
         <div data-reveal className="mt-8">
           <Gallery
-            images={p.images.map((i) => i.url)}
+            images={p.images.map((i) => siteImage(i.url))}
             title={p.title}
           />
         </div>

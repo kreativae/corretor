@@ -6,7 +6,7 @@ import { SiteHeader } from "@/components/site/site-header";
 import { listDeals, listPublishedProperties, getWhiteLabel } from "@/lib/queries";
 import { getSiteContent } from "@/lib/site-content";
 import { searchHref } from "@/lib/site-search";
-import { cn, parseYouTubeUrl, plural } from "@/lib/utils";
+import { cn, parseYouTubeUrl, plural, siteImage } from "@/lib/utils";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -277,7 +277,7 @@ export default async function HomePage() {
                 {c.image && (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img
-                    src={c.image}
+                    src={siteImage(c.image)}
                     alt=""
                     loading="lazy"
                     className="absolute inset-0 -z-20 h-full w-full object-cover transition-transform duration-700 ease-expo group-hover:scale-[1.06]"
@@ -351,7 +351,7 @@ export default async function HomePage() {
                   {h.cover ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img
-                      src={h.cover}
+                      src={siteImage(h.cover)}
                       alt=""
                       loading="lazy"
                       className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-expo group-hover:scale-[1.06]"

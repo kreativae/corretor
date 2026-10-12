@@ -1,6 +1,12 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
+/** Foto de imóvel servida pelo proxy → versão com marca d'água (site público). */
+export function siteImage<T extends string | null | undefined>(url: T): T {
+  if (!url || !url.includes("/api/media/imoveis/") || url.includes("?")) return url;
+  return `${url}?wm=1` as T;
+}
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
