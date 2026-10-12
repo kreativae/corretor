@@ -114,7 +114,13 @@ export function LeadForm({
   return (
     <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2" noValidate>
       <Field label="Nome">
-        <Input value={form.name} onChange={(e) => set("name", e.target.value)} autoComplete="name" required />
+        <Input
+          value={form.name}
+          onChange={(e) => set("name", e.target.value)}
+          autoComplete="name"
+          placeholder="Digite seu nome"
+          required
+        />
       </Field>
       <Field label="WhatsApp">
         <Input
@@ -127,7 +133,13 @@ export function LeadForm({
         />
       </Field>
       <Field label="E-mail (opcional)">
-        <Input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} autoComplete="email" />
+        <Input
+          type="email"
+          value={form.email}
+          onChange={(e) => set("email", e.target.value)}
+          autoComplete="email"
+          placeholder="Digite seu melhor e-mail"
+        />
       </Field>
       {property && (
         <Field label="Gostaria de">
