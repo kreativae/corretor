@@ -57,6 +57,7 @@ export default async function ImoveisPage({
         orgName={wl.orgName}
         phone={wl.phone}
         footer={content.footer}
+        cta={content.cta}
         email={wl.email}
         instagram={wl.instagram}
       />

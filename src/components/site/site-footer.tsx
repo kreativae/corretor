@@ -1,6 +1,7 @@
 import { Mark } from "@/components/brand";
 import type { SiteContent } from "@/lib/site-content";
 import { KreativCredit } from "@/components/kreativ-credit";
+import { ContactLightbox } from "@/components/site/contact-lightbox";
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 
@@ -10,12 +11,15 @@ export function SiteFooter({
   footer,
   email,
   instagram,
+  cta,
 }: {
   orgName: string;
   phone: string;
   footer: SiteContent["footer"];
   email?: string;
   instagram?: string;
+  /** Textos do "Fale com a gente" (janela aberta por links #fale-conosco) */
+  cta?: SiteContent["cta"];
 }) {
   const igHandle = instagram?.replace(/^https?:\/\/(www\.)?instagram\.com\//, "").replace(/[/@]/g, "");
   const year = new Date().getFullYear();
@@ -136,6 +140,7 @@ export function SiteFooter({
           <KreativCredit />
         </div>
       </div>
+      {cta && <ContactLightbox cta={cta} phone={phone} />}
     </footer>
   );
 }

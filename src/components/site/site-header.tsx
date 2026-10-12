@@ -4,6 +4,7 @@ import { Wordmark } from "@/components/brand";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui";
 import type { SiteContent } from "@/lib/site-content";
+import { lockScroll } from "@/lib/scroll-lock";
 import { cn } from "@/lib/utils";
 import { ArrowUpRight, LogIn, Menu, X } from "lucide-react";
 import Link from "next/link";
@@ -40,15 +41,11 @@ export function SiteHeader({
   // Menu aberto: trava a rolagem do site por trás (inclusive o Lenis)
   useEffect(() => {
     if (!open) return;
-    const html = document.documentElement;
-    const prev = { overflow: html.style.overflow, overscroll: html.style.overscrollBehavior };
-    html.style.overflow = "hidden";
-    html.style.overscrollBehavior = "none";
+    const unlock = lockScroll();
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     window.addEventListener("keydown", onKey);
     return () => {
-      html.style.overflow = prev.overflow;
-      html.style.overscrollBehavior = prev.overscroll;
+      unlock();
       window.removeEventListener("keydown", onKey);
     };
   }, [open]);

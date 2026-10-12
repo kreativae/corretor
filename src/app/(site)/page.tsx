@@ -1,5 +1,4 @@
 import { HeroSearchProvider, HeroTitle, HomeSearch } from "@/components/site/home-search";
-import { LeadForm } from "@/components/site/lead-form";
 import { APTIDAO_LABELS, isRuralType, normalizeRural } from "@/lib/rural";
 import { PropertyCard } from "@/components/site/property-card";
 import { SiteFooter } from "@/components/site/site-footer";
@@ -397,37 +396,11 @@ export default async function HomePage() {
         </section>
       )}
 
-      {/* ───────────── NÃO ENCONTROU? ───────────── */}
-      <section id="fale-conosco" className="container-x scroll-mt-24 pb-14 pt-2 md:pb-24">
-        <div className="grid gap-8 rounded-3xl border border-hairline bg-card p-5 md:grid-cols-[0.85fr_1.15fr] md:gap-12 md:p-12">
-          <div data-reveal>
-            <p className="font-mono text-[11px] uppercase tracking-[0.24em] text-subtle">
-              A gente busca pra você
-            </p>
-            <h2 className="mt-3 text-balance font-display text-2xl font-semibold tracking-tight sm:text-3xl md:text-4xl">
-              {content.cta.title}
-            </h2>
-            <p className="mt-4 max-w-sm text-sm leading-relaxed text-subtle">{content.cta.body}</p>
-            <a
-              href={whatsapp}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-6 inline-flex h-11 items-center gap-2 rounded-full border border-hairline-strong px-5 text-sm font-medium transition-colors hover:bg-soft"
-            >
-              <MessageCircle className="size-4" />
-              {content.cta.secondary}
-            </a>
-          </div>
-          <div data-reveal data-delay="0.1">
-            <LeadForm />
-          </div>
-        </div>
-      </section>
-
       <SiteFooter
         orgName={wl.orgName}
         phone={wl.phone}
         footer={content.footer}
+        cta={content.cta}
         email={wl.email}
         instagram={wl.instagram}
       />

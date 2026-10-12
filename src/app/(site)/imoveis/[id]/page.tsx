@@ -379,6 +379,7 @@ export default async function ImovelPage({ params }: { params: Params }) {
         orgName={wl.orgName}
         phone={wl.phone}
         footer={content.footer}
+        cta={content.cta}
         email={wl.email}
         instagram={wl.instagram}
       />
