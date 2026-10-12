@@ -16,6 +16,15 @@ const INTERESTS: [string, string][] = [
   ["chacara", "Chácara"],
 ];
 
+/** Objetivo do contato na página de um imóvel */
+const GOALS = [
+  "Receber mais informações",
+  "Agendar uma visita",
+  "Simular financiamento",
+  "Fazer uma proposta",
+  "Propor permuta",
+];
+
 /** Faixas de orçamento ("mín-máx" em reais; vazio = sem limite) */
 const BUDGETS: { group: string; options: [string, string][] }[] = [
   {
@@ -57,6 +66,7 @@ export function LeadForm({
     interest: "",
     region: "",
     budget: "",
+    goal: GOALS[0],
     message: "",
     website: "",
   });
@@ -119,6 +129,15 @@ export function LeadForm({
       <Field label="E-mail (opcional)">
         <Input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} autoComplete="email" />
       </Field>
+      {property && (
+        <Field label="Gostaria de">
+          <Select value={form.goal} onChange={(e) => set("goal", e.target.value)}>
+            {GOALS.map((g) => (
+              <option key={g}>{g}</option>
+            ))}
+          </Select>
+        </Field>
+      )}
       {!property && (
         <Field label="Tenho interesse em">
           <Select value={form.interest} onChange={(e) => set("interest", e.target.value)}>

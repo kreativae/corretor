@@ -121,7 +121,12 @@ export async function POST(req: Request) {
       .limit(1);
 
     const tag = noteHeader(property ? [viaQr ? "QR" : "Site", property.code] : ["Site"]);
-    const profile = [region && `Região: ${region}`, budgetLabel && `Orçamento: ${budgetLabel}`]
+    const goal = property ? clean(body.goal, 60) : "";
+    const profile = [
+      goal && `Gostaria de: ${goal.toLowerCase()}`,
+      region && `Região: ${region}`,
+      budgetLabel && `Orçamento: ${budgetLabel}`,
+    ]
       .filter(Boolean)
       .join(" · ");
     const noteBody = [profile, message].filter(Boolean).join("\n");
@@ -209,7 +214,9 @@ export async function POST(req: Request) {
         origin: property
           ? `${viaQr ? "QR code da ficha" : "Página do imóvel"}`
           : "Formulário do site",
-        detail: property ? `${property.code} · ${property.title}` : profile || null,
+        detail: property
+          ? [`${property.code} · ${property.title}`, goal].filter(Boolean).join(" — ")
+          : profile || null,
         baseUrl,
         returning: !!existing,
       }),
