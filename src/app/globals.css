@@ -215,3 +215,13 @@ html.lenis body {
     break-inside: avoid;
   }
 }
+
+/* Celular: campos com 16px — abaixo disso o iPhone dá zoom ao focar e a
+   página fica ampliada/cortada depois (fora de @layer: vence os utilitários) */
+@media (max-width: 639px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}

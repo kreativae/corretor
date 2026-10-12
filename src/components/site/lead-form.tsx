@@ -59,7 +59,7 @@ export function LeadForm({
     return (
       <div className="flex flex-col items-center gap-3 py-10 text-center">
         <CheckCircle2 className="size-10 text-accent" />
-        <p className="font-display text-2xl font-semibold tracking-tight">Recebemos seu contato!</p>
+        <p className="text-balance font-display text-xl font-semibold tracking-tight sm:text-2xl">Recebemos seu contato!</p>
         <p className="max-w-sm text-sm text-subtle">
           Em breve um consultor fala com você pelo WhatsApp{" "}
           {form.phone && `(${form.phone})`}
