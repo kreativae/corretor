@@ -33,7 +33,7 @@ export function HeroTitle({
   const rural = tab === "rurais" && titleRural.trim();
   return (
     <h1 className={className}>
-      <span key={rural ? "r" : "u"} className="block animate-blur-in">
+      <span key={rural ? "r" : "u"} className="block animate-fade-in">
         {rural ? titleRural : title}
       </span>
     </h1>
