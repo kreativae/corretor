@@ -1,6 +1,7 @@
 import { db } from "@/db";
 import { activities, contacts, deals, properties } from "@/db/schema";
 import { TYPE_LABELS } from "@/lib/labels";
+import { formatCompact } from "@/lib/utils";
 import { requestPublicOrigin } from "@/lib/google";
 import { notifyNewLead } from "@/lib/notify";
 import { and, eq, ne, sql } from "drizzle-orm";
@@ -52,6 +53,28 @@ export async function POST(req: Request) {
   const email = clean(body.email, 160).toLowerCase();
   const message = clean(body.message, 1000);
   const interest = clean(body.interest, 30);
+  // Região de interesse (texto livre) e orçamento ("mín-máx" em reais)
+  const region = clean(body.region, 200);
+  const regions = region
+    .split(/[,;/]/)
+    .map((r) => r.trim())
+    .filter(Boolean)
+    .slice(0, 10);
+  const [bMin, bMax] = clean(body.budget, 40).split("-");
+  const toInt = (v?: string) => {
+    const n = Number((v ?? "").replace(/\D/g, ""));
+    return v && Number.isFinite(n) && n > 0 && n < 2e9 ? n : null;
+  };
+  const budgetMin = toInt(bMin);
+  const budgetMax = toInt(bMax);
+  const budgetLabel =
+    budgetMin != null || budgetMax != null
+      ? budgetMin != null && budgetMax != null
+        ? `${formatCompact(budgetMin)} a ${formatCompact(budgetMax)}`
+        : budgetMax != null
+          ? `até ${formatCompact(budgetMax)}`
+          : `acima de ${formatCompact(budgetMin)}`
+      : "";
 
   if (name.length < 2) return NextResponse.json({ error: "Informe seu nome." }, { status: 400 });
   if (phone.length < 10 || phone.length > 13) {
@@ -97,7 +120,11 @@ export async function POST(req: Request) {
       .limit(1);
 
     const tag = property ? `[${viaQr ? "QR" : "Site"} · ${property.code}]` : "[Site]";
-    const note = message ? `${tag} ${message}` : property ? `${tag} Pediu contato sobre ${property.title}.` : "";
+    const profile = [region && `Região: ${region}`, budgetLabel && `Orçamento: ${budgetLabel}`]
+      .filter(Boolean)
+      .join(" · ");
+    const noteBody = [profile, message].filter(Boolean).join("\n");
+    const note = noteBody ? `${tag} ${noteBody}` : property ? `${tag} Pediu contato sobre ${property.title}.` : "";
     let contactId: string;
     if (existing) {
       contactId = existing.id;
@@ -106,6 +133,8 @@ export async function POST(req: Request) {
         .set({
           email: existing.email || email || null,
           interestTypes: [...new Set([...existing.interestTypes, ...interestTypes])],
+          neighborhoods: [...new Set([...existing.neighborhoods, ...regions])],
+          ...(budgetMin != null || budgetMax != null ? { budgetMin, budgetMax } : {}),
           notes: note ? [existing.notes, note].filter(Boolean).join("\n\n") : existing.notes,
           updatedAt: new Date(),
         })
@@ -120,6 +149,9 @@ export async function POST(req: Request) {
           source: "site",
           type: "lead",
           interestTypes,
+          neighborhoods: regions,
+          budgetMin,
+          budgetMax,
           notes: note || null,
         })
         .returning();
@@ -176,7 +208,7 @@ export async function POST(req: Request) {
         origin: property
           ? `${viaQr ? "QR code da ficha" : "Página do imóvel"}`
           : "Formulário do site",
-        detail: property ? `${property.code} · ${property.title}` : null,
+        detail: property ? `${property.code} · ${property.title}` : profile || null,
         baseUrl,
         returning: !!existing,
       }),

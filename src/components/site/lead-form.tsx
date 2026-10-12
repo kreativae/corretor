@@ -16,6 +16,29 @@ const INTERESTS: [string, string][] = [
   ["chacara", "Chácara"],
 ];
 
+/** Faixas de orçamento ("mín-máx" em reais; vazio = sem limite) */
+const BUDGETS: { group: string; options: [string, string][] }[] = [
+  {
+    group: "Compra",
+    options: [
+      ["0-300000", "Até R$ 300 mil"],
+      ["300000-500000", "R$ 300 a 500 mil"],
+      ["500000-1000000", "R$ 500 mil a 1 milhão"],
+      ["1000000-2000000", "R$ 1 a 2 milhões"],
+      ["2000000-5000000", "R$ 2 a 5 milhões"],
+      ["5000000-", "Acima de R$ 5 milhões"],
+    ],
+  },
+  {
+    group: "Aluguel (por mês)",
+    options: [
+      ["0-2000", "Aluguel até R$ 2 mil"],
+      ["2000-5000", "Aluguel de R$ 2 a 5 mil"],
+      ["5000-", "Aluguel acima de R$ 5 mil"],
+    ],
+  },
+];
+
 /**
  * Formulário de contato do site: o lead entra direto no CRM.
  * Com `property`, o contato fica vinculado ao imóvel (e abre negociação).
@@ -27,7 +50,16 @@ export function LeadForm({
   property?: { id: string; code: string; title: string };
   origin?: "site" | "qr";
 } = {}) {
-  const [form, setForm] = useState({ name: "", phone: "", email: "", interest: "", message: "", website: "" });
+  const [form, setForm] = useState({
+    name: "",
+    phone: "",
+    email: "",
+    interest: "",
+    region: "",
+    budget: "",
+    message: "",
+    website: "",
+  });
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState(false);
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
@@ -96,6 +128,32 @@ export function LeadForm({
           </Select>
         </Field>
       )}
+      {!property && (
+        <>
+          <Field label="Região de interesse">
+            <Input
+              value={form.region}
+              onChange={(e) => set("region", e.target.value)}
+              placeholder="Bairro, cidade ou região"
+              maxLength={200}
+            />
+          </Field>
+          <Field label="Orçamento">
+            <Select value={form.budget} onChange={(e) => set("budget", e.target.value)}>
+              <option value="">Ainda não sei</option>
+              {BUDGETS.map((g) => (
+                <optgroup key={g.group} label={g.group}>
+                  {g.options.map(([v, l]) => (
+                    <option key={v} value={v}>
+                      {l}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </Select>
+          </Field>
+        </>
+      )}
       <Field label="Mensagem (opcional)" className="sm:col-span-2">
         <Textarea
           rows={4}
@@ -104,7 +162,7 @@ export function LeadForm({
           placeholder={
             property
               ? "Ex.: quero agendar uma visita, saber sobre financiamento, aceita permuta?"
-              : "Região, faixa de valor, prazo… conte o que procura."
+              : "Quartos, prazo, forma de pagamento… conte o que procura."
           }
           maxLength={1000}
         />
