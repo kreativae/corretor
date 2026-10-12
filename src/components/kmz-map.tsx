@@ -185,7 +185,18 @@ export async function loadKmz(url: string, diag?: KmzDiag): Promise<Geo> {
 }
 
 /** Mapa de satélite com o perímetro do KMZ. */
-export function KmzMap({ url, className }: { url: string; className?: string }) {
+export function KmzMap({
+  url,
+  className,
+  showLocate = true,
+  showDirections = true,
+}: {
+  url: string;
+  className?: string;
+  /** Configurações › Mapa */
+  showLocate?: boolean;
+  showDirections?: boolean;
+}) {
   const el = useRef<HTMLDivElement>(null);
   const [state, setState] = useState<"loading" | "ready" | "error" | "empty">("loading");
   const [info, setInfo] = useState<{ alq: number; center: [number, number] } | null>(null);
@@ -324,25 +335,29 @@ export function KmzMap({ url, className }: { url: string; className?: string }) 
               )}
             </div>
             <div className="ml-auto flex gap-2">
-            <button
-              type="button"
-              onClick={locateMe}
-              disabled={locating}
-              aria-label="Minha localização"
-              className="pointer-events-auto inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-2.5 text-xs font-semibold text-neutral-900 shadow-lg disabled:opacity-70 sm:py-2"
-            >
-              {locating ? <Loader2 className="size-3.5 animate-spin" /> : <LocateFixed className="size-3.5" />}
-              <span className="hidden sm:inline">Minha localização</span>
-            </button>
-            <a
-              href={`https://www.google.com/maps/dir/?api=1&destination=${info.center[0]},${info.center[1]}`}
-              target="_blank"
-              rel="noreferrer"
-              className="pointer-events-auto inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-2.5 text-xs font-semibold text-neutral-900 shadow-lg sm:py-2"
-            >
-              <Navigation className="size-3.5" />
-              Como chegar
-            </a>
+              {showLocate && (
+                <button
+                  type="button"
+                  onClick={locateMe}
+                  disabled={locating}
+                  aria-label="Minha localização"
+                  className="pointer-events-auto inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-2.5 text-xs font-semibold text-neutral-900 shadow-lg disabled:opacity-70 sm:py-2"
+                >
+                  {locating ? <Loader2 className="size-3.5 animate-spin" /> : <LocateFixed className="size-3.5" />}
+                  <span className="hidden sm:inline">Minha localização</span>
+                </button>
+              )}
+              {showDirections && (
+                <a
+                  href={`https://www.google.com/maps/dir/?api=1&destination=${info.center[0]},${info.center[1]}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="pointer-events-auto inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-2.5 text-xs font-semibold text-neutral-900 shadow-lg sm:py-2"
+                >
+                  <Navigation className="size-3.5" />
+                  Como chegar
+                </a>
+              )}
             </div>
           </div>
         )}

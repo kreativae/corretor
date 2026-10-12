@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/db";
 import { settings } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { MAP_OPTIONS_DEFAULTS, sanitizeMapOptions, type MapOptions } from "@/lib/map-options";
 import { sanitizeStatCards, STAT_CARDS_DEFAULTS, type StatCards } from "@/lib/stat-cards";
 
 /** Módulos opcionais do CRM, ligados em Configurações. */
@@ -27,6 +28,15 @@ export async function getStatCards(): Promise<StatCards> {
     return sanitizeStatCards((row?.value ?? {}) as Record<string, unknown>);
   } catch {
     return STAT_CARDS_DEFAULTS;
+  }
+}
+
+export async function getMapOptions(): Promise<MapOptions> {
+  try {
+    const [row] = await db.select().from(settings).where(eq(settings.key, "mapOptions"));
+    return sanitizeMapOptions((row?.value ?? {}) as Record<string, unknown>);
+  } catch {
+    return MAP_OPTIONS_DEFAULTS;
   }
 }
 

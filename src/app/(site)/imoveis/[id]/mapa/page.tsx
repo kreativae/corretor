@@ -1,4 +1,5 @@
 import { KmzMap } from "@/components/kmz-map";
+import { getMapOptions } from "@/lib/features";
 import { getPropertyByCode, getWhiteLabel } from "@/lib/queries";
 import { formatAlq, formatHa, isRuralType, normalizeRural } from "@/lib/rural";
 import { formatBRL } from "@/lib/utils";
@@ -22,7 +23,11 @@ export async function generateMetadata({
 /** Destino do QR code da ficha: perímetro do KMZ em satélite + download. */
 export default async function MapaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [p, wl] = await Promise.all([getPropertyByCode(id), getWhiteLabel()]);
+  const [p, wl, mapOpts] = await Promise.all([
+    getPropertyByCode(id),
+    getWhiteLabel(),
+    getMapOptions(),
+  ]);
   if (!p || !isRuralType(p.type)) notFound();
   const r = normalizeRural(p.rural);
   if (!r.kmzUrl) notFound();
@@ -56,7 +61,12 @@ export default async function MapaPage({ params }: { params: Promise<{ id: strin
           <span className="sm:hidden">KMZ</span>
         </a>
       </header>
-      <KmzMap url={r.kmzUrl} className="min-h-0 flex-1" />
+      <KmzMap
+        url={r.kmzUrl}
+        className="min-h-0 flex-1"
+        showLocate={mapOpts.locate}
+        showDirections={mapOpts.directions}
+      />
       <footer className="hidden shrink-0 px-4 py-2.5 text-center text-[11px] text-white/40 sm:block">
         {wl.orgName} · O arquivo KMZ abre no Google Earth (celular ou computador)
       </footer>
