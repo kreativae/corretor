@@ -49,7 +49,12 @@ export type SiteContent = {
     secondary: string;
     whatsappMessage: string;
   };
-  listing: { eyebrow: string; title: string };
+  listing: {
+    eyebrow: string;
+    title: string;
+    /** Título na aba Propriedades rurais */
+    titleRural: string;
+  };
   detail: {
     visitEyebrow: string;
     visitTitle: string;
@@ -183,7 +188,8 @@ export const DEFAULT_CONTENT: SiteContent = {
   },
   listing: {
     eyebrow: "Imóveis à venda e para alugar",
-    title: "Encontre o seu endereço.",
+    title: "Encontre o imóvel ideal.",
+    titleRural: "Encontre a propriedade ideal.",
   },
   detail: {
     visitEyebrow: "Visita guiada",
@@ -239,6 +245,7 @@ export const DEFAULT_CONTENT: SiteContent = {
 const LEGACY_DEFAULTS: Record<string, string> = {
   "Espaços com assinatura.": DEFAULT_CONTENT.hero.title,
   "Encontre a casa ideal.": DEFAULT_CONTENT.hero.title,
+  "Encontre o seu endereço.": DEFAULT_CONTENT.listing.title,
   "Curadoria autoral de imóveis excepcionais. Do primeiro café à entrega das chaves — uma experiência à altura do endereço.":
     DEFAULT_CONTENT.hero.subtitle,
   "Explorar coleção": DEFAULT_CONTENT.hero.ctaPrimary,

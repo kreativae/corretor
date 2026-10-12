@@ -36,11 +36,15 @@ export default async function ImoveisPage({
         >
           {content.listing.eyebrow}
         </p>
+        {/* key: troca limpa do título ao alternar Imóveis / Propriedades rurais */}
         <h1
+          key={categoria === "rurais" ? "r" : "u"}
           data-words
           className="mt-3 text-balance font-display text-4xl font-semibold tracking-[-0.02em] sm:text-5xl md:text-7xl"
         >
-          {content.listing.title}
+          {categoria === "rurais" && content.listing.titleRural.trim()
+            ? content.listing.titleRural
+            : content.listing.title}
         </h1>
         <ImoveisBrowser
           key={JSON.stringify(sp)}

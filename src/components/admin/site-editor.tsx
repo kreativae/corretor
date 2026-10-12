@@ -580,10 +580,16 @@ export function SiteEditor({
                     onChange={(e) => patch("listing", { eyebrow: e.target.value })}
                   />
                 </Field>
-                <Field label="Título">
+                <Field label="Título" hint="Aba Imóveis">
                   <Input
                     value={c.listing.title}
                     onChange={(e) => patch("listing", { title: e.target.value })}
+                  />
+                </Field>
+                <Field label="Título na aba Propriedades rurais">
+                  <Input
+                    value={c.listing.titleRural}
+                    onChange={(e) => patch("listing", { titleRural: e.target.value })}
                   />
                 </Field>
               </div>
