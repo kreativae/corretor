@@ -33,8 +33,8 @@ export function SiteFooter({
 
   return (
     <footer id="contato" className="border-t border-hairline">
-      <div className="container-x grid gap-10 py-16 sm:grid-cols-2 md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_auto] md:gap-x-16 md:py-24">
-        <div className="sm:col-span-2 md:col-span-1">
+      <div className="container-x grid grid-cols-2 gap-x-6 gap-y-10 py-16 md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_auto] md:gap-x-16 md:py-24">
+        <div className="col-span-2 md:col-span-1">
           <Mark className="size-12" />
           {footer.tagline && (
             <p className="mt-6 max-w-xs font-display text-2xl font-medium leading-snug tracking-tight">
@@ -78,7 +78,7 @@ export function SiteFooter({
           <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-subtle">
             {footer.contactTitle}
           </p>
-          <ul className="mt-5 space-y-3 text-sm text-subtle">
+          <ul className="mt-5 space-y-3 text-sm text-subtle [overflow-wrap:anywhere]">
             {phoneLabel && (
               <li className="font-mono tabular">
                 <a
@@ -119,7 +119,7 @@ export function SiteFooter({
         <div className="container-x overflow-hidden pb-8">
           <p
             aria-hidden
-            className="text-outline select-none whitespace-nowrap text-center font-brand text-[10vw] font-extrabold uppercase leading-[0.9] tracking-tight md:text-[8.5vw]"
+            className="text-outline select-none whitespace-nowrap text-center font-brand text-[8.4vw] font-extrabold uppercase leading-[0.9] tracking-tight md:text-[8.5vw]"
           >
             {bigName}
           </p>
