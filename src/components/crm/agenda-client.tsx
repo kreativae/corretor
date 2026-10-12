@@ -142,6 +142,43 @@ export function AgendaClient({
     });
   }, [offset]);
 
+  // Computador: faixa de dias com rolagem lateral infinita a partir da segunda-feira
+  // da semana escolhida — ao chegar perto do fim, mais 7 dias são acrescentados.
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const [extraDays, setExtraDays] = useState(14);
+  const [stripStart, setStripStart] = useState(0);
+  const strip = useMemo(() => {
+    const start = mondayOf(offset);
+    return Array.from({ length: 7 + extraDays }, (_, i) => {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      return d;
+    });
+  }, [offset, extraDays]);
+  /** Largura de uma coluna + espaço entre colunas */
+  const colStep = () => {
+    const el = scrollerRef.current;
+    const first = el?.firstElementChild as HTMLElement | null;
+    return first ? first.offsetWidth + 10 : 0;
+  };
+  function onStripScroll() {
+    const el = scrollerRef.current;
+    const w = colStep();
+    if (!el || !w) return;
+    setStripStart(Math.max(0, Math.round(el.scrollLeft / w)));
+    if (el.scrollLeft + el.clientWidth > el.scrollWidth - w * 4) setExtraDays((n) => n + 7);
+  }
+  function resetStrip() {
+    scrollerRef.current?.scrollTo({ left: 0 });
+    setStripStart(0);
+    setExtraDays(14);
+  }
+  /** Os 7 dias visíveis no computador (no celular, a semana escolhida) */
+  const range = useMemo(
+    () => (stripStart > 0 ? strip.slice(stripStart, stripStart + 7) : week),
+    [strip, stripStart, week],
+  );
+
   const todayIdx = week.findIndex((d) => d.toDateString() === new Date().toDateString());
   const activeMobileDay = mobileDay ?? (todayIdx >= 0 ? todayIdx : 0);
 
@@ -170,6 +207,7 @@ export function AgendaClient({
     setOffset(Math.round((monday.getTime() - mondayOf(0).getTime()) / (7 * 864e5)));
     setMobileDay((day.getDay() + 6) % 7);
     setView("semana");
+    resetStrip();
   }
 
   function goToday(v: "semana" | "mes") {
@@ -178,17 +216,24 @@ export function AgendaClient({
     setMonthOffset(0);
     setMobileDay(null);
     setTodayMenu(false);
+    resetStrip();
   }
 
   function step(dir: 1 | -1) {
-    if (view === "mes") setMonthOffset((o) => o + dir);
-    else {
-      setOffset((o) => o + dir);
-      setMobileDay(null);
+    if (view === "mes") return setMonthOffset((o) => o + dir);
+    // Computador: anda 7 colunas na faixa (voltando antes do início, troca a semana)
+    const el = scrollerRef.current;
+    if (el && el.offsetParent && (dir > 0 || stripStart >= 7)) {
+      el.scrollBy({ left: dir * 7 * colStep(), behavior: "smooth" });
+      return;
     }
+    setOffset((o) => o + dir);
+    setMobileDay(null);
+    resetStrip();
   }
 
-  const weekLabel = `${week[0].getDate()} ${MONTHS[week[0].getMonth()]} — ${week[6].getDate()} ${MONTHS[week[6].getMonth()]} ${week[6].getFullYear()}`;
+  const rangeEnd = range[range.length - 1];
+  const weekLabel = `${range[0].getDate()} ${MONTHS[range[0].getMonth()]} — ${rangeEnd.getDate()} ${MONTHS[rangeEnd.getMonth()]} ${rangeEnd.getFullYear()}`;
 
   const counts = {
     todas: visits.length,
@@ -207,7 +252,7 @@ export function AgendaClient({
   const [showFilters, setShowFilters] = useState(false);
   const patch = (p: Partial<AgendaFilters>) => setFilters((f) => ({ ...f, ...p }));
   const resetFilters = () => setFilters((f) => ({ ...EMPTY_AGENDA_FILTERS, q: f.q }));
-  const closeFilters = useCallback(() => setShowFilters(false), []);
+  const closeFilters = useCallback(() => setShowFilters(false), [setShowFilters]);
 
   // Lembra os filtros do usuário neste navegador
   useEffect(() => {
@@ -229,13 +274,13 @@ export function AgendaClient({
   );
   // Visitas do período exibido (semana ou mês)
   const weekVisits = useMemo(() => {
-    const start = view === "mes" ? month.first.getTime() : week[0].getTime();
+    const start = view === "mes" ? month.first.getTime() : range[0].getTime();
     const end = view === "mes" ? month.next.getTime() : start + 7 * 864e5;
     return inTab.filter((v) => {
       const t = new Date(v.visit.scheduledAt).getTime();
       return t >= start && t < end;
     });
-  }, [inTab, week, view, month]);
+  }, [inTab, range, view, month]);
   const periodWord = view === "mes" ? "no mês" : "na semana";
   const filtered = useMemo(() => applyAgendaFilters(inTab, filters), [inTab, filters]);
   const weekFiltered = useMemo(() => applyAgendaFilters(weekVisits, filters), [weekVisits, filters]);
@@ -285,7 +330,7 @@ export function AgendaClient({
     (id) => inTab.find((v) => v.property?.id === id)?.property?.code ?? "Imóvel",
   );
   // Visitas filtradas nas semanas seguintes à exibida
-  const weekEnd = view === "mes" ? month.next.getTime() : week[0].getTime() + 7 * 864e5;
+  const weekEnd = view === "mes" ? month.next.getTime() : range[0].getTime() + 7 * 864e5;
   const upcomingElsewhere = chips.length || filters.q
     ? filtered.filter((v) => new Date(v.visit.scheduledAt).getTime() >= weekEnd).length
     : 0;
@@ -395,19 +440,6 @@ export function AgendaClient({
   }
 
   // Busca rápida → /crm/agenda?visita=ID: vai para a semana da visita e abre a edição
-  const openedFromSearch = useRef<string | null>(null);
-  useEffect(() => {
-    if (!openVisitId || openedFromSearch.current === openVisitId) return;
-    const v = visits.find((x) => x.visit.id === openVisitId);
-    if (!v) return;
-    openedFromSearch.current = openVisitId;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    openWeekOf(new Date(v.visit.scheduledAt));
-    openEdit(v);
-    router.replace(pathname, { scroll: false });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [openVisitId, visits]);
-
   function openEdit(v: VisitLite) {
     const d = new Date(v.visit.scheduledAt);
     const pad = (n: number) => String(n).padStart(2, "0");
@@ -422,6 +454,20 @@ export function AgendaClient({
     setConfirmDelete(false);
     setEditing(v);
   }
+
+  const openedFromSearch = useRef<string | null>(null);
+  useEffect(() => {
+    if (!openVisitId || openedFromSearch.current === openVisitId) return;
+    const v = visits.find((x) => x.visit.id === openVisitId);
+    if (!v) return;
+    openedFromSearch.current = openVisitId;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    openWeekOf(new Date(v.visit.scheduledAt));
+    openEdit(v);
+    router.replace(pathname, { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openVisitId, visits]);
+
 
   async function saveEdit() {
     if (!editing) return;
@@ -985,8 +1031,16 @@ export function AgendaClient({
       </div>
 
       {/* Grade da semana (tablet e computador) */}
-      <div className={cn("mt-5 hidden gap-2.5 overflow-x-auto md:grid-cols-7", view === "semana" && "md:grid")}>
-        {week.map((day, i) => {
+      <div
+        ref={scrollerRef}
+        onScroll={onStripScroll}
+        data-lenis-prevent
+        className={cn(
+          "mt-5 hidden snap-x snap-mandatory gap-2.5 overflow-x-auto pb-2 [scrollbar-width:thin]",
+          view === "semana" && "md:flex",
+        )}
+      >
+        {strip.map((day, i) => {
           const isToday = day.toDateString() === new Date().toDateString();
           const dayVisits = visitsFor(day);
           return (
@@ -1005,7 +1059,7 @@ export function AgendaClient({
                 setOverDay(null);
               }}
               className={cn(
-                "min-h-72 min-w-44 rounded-2xl border p-2.5 transition-colors duration-200",
+                "min-h-72 w-[calc((100%-3.75rem)/7)] min-w-44 shrink-0 snap-start rounded-2xl border p-2.5 transition-colors duration-200",
                 overDay === i && dragId
                   ? "border-[rgb(var(--accent))/0.6] bg-soft ring-2 ring-[rgb(var(--accent))/0.2]"
                   : isToday
@@ -1020,7 +1074,7 @@ export function AgendaClient({
                     isToday ? "font-semibold text-accent" : "text-subtle",
                   )}
                 >
-                  {DAY_NAMES[i]}
+                  {DAY_NAMES[(day.getDay() + 6) % 7]}
                 </span>
                 <span
                   className={cn(
