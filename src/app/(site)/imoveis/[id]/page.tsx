@@ -13,6 +13,7 @@ import { PropertyCard } from "@/components/site/property-card";
 import { PropertyTracker } from "@/components/site/property-tracker";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
+import { RevealAfter } from "@/components/site/reveal-after";
 import { VisitLightbox } from "@/components/site/visit-lightbox";
 import { Badge } from "@/components/ui";
 import { STATUS_LABELS, STATUS_STYLES, TYPE_LABELS } from "@/lib/labels";
@@ -275,7 +276,7 @@ export default async function ImovelPage({ params }: { params: Params }) {
                 </div>
               </div>
 
-              <div className="mt-5 grid gap-2">
+              <div id="acoes-imovel" className="mt-5 grid gap-2">
                 <a href="#agendar">
                   <span className="flex h-11 w-full items-center justify-center rounded-full bg-ink text-sm font-medium text-canvas transition-opacity duration-300 hover:opacity-85">
                     {content.visit.cta}
@@ -332,45 +333,47 @@ export default async function ImovelPage({ params }: { params: Params }) {
         )}
       </main>
 
-      {/* Celular: barra fixa com preço e contato */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-hairline bg-canvas/90 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl lg:hidden">
-        <div className="flex items-center gap-2">
-          <div className="min-w-0 flex-1">
-            <p className="truncate font-mono text-[10px] uppercase tracking-[0.16em] text-subtle">
-              {p.code} · {p.purpose === "venda" ? "Venda" : "Aluguel"}
-            </p>
-            <p className="truncate font-mono text-base font-medium tabular">
-              {formatBRL(p.price)}
-              {p.purpose === "aluguel" && <span className="text-xs text-subtle"> /mês</span>}
-            </p>
+      {/* Celular: barra fixa com preço e contato — aparece depois de rolar além dos botões de ação */}
+      <RevealAfter targetId="acoes-imovel" className="fixed inset-x-0 bottom-0 z-30 lg:hidden">
+        <div className="border-t border-hairline bg-canvas/90 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl">
+          <div className="flex items-center gap-2">
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-mono text-[10px] uppercase tracking-[0.16em] text-subtle">
+                {p.code} · {p.purpose === "venda" ? "Venda" : "Aluguel"}
+              </p>
+              <p className="truncate font-mono text-base font-medium tabular">
+                {formatBRL(p.price)}
+                {p.purpose === "aluguel" && <span className="text-xs text-subtle"> /mês</span>}
+              </p>
+            </div>
+            <a
+              href={`/imoveis/${p.code}/ficha`}
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Ficha em PDF"
+              title="Ficha em PDF"
+              className="flex size-11 shrink-0 items-center justify-center rounded-full border border-hairline-strong text-ink"
+            >
+              <FileDown className="size-5" />
+            </a>
+            <a
+              href={`https://wa.me/${wl.phone}?text=${waText}`}
+              target="_blank"
+              rel="noreferrer"
+              aria-label="WhatsApp"
+              className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent text-on-accent"
+            >
+              <MessageCircle className="size-5" />
+            </a>
+            <a
+              href="#agendar"
+              className="flex h-11 shrink-0 items-center justify-center rounded-full bg-ink px-4 text-sm font-medium text-canvas min-[400px]:px-5"
+            >
+              {content.visit.cta}
+            </a>
           </div>
-          <a
-            href={`/imoveis/${p.code}/ficha`}
-            target="_blank"
-            rel="noreferrer"
-            aria-label="Ficha em PDF"
-            title="Ficha em PDF"
-            className="flex size-11 shrink-0 items-center justify-center rounded-full border border-hairline-strong text-ink"
-          >
-            <FileDown className="size-5" />
-          </a>
-          <a
-            href={`https://wa.me/${wl.phone}?text=${waText}`}
-            target="_blank"
-            rel="noreferrer"
-            aria-label="WhatsApp"
-            className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent text-on-accent"
-          >
-            <MessageCircle className="size-5" />
-          </a>
-          <a
-            href="#agendar"
-            className="flex h-11 shrink-0 items-center justify-center rounded-full bg-ink px-4 text-sm font-medium text-canvas min-[400px]:px-5"
-          >
-            {content.visit.cta}
-          </a>
         </div>
-      </div>
+      </RevealAfter>
 
       <SiteFooter
         orgName={wl.orgName}
