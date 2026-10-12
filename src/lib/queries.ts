@@ -21,7 +21,7 @@ import {
   type User,
   type Visit,
 } from "@/db/schema";
-import { and, count, countDistinct, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, asc, count, countDistinct, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 
 /* ─────────────────────── White label ─────────────────────── */
 
@@ -244,6 +244,18 @@ export async function listDealClosedDates(): Promise<Record<string, string>> {
 
 export async function listActivities(limit = 30): Promise<Activity[]> {
   return db.select().from(activities).orderBy(desc(activities.createdAt)).limit(limit);
+}
+
+/** Quando o contato entrou como lead (mais antigos primeiro) — data das mensagens antigas */
+export async function listLeadDates(contactId: string) {
+  const rows = await db
+    .select({ entity: activities.entity, kind: activities.kind, createdAt: activities.createdAt })
+    .from(activities)
+    .where(eq(activities.entityId, contactId))
+    .orderBy(asc(activities.createdAt));
+  return rows
+    .filter((a) => a.entity === "contato" && a.kind === "lead")
+    .map((a) => new Date(a.createdAt).toISOString());
 }
 
 export async function listActivitiesFor(

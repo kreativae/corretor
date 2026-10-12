@@ -1,4 +1,5 @@
 import { crmPropertyPath } from "@/lib/rural";
+import { NotesHistory } from "@/components/crm/notes-history";
 import { ContactActions } from "@/components/crm/contact-actions";
 import { Timeline } from "@/components/crm/timeline";
 import { MobileSection } from "@/components/crm/mobile-section";
@@ -16,6 +17,7 @@ import {
   getContact,
   getMatchesFor,
   listActivitiesFor,
+  listLeadDates,
   listDeals,
   listProperties,
   listVisits,
@@ -50,9 +52,10 @@ export default async function ContatoPage({
   ]);
   if (!c) notFound();
 
-  const [matches, activities] = await Promise.all([
+  const [matches, activities, leadDates] = await Promise.all([
     getMatchesFor(c),
     listActivitiesFor("contato", c.id, 15),
+    listLeadDates(c.id),
   ]);
 
   const myVisits = allVisits.filter((v) => v.contact?.id === c.id);
@@ -167,9 +170,12 @@ export default async function ContatoPage({
               </div>
             )}
             {c.notes && (
-              <p className="mt-4 border-t border-hairline pt-4 text-sm leading-relaxed text-subtle">
-                {c.notes}
-              </p>
+              <div className="mt-4 border-t border-hairline pt-4">
+                <p className="mb-2 font-mono text-[10.5px] uppercase tracking-[0.16em] text-subtle">
+                  Mensagens e anotações
+                </p>
+                <NotesHistory notes={c.notes} leadDates={leadDates} />
+              </div>
             )}
           </div>
 

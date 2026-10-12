@@ -1,6 +1,7 @@
 import { db } from "@/db";
 import { activities, contacts, deals, properties } from "@/db/schema";
 import { TYPE_LABELS } from "@/lib/labels";
+import { noteHeader } from "@/lib/contact-notes";
 import { formatCompact } from "@/lib/utils";
 import { requestPublicOrigin } from "@/lib/google";
 import { notifyNewLead } from "@/lib/notify";
@@ -119,7 +120,7 @@ export async function POST(req: Request) {
       .where(sql`regexp_replace(${contacts.phone}, '\\D', '', 'g') = ${phone}`)
       .limit(1);
 
-    const tag = property ? `[${viaQr ? "QR" : "Site"} · ${property.code}]` : "[Site]";
+    const tag = noteHeader(property ? [viaQr ? "QR" : "Site", property.code] : ["Site"]);
     const profile = [region && `Região: ${region}`, budgetLabel && `Orçamento: ${budgetLabel}`]
       .filter(Boolean)
       .join(" · ");

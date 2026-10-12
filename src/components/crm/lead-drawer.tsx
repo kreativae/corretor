@@ -1,5 +1,6 @@
 "use client";
 
+import { NotesHistory } from "@/components/crm/notes-history";
 import { Badge, Button, Field, Input, Select, Textarea } from "@/components/ui";
 import type { Contact } from "@/db/schema";
 import {
@@ -34,6 +35,8 @@ import { DeleteContactButton } from "./delete-contact-button";
 
 type LeadData = {
   contact: Contact;
+  /** Entradas como lead (ISO, mais antigas primeiro) */
+  leadDates?: string[];
   visits: {
     id: string;
     scheduledAt: string;
@@ -396,11 +399,7 @@ export function LeadDrawer({
                     ))}
                   </div>
                 )}
-                {c.notes && (
-                  <p className="mt-3 rounded-xl bg-soft p-3 text-xs leading-relaxed text-subtle">
-                    {c.notes}
-                  </p>
-                )}
+                <NotesHistory notes={c.notes} leadDates={data?.leadDates} className="mt-3" />
               </div>
 
               {data.deals.length > 0 && (
