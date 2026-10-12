@@ -29,7 +29,7 @@ export type SiteContent = {
     statsOnMobile: boolean;
   };
   collection: { eyebrow: string; title: string; linkLabel: string };
-  /** Cards de categoria da home (imagem vazia = foto de um imóvel publicado) */
+  /** Cards de categoria da home (imagem vazia = foto padrão) */
   categories: {
     urbanTitle: string;
     urbanText: string;
@@ -150,10 +150,12 @@ export const DEFAULT_CONTENT: SiteContent = {
   categories: {
     urbanTitle: "Imóveis",
     urbanText: "Casas, apartamentos e terrenos para comprar ou alugar",
-    urbanImage: "",
+    urbanImage:
+      "https://images.pexels.com/photos/3417676/pexels-photo-3417676.jpeg?auto=compress&cs=tinysrgb&w=1600",
     ruralTitle: "Propriedades rurais",
     ruralText: "Fazendas, sítios e chácaras com área, aptidão e mapa",
-    ruralImage: "",
+    ruralImage:
+      "https://images.pexels.com/photos/15885072/pexels-photo-15885072.jpeg?auto=compress&cs=tinysrgb&w=1600",
   },
   collection: {
     eyebrow: "Destaques",
@@ -323,7 +325,13 @@ export async function getSiteContent(): Promise<SiteContent> {
       },
       hero: { ...DEFAULT_CONTENT.hero, ...saved.hero },
       collection: { ...DEFAULT_CONTENT.collection, ...saved.collection },
-      categories: { ...DEFAULT_CONTENT.categories, ...saved.categories },
+      categories: {
+        ...DEFAULT_CONTENT.categories,
+        ...saved.categories,
+        // Imagem vazia volta para a foto padrão
+        urbanImage: saved.categories?.urbanImage?.trim() || DEFAULT_CONTENT.categories.urbanImage,
+        ruralImage: saved.categories?.ruralImage?.trim() || DEFAULT_CONTENT.categories.ruralImage,
+      },
       experience: { ...DEFAULT_CONTENT.experience, ...saved.experience },
       process: { ...DEFAULT_CONTENT.process, ...saved.process },
       cta: { ...DEFAULT_CONTENT.cta, ...saved.cta },

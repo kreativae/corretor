@@ -505,7 +505,7 @@ export function SiteEditor({
             </h2>
             <p className="mb-5 text-xs text-subtle">
               Dois cards com foto: Imóveis (overlay laranja) e Propriedades rurais (overlay marinho).
-              Sem imagem informada, usa a foto de um imóvel publicado da categoria.
+              Sem imagem informada, usa a foto padrão.
             </p>
             <div className="grid gap-6 md:grid-cols-2">
               <div className="space-y-4">
@@ -522,7 +522,7 @@ export function SiteEditor({
                     onChange={(e) => patch("categories", { urbanText: e.target.value })}
                   />
                 </Field>
-                <Field label="Imagem (URL)" hint="Vazio = foto de um imóvel publicado">
+                <Field label="Imagem (URL)" hint="Vazio = foto padrão (prédios)">
                   <Input
                     value={c.categories.urbanImage}
                     onChange={(e) => patch("categories", { urbanImage: e.target.value })} className="font-mono text-xs"
@@ -543,7 +543,7 @@ export function SiteEditor({
                     onChange={(e) => patch("categories", { ruralText: e.target.value })}
                   />
                 </Field>
-                <Field label="Imagem (URL)" hint="Vazio = foto de uma propriedade publicada">
+                <Field label="Imagem (URL)" hint="Vazio = foto padrão (paisagem rural)">
                   <Input
                     value={c.categories.ruralImage}
                     onChange={(e) => patch("categories", { ruralImage: e.target.value })} className="font-mono text-xs"
