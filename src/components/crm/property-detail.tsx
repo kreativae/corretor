@@ -11,6 +11,7 @@ import {
   ruralAreas,
 } from "@/lib/rural";
 import { AdExporterModal } from "@/components/crm/ad-exporter-modal";
+import { DuplicatePropertyButton } from "@/components/crm/duplicate-property-button";
 import { MobileSection } from "@/components/crm/mobile-section";
 import { PortalPanel } from "@/components/crm/portal-panel";
 import { PropertyDocuments } from "@/components/crm/property-documents";
@@ -139,6 +140,7 @@ export async function PropertyDetail({
               Editar
             </Button>
           </Link>
+          <DuplicatePropertyButton id={p.id} code={p.code} />
           <Link href={`/imoveis/${p.code}`} target="_blank">
             <Button variant="outline" size="sm">
               <Globe className="size-3.5" />

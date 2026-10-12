@@ -2,6 +2,7 @@ import { apiUser, unauthorized } from "@/lib/api-auth";
 import { db } from "@/db";
 import { activities, properties, propertyImages } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
+import { nextPropertyCode } from "@/lib/property-code";
 import { alqToM2, isRuralType, sanitizeRural } from "@/lib/rural";
 import { NextResponse } from "next/server";
 
@@ -27,14 +28,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
     }
 
-    // Próximo código livre (RUR- para rurais, NRD- para urbanos)
-    const prefix = rural ? "RUR" : "NRD";
-    const taken = new Set(
-      (await db.select({ code: properties.code }).from(properties)).map((r) => r.code),
-    );
-    let seq = 2401 + taken.size;
-    while (taken.has(`${prefix}-${seq}`)) seq += 1;
-    const code = `${prefix}-${seq}`;
+    const code = await nextPropertyCode(rural);
 
     const [created] = await db
       .insert(properties)

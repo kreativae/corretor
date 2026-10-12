@@ -30,6 +30,7 @@ import {
 import { cn, formatBRL, formatCompact, formatNumber } from "@/lib/utils";
 import {
   ArrowUpRight,
+  Copy,
   Building2,
   Eye,
   Globe,
@@ -81,6 +82,25 @@ export function PropertiesTable({
   }, [filters, filtersKey]);
   const [toDelete, setToDelete] = useState<PropertyWithImages | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [duplicating, setDuplicating] = useState<string | null>(null);
+
+  /** Cria uma cópia (fora do site) com novo código e as mesmas fotos */
+  async function duplicate(p: PropertyWithImages) {
+    setDuplicating(p.id);
+    try {
+      const res = await fetch(`/api/properties/${p.id}/duplicate`, { method: "POST" });
+      if (!res.ok) throw new Error();
+      const copy = (await res.json()) as { id: string; code: string; type: string };
+      toast.success(`${p.code} duplicado como ${copy.code} (fora do site).`, {
+        action: { label: "Editar cópia", onClick: () => router.push(crmPropertyPath(copy, "/editar")) },
+      });
+      router.refresh();
+    } catch {
+      toast.error("Não foi possível duplicar.");
+    } finally {
+      setDuplicating(null);
+    }
+  }
 
   const filtered = useMemo(
     () => applyPropertyFilters(items, filters, viewCounts, rural),
@@ -332,6 +352,16 @@ export function PropertiesTable({
                       <Pencil className="size-4" />
                     </Button>
                   </Link>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Duplicar"
+                    title="Duplicar anúncio"
+                    loading={duplicating === p.id}
+                    onClick={() => duplicate(p)}
+                  >
+                    <Copy className="size-4" />
+                  </Button>
                   <Button variant="ghost" size="icon" aria-label="Excluir" onClick={() => setToDelete(p)}>
                     <Trash2 className="size-4 text-red-500/80" />
                   </Button>
@@ -465,6 +495,16 @@ export function PropertiesTable({
                         <Pencil className="size-4" />
                       </Button>
                     </Link>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Duplicar"
+                      title="Duplicar anúncio"
+                      loading={duplicating === p.id}
+                      onClick={() => duplicate(p)}
+                    >
+                      <Copy className="size-4" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"
