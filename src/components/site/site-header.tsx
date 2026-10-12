@@ -3,31 +3,37 @@
 import { Wordmark } from "@/components/brand";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui";
+import type { SiteContent } from "@/lib/site-content";
 import { cn } from "@/lib/utils";
 import { ArrowUpRight, LogIn, Menu, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-const LINKS = [
-  { href: "/imoveis?finalidade=venda", label: "Comprar" },
-  { href: "/imoveis?finalidade=aluguel", label: "Alugar" },
-  { href: "/imoveis?categoria=rurais", label: "Rurais" },
-  { href: "/imoveis", label: "Todos os imóveis" },
-  { href: "/#fale-conosco", label: "Contato" },
-];
+/** Só links internos, âncoras ou externos seguros */
+const safeHref = (h: string) => /^(\/|#|https?:|mailto:|tel:)/.test(h.trim());
+const isExternal = (h: string) => /^https?:/.test(h);
 
 export function SiteHeader({
   orgName,
+  menu,
   hasRural = false,
   overHero = false,
 }: {
   orgName: string;
+  /** Menu editável em Conteúdo do site › Menu do topo */
+  menu: SiteContent["header"];
   /** Exibe o link "Rurais" só quando há propriedades rurais publicadas */
   hasRural?: boolean;
   /** Header transparente sobre o hero escuro: usa o tema escuro até rolar */
   overHero?: boolean;
 }) {
-  const links = LINKS.filter((l) => hasRural || !l.href.includes("categoria=rurais"));
+  const links = menu.links.filter(
+    (l) =>
+      l.label.trim() &&
+      safeHref(l.href) &&
+      (hasRural || !l.href.includes("categoria=rurais")),
+  );
+  const ext = (h: string) => (isExternal(h) ? { target: "_blank", rel: "noreferrer" } : {});
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
 
@@ -55,10 +61,11 @@ export function SiteHeader({
           </Link>
 
           <nav className="hidden items-center gap-1 lg:flex">
-            {links.map((l) => (
+            {links.map((l, i) => (
               <Link
-                key={l.href}
+                key={i}
                 href={l.href}
+                {...ext(l.href)}
                 className="rounded-full px-4 py-2 text-sm text-subtle transition-colors duration-300 hover:bg-soft hover:text-ink"
               >
                 {l.label}
@@ -68,18 +75,22 @@ export function SiteHeader({
 
           <div className="flex items-center gap-2.5">
             <ThemeToggle className="hidden sm:inline-flex" />
-            <Link href="/login" className="hidden sm:block">
-              <Button variant="outline" size="sm" className="h-9 px-4">
-                Acessar sistema
-                <LogIn className="size-3.5" />
-              </Button>
-            </Link>
-            <Link href="/#fale-conosco" className="hidden sm:block">
-              <Button variant="accent" size="sm" className="h-9 px-4">
-                Falar com corretor
-                <ArrowUpRight className="size-3.5" />
-              </Button>
-            </Link>
+            {menu.loginLabel && (
+              <Link href="/login" className="hidden sm:block">
+                <Button variant="outline" size="sm" className="h-9 px-4">
+                  {menu.loginLabel}
+                  <LogIn className="size-3.5" />
+                </Button>
+              </Link>
+            )}
+            {menu.ctaLabel && safeHref(menu.ctaHref) && (
+              <Link href={menu.ctaHref} {...ext(menu.ctaHref)} className="hidden sm:block">
+                <Button variant="accent" size="sm" className="h-9 px-4">
+                  {menu.ctaLabel}
+                  <ArrowUpRight className="size-3.5" />
+                </Button>
+              </Link>
+            )}
             <button
               onClick={() => setOpen(true)}
               aria-label="Abrir menu"
@@ -111,8 +122,9 @@ export function SiteHeader({
         <nav className="container-x mt-10 flex flex-col gap-1">
           {links.map((l, i) => (
             <Link
-              key={l.href}
+              key={i}
               href={l.href}
+              {...ext(l.href)}
               onClick={() => setOpen(false)}
               className={cn(
                 "flex items-baseline gap-4 border-b border-hairline py-5 transition-all duration-500",
@@ -128,18 +140,22 @@ export function SiteHeader({
           ))}
         </nav>
         <div className="container-x mt-auto flex flex-col gap-3 pb-10">
-          <Link href="/login" onClick={() => setOpen(false)}>
-            <Button variant="outline" size="lg" className="w-full">
-              Acessar sistema
-              <LogIn className="size-4" />
-            </Button>
-          </Link>
-          <Link href="/#fale-conosco" onClick={() => setOpen(false)}>
-            <Button variant="accent" size="lg" className="w-full">
-              Falar com corretor
-              <ArrowUpRight className="size-4" />
-            </Button>
-          </Link>
+          {menu.loginLabel && (
+            <Link href="/login" onClick={() => setOpen(false)}>
+              <Button variant="outline" size="lg" className="w-full">
+                {menu.loginLabel}
+                <LogIn className="size-4" />
+              </Button>
+            </Link>
+          )}
+          {menu.ctaLabel && safeHref(menu.ctaHref) && (
+            <Link href={menu.ctaHref} {...ext(menu.ctaHref)} onClick={() => setOpen(false)}>
+              <Button variant="accent" size="lg" className="w-full">
+                {menu.ctaLabel}
+                <ArrowUpRight className="size-4" />
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
     </>

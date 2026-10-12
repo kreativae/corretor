@@ -170,7 +170,7 @@ export default async function HomePage() {
 
   return (
     <div className="bg-canvas">
-      <SiteHeader overHero orgName={wl.orgName} hasRural={rural.length > 0} />
+      <SiteHeader overHero orgName={wl.orgName} menu={content.header} hasRural={rural.length > 0} />
 
       {/* ───────────── HERO + BUSCA ───────────── */}
       {/* Sempre escuro (vídeo + overlay); a busca é o protagonista */}

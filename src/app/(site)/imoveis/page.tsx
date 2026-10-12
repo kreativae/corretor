@@ -28,7 +28,7 @@ export default async function ImoveisPage({
 
   return (
     <div>
-      <SiteHeader orgName={wl.orgName} hasRural={properties.some((x) => isRuralType(x.type))} />
+      <SiteHeader orgName={wl.orgName} menu={content.header} hasRural={properties.some((x) => isRuralType(x.type))} />
       <main className="container-x pb-24 pt-24 md:pt-36">
         <p
           data-reveal

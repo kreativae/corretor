@@ -5,6 +5,15 @@ import { eq } from "drizzle-orm";
 /** Todo o conteúdo textual do site público — editável no painel. */
 export type SiteContent = {
   seo: { title: string; description: string };
+  header: {
+    /** Links do menu do topo (o link de rurais some se não houver rurais publicadas) */
+    links: { label: string; href: string }[];
+    /** Botão "Acessar sistema" (vazio = esconde) */
+    loginLabel: string;
+    /** Botão de destaque (vazio = esconde) */
+    ctaLabel: string;
+    ctaHref: string;
+  };
   hero: {
     eyebrow: string;
     title: string;
@@ -67,6 +76,18 @@ export type SiteContent = {
 };
 
 export const DEFAULT_CONTENT: SiteContent = {
+  header: {
+    links: [
+      { label: "Comprar", href: "/imoveis?finalidade=venda" },
+      { label: "Alugar", href: "/imoveis?finalidade=aluguel" },
+      { label: "Rurais", href: "/imoveis?categoria=rurais" },
+      { label: "Todos os imóveis", href: "/imoveis" },
+      { label: "Contato", href: "/#fale-conosco" },
+    ],
+    loginLabel: "Acessar sistema",
+    ctaLabel: "Falar com corretor",
+    ctaHref: "/#fale-conosco",
+  },
   seo: {
     title: "Carlos Amâncio Imóveis — Casas, apartamentos e imóveis rurais",
     description:
@@ -235,6 +256,11 @@ export async function getSiteContent(): Promise<SiteContent> {
     };
     return {
       seo: { ...DEFAULT_CONTENT.seo, ...saved.seo },
+      header: {
+        ...DEFAULT_CONTENT.header,
+        ...saved.header,
+        links: Array.isArray(saved.header?.links) ? saved.header.links : DEFAULT_CONTENT.header.links,
+      },
       hero: { ...DEFAULT_CONTENT.hero, ...saved.hero },
       collection: { ...DEFAULT_CONTENT.collection, ...saved.collection },
       experience: { ...DEFAULT_CONTENT.experience, ...saved.experience },

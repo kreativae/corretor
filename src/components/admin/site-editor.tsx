@@ -10,6 +10,7 @@ import {
   ExternalLink,
   LayoutTemplate,
   Megaphone,
+  Menu,
   PanelBottom,
   Plus,
   RotateCcw,
@@ -24,6 +25,7 @@ import { toast } from "sonner";
 
 type TabId =
   | "seo"
+  | "header"
   | "hero"
   | "collection"
   | "cta"
@@ -32,6 +34,7 @@ type TabId =
 
 const TABS: { id: TabId; label: string; icon: typeof Search }[] = [
   { id: "seo", label: "SEO & meta", icon: Search },
+  { id: "header", label: "Menu do topo", icon: Menu },
   { id: "hero", label: "Hero", icon: LayoutTemplate },
   { id: "collection", label: "Destaques", icon: Sparkles },
   { id: "cta", label: "Não encontrou?", icon: Megaphone },
@@ -156,6 +159,46 @@ export function SiteEditor({
                   {c.seo.description}
                 </p>
               </div>
+            </div>
+          </section>
+        )}
+
+        {/* ─────── MENU DO TOPO ─────── */}
+        {tab === "header" && (
+          <section className={card}>
+            <h2 className="mb-1 font-display text-base font-semibold tracking-tight">
+              Menu do topo
+            </h2>
+            <p className="mb-5 text-xs text-subtle">
+              Links do cabeçalho do site (no celular, viram o menu de tela cheia). Um link para{" "}
+              <code className="font-mono">/imoveis?categoria=rurais</code> some sozinho enquanto não
+              houver propriedades rurais publicadas.
+            </p>
+            <LinksEditor
+              links={c.header.links}
+              onChange={(links) => patch("header", { links })}
+            />
+            <div className="mt-6 grid gap-4 border-t border-hairline pt-5 sm:grid-cols-2">
+              <Field label="Botão de acesso ao sistema" hint="Leva ao login. Vazio = esconde">
+                <Input
+                  value={c.header.loginLabel}
+                  onChange={(e) => patch("header", { loginLabel: e.target.value })}
+                />
+              </Field>
+              <div />
+              <Field label="Botão de destaque" hint="Vazio = esconde">
+                <Input
+                  value={c.header.ctaLabel}
+                  onChange={(e) => patch("header", { ctaLabel: e.target.value })}
+                />
+              </Field>
+              <Field label="Link do botão de destaque" hint="Ex.: /#fale-conosco ou https://wa.me/55…">
+                <Input
+                  value={c.header.ctaHref}
+                  onChange={(e) => patch("header", { ctaHref: e.target.value })}
+                  className="font-mono text-xs"
+                />
+              </Field>
             </div>
           </section>
         )}
@@ -482,74 +525,11 @@ export function SiteEditor({
                     onChange={(e) => patch("footer", { navTitle: e.target.value })}
                   />
                 </Field>
-                <div className="mt-3 space-y-2">
-                  {c.footer.links.map((l, i) => (
-                    <div key={i} className="grid gap-2 sm:grid-cols-[1fr_1.2fr_auto]">
-                      <Input
-                        value={l.label}
-                        placeholder="Texto do link"
-                        onChange={(e) => {
-                          const links = [...c.footer.links];
-                          links[i] = { ...l, label: e.target.value };
-                          patch("footer", { links });
-                        }}
-                      />
-                      <Input
-                        value={l.href}
-                        placeholder="/imoveis ou https://…"
-                        className="font-mono text-xs"
-                        onChange={(e) => {
-                          const links = [...c.footer.links];
-                          links[i] = { ...l, href: e.target.value };
-                          patch("footer", { links });
-                        }}
-                      />
-                      <div className="flex gap-1">
-                        {(
-                          [
-                            [ArrowUp, -1, "Subir"],
-                            [ArrowDown, 1, "Descer"],
-                          ] as const
-                        ).map(([Icon, d, label]) => (
-                          <button
-                            key={label}
-                            type="button"
-                            aria-label={label}
-                            disabled={i + d < 0 || i + d >= c.footer.links.length}
-                            onClick={() => {
-                              const links = [...c.footer.links];
-                              [links[i], links[i + d]] = [links[i + d], links[i]];
-                              patch("footer", { links });
-                            }}
-                            className="inline-flex size-10 items-center justify-center rounded-xl border border-hairline text-subtle transition-colors hover:text-ink disabled:opacity-30"
-                          >
-                            <Icon className="size-4" />
-                          </button>
-                        ))}
-                        <button
-                          type="button"
-                          aria-label="Remover link"
-                          onClick={() =>
-                            patch("footer", { links: c.footer.links.filter((_, j) => j !== i) })
-                          }
-                          className="inline-flex size-10 items-center justify-center rounded-xl border border-hairline text-subtle transition-colors hover:border-red-500/30 hover:text-red-500"
-                        >
-                          <Trash2 className="size-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      patch("footer", { links: [...c.footer.links, { label: "", href: "" }] })
-                    }
-                  >
-                    <Plus className="size-4" />
-                    Adicionar link
-                  </Button>
-                </div>
+                <LinksEditor
+                  className="mt-3"
+                  links={c.footer.links}
+                  onChange={(links) => patch("footer", { links })}
+                />
               </div>
 
               <div className="space-y-4 border-t border-hairline pt-4">
@@ -656,6 +636,86 @@ export function SiteEditor({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+type MenuLink = { label: string; href: string };
+
+/** Lista editável de links (texto + endereço), com ordenar e remover. */
+function LinksEditor({
+  links,
+  onChange,
+  className,
+}: {
+  links: MenuLink[];
+  onChange: (links: MenuLink[]) => void;
+  className?: string;
+}) {
+  return (
+    <div className={cn("space-y-2", className)}>
+      {links.map((l, i) => (
+        <div key={i} className="grid gap-2 sm:grid-cols-[1fr_1.2fr_auto]">
+          <Input
+            value={l.label}
+            placeholder="Texto do link"
+            onChange={(e) => {
+              const next = [...links];
+              next[i] = { ...l, label: e.target.value };
+              onChange(next);
+            }}
+          />
+          <Input
+            value={l.href}
+            placeholder="/imoveis ou https://…"
+            className="font-mono text-xs"
+            onChange={(e) => {
+              const next = [...links];
+              next[i] = { ...l, href: e.target.value };
+              onChange(next);
+            }}
+          />
+          <div className="flex gap-1">
+            {(
+              [
+                [ArrowUp, -1, "Subir"],
+                [ArrowDown, 1, "Descer"],
+              ] as const
+            ).map(([Icon, d, label]) => (
+              <button
+                key={label}
+                type="button"
+                aria-label={label}
+                disabled={i + d < 0 || i + d >= links.length}
+                onClick={() => {
+                  const next = [...links];
+                  [next[i], next[i + d]] = [next[i + d], next[i]];
+                  onChange(next);
+                }}
+                className="inline-flex size-10 items-center justify-center rounded-xl border border-hairline text-subtle transition-colors hover:text-ink disabled:opacity-30"
+              >
+                <Icon className="size-4" />
+              </button>
+            ))}
+            <button
+              type="button"
+              aria-label="Remover link"
+              onClick={() => onChange(links.filter((_, j) => j !== i))}
+              className="inline-flex size-10 items-center justify-center rounded-xl border border-hairline text-subtle transition-colors hover:border-red-500/30 hover:text-red-500"
+            >
+              <Trash2 className="size-4" />
+            </button>
+          </div>
+        </div>
+      ))}
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => onChange([...links, { label: "", href: "" }])}
+      >
+        <Plus className="size-4" />
+        Adicionar link
+      </Button>
     </div>
   );
 }
