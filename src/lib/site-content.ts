@@ -25,6 +25,8 @@ export type SiteContent = {
     videoUrl: string;
     posterUrl: string;
     stats: { value: string; label: string }[];
+    /** Exibir a faixa de indicadores (e o link de ajuda) no celular */
+    statsOnMobile: boolean;
   };
   collection: { eyebrow: string; title: string; linkLabel: string };
   experience: {
@@ -129,6 +131,7 @@ export const DEFAULT_CONTENT: SiteContent = {
       { value: "340", label: "Chaves entregues" },
       { value: "auto:vgv", label: "Em portfólio" },
     ],
+    statsOnMobile: true,
   },
   collection: {
     eyebrow: "Destaques",

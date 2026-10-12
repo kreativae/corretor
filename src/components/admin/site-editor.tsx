@@ -450,9 +450,18 @@ export function SiteEditor({
             </section>
 
             <section className={card}>
-              <h2 className="mb-1 font-display text-base font-semibold tracking-tight">
-                Indicadores do hero
-              </h2>
+              <div className="mb-1 flex items-center justify-between gap-4">
+                <h2 className="font-display text-base font-semibold tracking-tight">
+                  Indicadores do hero
+                </h2>
+                <label className="flex items-center gap-2.5 text-xs text-subtle">
+                  Exibir no celular
+                  <Switch
+                    checked={c.hero.statsOnMobile}
+                    onChange={(v) => patch("hero", { statsOnMobile: v })}
+                  />
+                </label>
+              </div>
               <p className="mb-5 text-xs text-subtle">
                 Use <code className="font-mono">auto:properties</code>,{" "}
                 <code className="font-mono">auto:neighborhoods</code> ou{" "}

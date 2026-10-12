@@ -8,7 +8,7 @@ import { listDeals, listPublishedProperties, getWhiteLabel } from "@/lib/queries
 import { getSiteContent } from "@/lib/site-content";
 import { searchHref } from "@/lib/site-search";
 import { TYPE_LABELS } from "@/lib/labels";
-import { parseYouTubeUrl, plural } from "@/lib/utils";
+import { cn, parseYouTubeUrl, plural } from "@/lib/utils";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -235,7 +235,14 @@ export default async function HomePage() {
               />
             </div>
 
-            <div data-reveal data-delay="0.5" className="mt-8 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-white/15 pt-5 sm:flex sm:flex-wrap sm:items-center sm:gap-x-8 md:mt-10">
+            <div
+              data-reveal
+              data-delay="0.5"
+              className={cn(
+                "mt-8 grid-cols-2 gap-x-4 gap-y-3 border-t border-white/15 pt-5 sm:flex sm:flex-wrap sm:items-center sm:gap-x-8 md:mt-10",
+                content.hero.statsOnMobile ? "grid" : "hidden",
+              )}
+            >
               {heroStats.map((s, i) => (
                 <div key={i} className="flex flex-col sm:flex-row sm:items-baseline sm:gap-2">
                   <p className="font-mono text-lg font-medium tabular md:text-xl">
