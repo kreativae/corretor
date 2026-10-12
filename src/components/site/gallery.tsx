@@ -2,7 +2,9 @@
 
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight, Expand, X } from "lucide-react";
+import { lockScroll } from "@/lib/scroll-lock";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 export function Gallery({ images, title }: { images: string[]; title: string }) {
   const [open, setOpen] = useState(false);
@@ -15,6 +17,18 @@ export function Gallery({ images, title }: { images: string[]; title: string }) 
     (i: number) => setIndex((i + images.length) % images.length),
     [images.length],
   );
+
+  // O lightbox vai para o <body>: dentro do bloco animado (transform), o
+  // "fixed" ficaria preso a ele em vez de cobrir a tela
+  const [mounted, setMounted] = useState(false);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    if (!open) return;
+    const unlock = lockScroll();
+    return unlock;
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -121,7 +135,13 @@ export function Gallery({ images, title }: { images: string[]; title: string }) 
       </div>
 
       {/* Lightbox */}
+      {mounted &&
+        createPortal(
       <div
+        data-lenis-prevent
+        role="dialog"
+        aria-modal
+        aria-hidden={!open}
         className={cn(
           "fixed inset-0 z-[70] flex items-center justify-center bg-black/95 transition-all duration-500",
           open ? "visible opacity-100" : "invisible opacity-0",
@@ -178,7 +198,9 @@ export function Gallery({ images, title }: { images: string[]; title: string }) 
           onClick={(e) => e.stopPropagation()}
           className="animate-fade-in max-h-[86vh] max-w-[92vw] rounded-xl object-contain"
         />
-      </div>
+      </div>,
+          document.body,
+        )}
     </>
   );
 }

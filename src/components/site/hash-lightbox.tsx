@@ -3,6 +3,7 @@
 import { lockScroll } from "@/lib/scroll-lock";
 import { X } from "lucide-react";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 /**
  * Janela (lightbox) que fica oculta e abre ao clicar em qualquer link que
@@ -56,7 +57,8 @@ export function HashLightbox({
 
   if (!open) return null;
 
-  return (
+  // Portal no <body>: um pai com transform (animações) prenderia o "fixed"
+  return createPortal(
     <div
       data-lenis-prevent
       role="dialog"
@@ -77,6 +79,7 @@ export function HashLightbox({
         <div className="border-b border-hairline p-6 pr-16 md:border-b-0 md:border-r md:p-10">{aside}</div>
         <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6 md:p-8">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
