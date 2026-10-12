@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/db";
 import { settings } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { sanitizeWatermark, WATERMARK_DEFAULTS, type WatermarkSettings } from "@/lib/watermark-settings";
 import { MAP_OPTIONS_DEFAULTS, sanitizeMapOptions, type MapOptions } from "@/lib/map-options";
 import { sanitizeStatCards, STAT_CARDS_DEFAULTS, type StatCards } from "@/lib/stat-cards";
 
@@ -37,6 +38,21 @@ export async function getMapOptions(): Promise<MapOptions> {
     return sanitizeMapOptions((row?.value ?? {}) as Record<string, unknown>);
   } catch {
     return MAP_OPTIONS_DEFAULTS;
+  }
+}
+
+// Lida a cada foto servida: guarda por 1 min para não consultar o banco toda hora
+let wmCache: { at: number; value: WatermarkSettings } | null = null;
+
+export async function getWatermarkSettings(fresh = false): Promise<WatermarkSettings> {
+  if (!fresh && wmCache && Date.now() - wmCache.at < 60_000) return wmCache.value;
+  try {
+    const [row] = await db.select().from(settings).where(eq(settings.key, "watermark"));
+    const value = sanitizeWatermark((row?.value ?? {}) as Record<string, unknown>);
+    wmCache = { at: Date.now(), value };
+    return value;
+  } catch {
+    return WATERMARK_DEFAULTS;
   }
 }
 

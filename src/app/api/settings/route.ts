@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { requireAdmin } from "@/lib/auth";
 import { sanitizeFeatures } from "@/lib/features";
 import { sanitizeMapOptions } from "@/lib/map-options";
+import { sanitizeWatermark } from "@/lib/watermark-settings";
 import { sanitizeStatCards } from "@/lib/stat-cards";
 import { getWhiteLabel, WL_DEFAULTS, type WhiteLabel } from "@/lib/queries";
 import { NextResponse } from "next/server";
@@ -48,6 +49,7 @@ export async function POST(req: Request) {
     if (key === "features") value = sanitizeFeatures(value ?? {});
     if (key === "statCards") value = sanitizeStatCards(value ?? {});
     if (key === "mapOptions") value = sanitizeMapOptions(value ?? {});
+    if (key === "watermark") value = sanitizeWatermark(value ?? {});
     if (key === "notifications") {
       value = { leadEmails: String(value?.leadEmails ?? "").slice(0, 500) };
     }

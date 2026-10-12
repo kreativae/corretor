@@ -1,5 +1,6 @@
 import { blobToken, isMediaPath } from "@/lib/blob";
 import { get } from "@vercel/blob";
+import { getWatermarkSettings } from "@/lib/features";
 import { watermark } from "@/lib/watermark";
 
 /**
@@ -27,15 +28,17 @@ export async function GET(
     new URL(req.url).searchParams.get("wm") === "1" &&
     pathname.startsWith("imoveis/") &&
     /^image\/(jpeg|png|webp)/.test(result.blob.contentType ?? "");
-  if (wantsMark) {
+  const wm = wantsMark ? await getWatermarkSettings() : null;
+  if (wm?.enabled && (wm.logo || wm.lines)) {
     try {
       const buf = Buffer.from(await new Response(result.stream).arrayBuffer());
-      const { data, type } = await watermark(buf);
+      const { data, type } = await watermark(buf, wm);
       return new Response(new Uint8Array(data), {
         headers: {
           "Content-Type": type,
           "Content-Length": String(data.length),
-          "Cache-Control": "public, max-age=31536000, s-maxage=31536000, immutable",
+          // Cache mais curto: mudanças em Configurações › Marca d'água aparecem em até ~1 h
+          "Cache-Control": "public, max-age=600, s-maxage=3600",
         },
       });
     } catch (e) {
@@ -55,7 +58,10 @@ export async function GET(
       // Sem content-length quando o Blob responde compactado (size = 0): repassar
       // "0" faria o navegador descartar o corpo — o KMZ chegava vazio.
       ...(result.blob.size > 0 ? { "Content-Length": String(result.blob.size) } : {}),
-      "Cache-Control": "public, max-age=31536000, s-maxage=31536000, immutable",
+      // ?wm=1 servido sem marca (desligada): cache curto para religar sem esperar
+      "Cache-Control": wantsMark
+        ? "public, max-age=600, s-maxage=3600"
+        : "public, max-age=31536000, s-maxage=31536000, immutable",
       // CORS: o mapa público lê o KMZ via fetch
       "Access-Control-Allow-Origin": "*",
       ...(pathname.startsWith("kmz/")
