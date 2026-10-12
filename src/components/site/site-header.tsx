@@ -37,6 +37,22 @@ export function SiteHeader({
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
 
+  // Menu aberto: trava a rolagem do site por trás (inclusive o Lenis)
+  useEffect(() => {
+    if (!open) return;
+    const html = document.documentElement;
+    const prev = { overflow: html.style.overflow, overscroll: html.style.overscrollBehavior };
+    html.style.overflow = "hidden";
+    html.style.overscrollBehavior = "none";
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      html.style.overflow = prev.overflow;
+      html.style.overscrollBehavior = prev.overscroll;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 24);
     fn();
@@ -102,10 +118,12 @@ export function SiteHeader({
         </div>
       </header>
 
-      {/* Menu mobile fullscreen */}
+      {/* Menu mobile fullscreen (data-lenis-prevent: o Lenis não rola o site por trás) */}
       <div
+        data-lenis-prevent
+        aria-hidden={!open}
         className={cn(
-          "fixed inset-0 z-50 flex flex-col bg-canvas transition-all duration-500 ease-expo lg:hidden",
+          "fixed inset-0 z-50 flex flex-col overflow-y-auto overscroll-contain bg-canvas transition-all duration-500 ease-expo lg:hidden",
           open ? "visible opacity-100" : "invisible opacity-0",
         )}
       >
