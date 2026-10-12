@@ -7,6 +7,7 @@ import { cn, parseYouTubeUrl } from "@/lib/utils";
 import {
   ArrowDown,
   ArrowUp,
+  CalendarCheck,
   ExternalLink,
   LayoutTemplate,
   Megaphone,
@@ -30,6 +31,7 @@ type TabId =
   | "collection"
   | "cta"
   | "pages"
+  | "visit"
   | "footer";
 
 const TABS: { id: TabId; label: string; icon: typeof Search }[] = [
@@ -39,6 +41,7 @@ const TABS: { id: TabId; label: string; icon: typeof Search }[] = [
   { id: "collection", label: "Destaques", icon: Sparkles },
   { id: "cta", label: "Não encontrou?", icon: Megaphone },
   { id: "pages", label: "Listagem & imóvel", icon: LayoutTemplate },
+  { id: "visit", label: "Visita guiada", icon: CalendarCheck },
   { id: "footer", label: "Rodapé", icon: PanelBottom },
 ];
 
@@ -201,6 +204,140 @@ export function SiteEditor({
               </Field>
             </div>
           </section>
+        )}
+
+        {/* ─────── VISITA GUIADA ─────── */}
+        {tab === "visit" && (
+          <>
+            <section className={card}>
+              <h2 className="mb-1 font-display text-base font-semibold tracking-tight">
+                Janela de visita guiada
+              </h2>
+              <p className="mb-5 text-xs text-subtle">
+                Fica oculta na página do imóvel e abre como janela ao clicar no botão de agendar
+                (lateral no computador, barra fixa no celular).
+              </p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Texto dos botões que abrem a janela" className="sm:col-span-2">
+                  <Input
+                    value={c.visit.cta}
+                    onChange={(e) => patch("visit", { cta: e.target.value })}
+                  />
+                </Field>
+                <Field label="Linha de apoio">
+                  <Input
+                    value={c.detail.visitEyebrow}
+                    onChange={(e) => patch("detail", { visitEyebrow: e.target.value })}
+                  />
+                </Field>
+                <Field label="Título">
+                  <Input
+                    value={c.detail.visitTitle}
+                    onChange={(e) => patch("detail", { visitTitle: e.target.value })}
+                  />
+                </Field>
+                <Field label="Benefícios da visita" hint="Um por linha (no celular ficam ocultos)" className="sm:col-span-2">
+                  <Textarea
+                    rows={3}
+                    value={c.detail.visitBullets.join("\n")}
+                    onChange={(e) => patch("detail", { visitBullets: e.target.value.split("\n") })}
+                  />
+                </Field>
+              </div>
+            </section>
+
+            <section className={card}>
+              <h2 className="mb-5 font-display text-base font-semibold tracking-tight">
+                Campos do formulário
+              </h2>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Rótulo do nome">
+                  <Input
+                    value={c.visit.nameLabel}
+                    onChange={(e) => patch("visit", { nameLabel: e.target.value })}
+                  />
+                </Field>
+                <Field label="Exemplo no campo nome">
+                  <Input
+                    value={c.visit.namePlaceholder}
+                    onChange={(e) => patch("visit", { namePlaceholder: e.target.value })}
+                  />
+                </Field>
+                <Field label="Rótulo do WhatsApp">
+                  <Input
+                    value={c.visit.phoneLabel}
+                    onChange={(e) => patch("visit", { phoneLabel: e.target.value })}
+                  />
+                </Field>
+                <Field label="Exemplo no campo WhatsApp">
+                  <Input
+                    value={c.visit.phonePlaceholder}
+                    onChange={(e) => patch("visit", { phonePlaceholder: e.target.value })}
+                  />
+                </Field>
+                <Field label="Rótulo da data">
+                  <Input
+                    value={c.visit.dateLabel}
+                    onChange={(e) => patch("visit", { dateLabel: e.target.value })}
+                  />
+                </Field>
+                <Field label="Rótulo do horário">
+                  <Input
+                    value={c.visit.timeLabel}
+                    onChange={(e) => patch("visit", { timeLabel: e.target.value })}
+                  />
+                </Field>
+                <Field label="Horários oferecidos" hint="Separados por vírgula, ex.: 09:00, 10:00, 14:00" className="sm:col-span-2">
+                  <Input
+                    value={c.visit.times.join(", ")}
+                    onChange={(e) =>
+                      patch("visit", {
+                        times: e.target.value.split(",").map((t) => t.trim()),
+                      })
+                    }
+                    className="font-mono text-xs"
+                  />
+                </Field>
+                <Field label="Botão de enviar" className="sm:col-span-2">
+                  <Input
+                    value={c.visit.button}
+                    onChange={(e) => patch("visit", { button: e.target.value })}
+                  />
+                </Field>
+                <Field label="Aviso abaixo do botão" hint="Vazio = esconde" className="sm:col-span-2">
+                  <Textarea
+                    rows={2}
+                    value={c.visit.note}
+                    onChange={(e) => patch("visit", { note: e.target.value })}
+                  />
+                </Field>
+              </div>
+            </section>
+
+            <section className={card}>
+              <h2 className="mb-5 font-display text-base font-semibold tracking-tight">
+                Confirmação
+              </h2>
+              <div className="space-y-4">
+                <Field label="Título">
+                  <Input
+                    value={c.visit.successTitle}
+                    onChange={(e) => patch("visit", { successTitle: e.target.value })}
+                  />
+                </Field>
+                <Field
+                  label="Mensagem"
+                  hint="Use {nome}, {codigo}, {data} e {hora} — trocados pelos dados da reserva"
+                >
+                  <Textarea
+                    rows={3}
+                    value={c.visit.successText}
+                    onChange={(e) => patch("visit", { successText: e.target.value })}
+                  />
+                </Field>
+              </div>
+            </section>
+          </>
         )}
 
         {/* ─────── HERO ─────── */}
@@ -448,31 +585,6 @@ export function SiteEditor({
                 Página do imóvel
               </h2>
               <div className="space-y-4">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label="Linha de apoio (agendamento)">
-                    <Input
-                      value={c.detail.visitEyebrow}
-                      onChange={(e) => patch("detail", { visitEyebrow: e.target.value })}
-                    />
-                  </Field>
-                  <Field label="Título do agendamento">
-                    <Input
-                      value={c.detail.visitTitle}
-                      onChange={(e) => patch("detail", { visitTitle: e.target.value })}
-                    />
-                  </Field>
-                </div>
-                <Field label="Benefícios da visita" hint="Um por linha">
-                  <Textarea
-                    rows={4}
-                    value={c.detail.visitBullets.join("\n")}
-                    onChange={(e) =>
-                      patch("detail", {
-                        visitBullets: e.target.value.split("\n"),
-                      })
-                    }
-                  />
-                </Field>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field
                     label="Nome do corretor exibido"

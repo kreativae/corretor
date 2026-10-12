@@ -13,7 +13,7 @@ import { PropertyCard } from "@/components/site/property-card";
 import { PropertyTracker } from "@/components/site/property-tracker";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
-import { VisitForm } from "@/components/site/visit-form";
+import { VisitLightbox } from "@/components/site/visit-lightbox";
 import { Badge } from "@/components/ui";
 import { STATUS_LABELS, STATUS_STYLES, TYPE_LABELS } from "@/lib/labels";
 import {
@@ -32,7 +32,6 @@ import {
   MessageCircle,
   Ruler,
   ShowerHead,
-  Sparkles,
   Sprout,
   Trees,
   Wheat,
@@ -279,7 +278,7 @@ export default async function ImovelPage({ params }: { params: Params }) {
               <div className="mt-5 grid gap-2">
                 <a href="#agendar">
                   <span className="flex h-11 w-full items-center justify-center rounded-full bg-ink text-sm font-medium text-canvas transition-opacity duration-300 hover:opacity-85">
-                    Agendar visita
+                    {content.visit.cta}
                   </span>
                 </a>
                 <a href={`https://wa.me/${wl.phone}?text=${waText}`} target="_blank" rel="noreferrer">
@@ -299,29 +298,16 @@ export default async function ImovelPage({ params }: { params: Params }) {
           </aside>
         </div>
 
-        {/* Agendamento */}
-        <section id="agendar" className="mt-14 grid scroll-mt-24 gap-8 border-t border-hairline pt-12 md:mt-20 md:gap-10 md:pt-16 lg:grid-cols-2">
-          <div>
-            <p className="font-mono text-[11px] uppercase tracking-[0.24em] text-subtle">
-              {content.detail.visitEyebrow}
-            </p>
-            <h2
-              data-words
-              className="mt-3 text-balance font-display text-3xl font-semibold tracking-[-0.02em] md:text-5xl"
-            >
-              {content.detail.visitTitle}
-            </h2>
-            <ul className="mt-8 space-y-4">
-              {content.detail.visitBullets.filter(Boolean).map((t) => (
-                <li key={t} className="flex items-center gap-3 text-sm text-subtle">
-                  <Sparkles className="size-4 shrink-0 text-accent" />
-                  {t}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <VisitForm propertyId={p.id} propertyCode={p.code} />
-        </section>
+        {/* Agendamento: oculto na página, abre em janela pelos botões "#agendar" */}
+        <VisitLightbox
+          propertyId={p.id}
+          propertyCode={p.code}
+          propertyTitle={p.title}
+          eyebrow={content.detail.visitEyebrow}
+          title={content.detail.visitTitle}
+          bullets={content.detail.visitBullets}
+          texts={content.visit}
+        />
 
         {/* Relacionados */}
         {related.length > 0 && (
@@ -381,7 +367,7 @@ export default async function ImovelPage({ params }: { params: Params }) {
             href="#agendar"
             className="flex h-11 shrink-0 items-center justify-center rounded-full bg-ink px-4 text-sm font-medium text-canvas min-[400px]:px-5"
           >
-            Agendar visita
+            {content.visit.cta}
           </a>
         </div>
       </div>

@@ -55,6 +55,24 @@ export type SiteContent = {
     brokerName: string;
     brokerRole: string;
   };
+  /** Janela "Agendar visita" da página do imóvel */
+  visit: {
+    /** Texto dos botões que abrem a janela */
+    cta: string;
+    nameLabel: string;
+    namePlaceholder: string;
+    phoneLabel: string;
+    phonePlaceholder: string;
+    dateLabel: string;
+    timeLabel: string;
+    /** Horários oferecidos */
+    times: string[];
+    button: string;
+    note: string;
+    successTitle: string;
+    /** Use {nome}, {codigo}, {data} e {hora} */
+    successText: string;
+  };
   footer: {
     tagline: string;
     /** Botão abaixo da frase (vazio = esconde) */
@@ -176,6 +194,21 @@ export const DEFAULT_CONTENT: SiteContent = {
     brokerName: "",
     brokerRole: "",
   },
+  visit: {
+    cta: "Agendar visita",
+    nameLabel: "Seu nome",
+    namePlaceholder: "Como podemos te chamar?",
+    phoneLabel: "WhatsApp",
+    phonePlaceholder: "(43) 99999-9999",
+    dateLabel: "Data",
+    timeLabel: "Horário",
+    times: ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00", "18:00"],
+    button: "Reservar visita",
+    note: "Sem compromisso. Seus dados ficam apenas com a equipe e nunca são compartilhados.",
+    successTitle: "Visita reservada",
+    successText:
+      "{nome}, reservamos {codigo} para {data} às {hora}. Um corretor confirma pelo seu WhatsApp em até 30 min.",
+  },
   footer: {
     tagline: "Imóveis à venda e para alugar, com atendimento direto do corretor.",
     buttonLabel: "Área do corretor",
@@ -268,6 +301,14 @@ export async function getSiteContent(): Promise<SiteContent> {
       cta: { ...DEFAULT_CONTENT.cta, ...saved.cta },
       listing: { ...DEFAULT_CONTENT.listing, ...saved.listing },
       detail: { ...DEFAULT_CONTENT.detail, ...saved.detail },
+      visit: {
+        ...DEFAULT_CONTENT.visit,
+        ...saved.visit,
+        times:
+          Array.isArray(saved.visit?.times) && saved.visit.times.length
+            ? saved.visit.times
+            : DEFAULT_CONTENT.visit.times,
+      },
       footer: {
         ...DEFAULT_CONTENT.footer,
         ...saved.footer,
