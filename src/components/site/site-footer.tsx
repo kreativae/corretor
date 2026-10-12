@@ -51,11 +51,12 @@ export function SiteFooter({
           )}
         </div>
 
-        <div>
-          <p className="flex items-center font-mono text-[11px] uppercase tracking-[0.2em] text-subtle md:h-12">
+        {/* No desktop, começa na altura da frase de marca (logo 48px + 24px) */}
+        <div className="md:pt-[78px]">
+          <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-subtle">
             {footer.navTitle}
           </p>
-          <ul className="mt-5 space-y-3 text-sm md:mt-6">
+          <ul className="mt-5 space-y-3 text-sm">
             {footer.links
               .filter((l) => l.label.trim() && /^(\/|#|https?:|mailto:|tel:)/.test(l.href.trim()))
               .map((l, i) => (
@@ -72,11 +73,12 @@ export function SiteFooter({
           </ul>
         </div>
 
-        <div>
-          <p className="flex items-center font-mono text-[11px] uppercase tracking-[0.2em] text-subtle md:h-12">
+        {/* No desktop, começa na altura da frase de marca (logo 48px + 24px) */}
+        <div className="md:pt-[78px]">
+          <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-subtle">
             {footer.contactTitle}
           </p>
-          <ul className="mt-5 space-y-3 text-sm text-subtle md:mt-6">
+          <ul className="mt-5 space-y-3 text-sm text-subtle">
             {phoneLabel && (
               <li className="font-mono tabular">
                 <a
