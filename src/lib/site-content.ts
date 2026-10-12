@@ -29,6 +29,15 @@ export type SiteContent = {
     statsOnMobile: boolean;
   };
   collection: { eyebrow: string; title: string; linkLabel: string };
+  /** Cards de categoria da home (imagem vazia = foto de um imóvel publicado) */
+  categories: {
+    urbanTitle: string;
+    urbanText: string;
+    urbanImage: string;
+    ruralTitle: string;
+    ruralText: string;
+    ruralImage: string;
+  };
   experience: {
     eyebrow: string;
     title: string;
@@ -137,6 +146,14 @@ export const DEFAULT_CONTENT: SiteContent = {
       { value: "auto:vgv", label: "Em portfólio" },
     ],
     statsOnMobile: true,
+  },
+  categories: {
+    urbanTitle: "Imóveis",
+    urbanText: "Casas, apartamentos e terrenos para comprar ou alugar",
+    urbanImage: "",
+    ruralTitle: "Propriedades rurais",
+    ruralText: "Fazendas, sítios e chácaras com área, aptidão e mapa",
+    ruralImage: "",
   },
   collection: {
     eyebrow: "Destaques",
@@ -306,6 +323,7 @@ export async function getSiteContent(): Promise<SiteContent> {
       },
       hero: { ...DEFAULT_CONTENT.hero, ...saved.hero },
       collection: { ...DEFAULT_CONTENT.collection, ...saved.collection },
+      categories: { ...DEFAULT_CONTENT.categories, ...saved.categories },
       experience: { ...DEFAULT_CONTENT.experience, ...saved.experience },
       process: { ...DEFAULT_CONTENT.process, ...saved.process },
       cta: { ...DEFAULT_CONTENT.cta, ...saved.cta },

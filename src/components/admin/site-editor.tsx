@@ -500,6 +500,61 @@ export function SiteEditor({
         {/* ─────── COLEÇÃO ─────── */}
         {tab === "collection" && (
           <section className={card}>
+            <h2 className="mb-1 font-display text-base font-semibold tracking-tight">
+              Categorias da home
+            </h2>
+            <p className="mb-5 text-xs text-subtle">
+              Dois cards com foto: Imóveis (overlay laranja) e Propriedades rurais (overlay marinho).
+              Sem imagem informada, usa a foto de um imóvel publicado da categoria.
+            </p>
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="space-y-4">
+                <p className="text-xs font-medium uppercase tracking-[0.16em] text-[#F47525]">Imóveis</p>
+                <Field label="Título">
+                  <Input
+                    value={c.categories.urbanTitle}
+                    onChange={(e) => patch("categories", { urbanTitle: e.target.value })}
+                  />
+                </Field>
+                <Field label="Texto">
+                  <Input
+                    value={c.categories.urbanText}
+                    onChange={(e) => patch("categories", { urbanText: e.target.value })}
+                  />
+                </Field>
+                <Field label="Imagem (URL)" hint="Vazio = foto de um imóvel publicado">
+                  <Input
+                    value={c.categories.urbanImage}
+                    onChange={(e) => patch("categories", { urbanImage: e.target.value })} className="font-mono text-xs"
+                  />
+                </Field>
+              </div>
+              <div className="space-y-4">
+                <p className="text-xs font-medium uppercase tracking-[0.16em] text-[#2B2B5D] dark:text-white">Propriedades rurais</p>
+                <Field label="Título">
+                  <Input
+                    value={c.categories.ruralTitle}
+                    onChange={(e) => patch("categories", { ruralTitle: e.target.value })}
+                  />
+                </Field>
+                <Field label="Texto">
+                  <Input
+                    value={c.categories.ruralText}
+                    onChange={(e) => patch("categories", { ruralText: e.target.value })}
+                  />
+                </Field>
+                <Field label="Imagem (URL)" hint="Vazio = foto de uma propriedade publicada">
+                  <Input
+                    value={c.categories.ruralImage}
+                    onChange={(e) => patch("categories", { ruralImage: e.target.value })} className="font-mono text-xs"
+                  />
+                </Field>
+              </div>
+            </div>
+          </section>
+        )}
+        {tab === "collection" && (
+          <section className={card}>
             <h2 className="mb-5 font-display text-base font-semibold tracking-tight">
               Seção de destaques
             </h2>

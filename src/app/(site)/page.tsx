@@ -7,20 +7,13 @@ import { SiteHeader } from "@/components/site/site-header";
 import { listDeals, listPublishedProperties, getWhiteLabel } from "@/lib/queries";
 import { getSiteContent } from "@/lib/site-content";
 import { searchHref } from "@/lib/site-search";
-import { TYPE_LABELS } from "@/lib/labels";
 import { cn, parseYouTubeUrl, plural } from "@/lib/utils";
 import {
   ArrowRight,
   ArrowUpRight,
-  Building,
   Building2,
-  Home,
-  KeyRound,
-  LandPlot,
   MessageCircle,
-  Sofa,
   Tractor,
-  type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -63,24 +56,27 @@ export default async function HomePage() {
   const count = (fn: (p: (typeof published)[number]) => boolean) => published.filter(fn).length;
   const urbanTypes = URBAN_ORDER.filter((t) => urban.some((p) => p.type === t));
 
-  // Atalhos por categoria (só os que têm imóveis)
-  const categories: { label: string; href: string; n: number; icon: LucideIcon }[] = [
-    ...urbanTypes.map((t) => ({
-      label: TYPE_PLURAL[t] ?? TYPE_LABELS[t],
-      href: searchHref({ tipo: t }),
-      n: count((p) => p.type === t),
-      icon: TYPE_ICONS[t] ?? Home,
-    })),
+  // Dois cards de categoria (só os que têm imóveis); foto padrão = capa de um publicado
+  const cat = content.categories;
+  const categories = [
     {
-      label: "Para alugar",
-      href: searchHref({ finalidade: "aluguel" }),
-      n: count((p) => !isRuralType(p.type) && p.purpose === "aluguel"),
-      icon: KeyRound,
+      key: "urbano",
+      title: cat.urbanTitle,
+      text: cat.urbanText,
+      href: "/imoveis",
+      n: urban.length,
+      image: cat.urbanImage || urban.find((p) => p.cover)?.cover || "",
+      overlay: "from-[#F47525]/95 via-[#F47525]/75 to-[#F47525]/35",
+      icon: Building2,
     },
     {
-      label: "Propriedades rurais",
+      key: "rural",
+      title: cat.ruralTitle,
+      text: cat.ruralText,
       href: searchHref({ categoria: "rurais" }),
       n: rural.length,
+      image: cat.ruralImage || rural.find((p) => p.cover)?.cover || "",
+      overlay: "from-[#2B2B5D]/95 via-[#2B2B5D]/75 to-[#2B2B5D]/35",
       icon: Tractor,
     },
   ].filter((c) => c.n > 0);
@@ -272,21 +268,39 @@ export default async function HomePage() {
       {/* ───────────── CATEGORIAS ───────────── */}
       {categories.length > 0 && (
         <section className="container-x pt-10 md:pt-16">
-          <div className="-mx-5 flex gap-3 overflow-x-auto px-5 pb-1 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-[repeat(auto-fit,minmax(150px,1fr))] sm:px-0">
+          <div className={cn("grid gap-3 md:gap-5", categories.length > 1 && "sm:grid-cols-2")}>
             {categories.map((c) => (
               <Link
-                key={c.label}
+                key={c.key}
                 href={c.href}
-                className="group flex w-36 shrink-0 flex-col gap-4 rounded-2xl border border-hairline bg-card p-4 transition-all duration-300 hover:-translate-y-0.5 hover:border-hairline-strong sm:w-auto"
+                className="group relative isolate flex min-h-72 flex-col justify-end overflow-hidden rounded-3xl bg-[#2B2B5D] p-5 pt-20 text-white sm:aspect-[4/3] sm:min-h-0 md:p-8 lg:aspect-[16/10]"
               >
-                <span className="flex size-10 items-center justify-center rounded-xl bg-soft text-ink transition-colors group-hover:bg-accent group-hover:text-on-accent">
-                  <c.icon className="size-5" />
+                {c.image && (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={c.image}
+                    alt=""
+                    loading="lazy"
+                    className="absolute inset-0 -z-20 h-full w-full object-cover transition-transform duration-700 ease-expo group-hover:scale-[1.06]"
+                  />
+                )}
+                {/* Overlay nas cores da marca: laranja (imóveis) e marinho (rurais) */}
+                <div className={cn("absolute inset-0 -z-10 bg-gradient-to-t", c.overlay)} />
+                <span className="absolute left-5 top-5 flex size-11 items-center justify-center rounded-2xl bg-white/15 backdrop-blur-sm md:left-8 md:top-8 md:size-12">
+                  <c.icon className="size-5 md:size-6" />
                 </span>
-                <span>
-                  <span className="block text-sm font-medium leading-tight">{c.label}</span>
-                  <span className="mt-1 block font-mono text-[11px] text-subtle">
-                    {c.n} {plural(c.n, "opção", "opções")}
-                  </span>
+                <span className="absolute right-5 top-5 rounded-full bg-white/15 px-3 py-1.5 font-mono text-[11px] backdrop-blur-sm md:right-8 md:top-8">
+                  {c.n} {plural(c.n, "opção", "opções")}
+                </span>
+                <h2 className="font-display text-2xl font-semibold tracking-tight md:text-4xl">{c.title}</h2>
+                {c.text && (
+                  <p className="mt-1.5 max-w-sm text-sm leading-relaxed text-white/85 md:text-[15px]">
+                    {c.text}
+                  </p>
+                )}
+                <span className="mt-4 inline-flex w-fit items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-[#2B2B5D] transition-transform duration-300 group-hover:translate-x-1 md:mt-5">
+                  Ver {c.title.toLowerCase()}
+                  <ArrowRight className="size-4" />
                 </span>
               </Link>
             ))}
@@ -422,21 +436,6 @@ export default async function HomePage() {
 }
 
 const URBAN_ORDER = ["apartamento", "casa", "cobertura", "estudio", "terreno"];
-const TYPE_PLURAL: Record<string, string> = {
-  apartamento: "Apartamentos",
-  casa: "Casas",
-  cobertura: "Coberturas",
-  estudio: "Estúdios",
-  terreno: "Terrenos",
-};
-const TYPE_ICONS: Record<string, LucideIcon> = {
-  apartamento: Building2,
-  casa: Home,
-  cobertura: Building,
-  estudio: Sofa,
-  terreno: LandPlot,
-};
-
 function SectionHead({
   eyebrow,
   title,
