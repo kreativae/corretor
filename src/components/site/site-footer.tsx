@@ -33,8 +33,8 @@ export function SiteFooter({
 
   return (
     <footer id="contato" className="border-t border-hairline">
-      <div className="container-x grid gap-14 py-16 md:grid-cols-[1.4fr_1fr_1fr] md:py-24">
-        <div>
+      <div className="container-x grid gap-10 py-16 sm:grid-cols-2 md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_auto] md:gap-x-16 md:py-24">
+        <div className="sm:col-span-2 md:col-span-1">
           <Mark className="size-12" />
           {footer.tagline && (
             <p className="mt-6 max-w-xs font-display text-2xl font-medium leading-snug tracking-tight">
@@ -52,10 +52,10 @@ export function SiteFooter({
         </div>
 
         <div>
-          <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-subtle">
+          <p className="flex items-center font-mono text-[11px] uppercase tracking-[0.2em] text-subtle md:h-12">
             {footer.navTitle}
           </p>
-          <ul className="mt-5 space-y-3 text-sm">
+          <ul className="mt-5 space-y-3 text-sm md:mt-6">
             {footer.links
               .filter((l) => l.label.trim() && /^(\/|#|https?:|mailto:|tel:)/.test(l.href.trim()))
               .map((l, i) => (
@@ -73,10 +73,10 @@ export function SiteFooter({
         </div>
 
         <div>
-          <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-subtle">
+          <p className="flex items-center font-mono text-[11px] uppercase tracking-[0.2em] text-subtle md:h-12">
             {footer.contactTitle}
           </p>
-          <ul className="mt-5 space-y-3 text-sm text-subtle">
+          <ul className="mt-5 space-y-3 text-sm text-subtle md:mt-6">
             {phoneLabel && (
               <li className="font-mono tabular">
                 <a
