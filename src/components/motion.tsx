@@ -5,7 +5,7 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Lenis from "lenis";
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger);
@@ -21,6 +21,9 @@ function prefersReducedMotion() {
 /* ─────────────── Smooth scroll (Lenis) ─────────────── */
 
 export function SmoothScroll() {
+  const pathname = usePathname();
+  const lenisRef = useRef<Lenis | null>(null);
+
   useEffect(() => {
     if (prefersReducedMotion()) return;
     const lenis = new Lenis({
@@ -28,6 +31,7 @@ export function SmoothScroll() {
       easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       smoothWheel: true,
     });
+    lenisRef.current = lenis;
     let rafId = 0;
     const raf = (time: number) => {
       lenis.raf(time);
@@ -37,8 +41,30 @@ export function SmoothScroll() {
     return () => {
       cancelAnimationFrame(rafId);
       lenis.destroy();
+      lenisRef.current = null;
     };
   }, []);
+
+  // Voltar/avançar do navegador: mantém a posição restaurada pelo navegador
+  const fromHistory = useRef(false);
+  useEffect(() => {
+    const onPop = () => (fromHistory.current = true);
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
+  // Ao abrir uma página nova, começa do topo: o Lenis guardava a posição da
+  // página anterior e devolvia a rolagem para o meio da nova (ex.: card da home)
+  useEffect(() => {
+    if (fromHistory.current) {
+      fromHistory.current = false;
+      return;
+    }
+    if (location.hash) return;
+    lenisRef.current?.scrollTo(0, { immediate: true, force: true });
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
   return null;
 }
 
