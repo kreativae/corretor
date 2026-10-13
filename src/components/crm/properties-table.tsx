@@ -451,12 +451,12 @@ export function PropertiesTable({
                       })()
                     : PURPOSE_LABELS[p.purpose]}
                 </td>
-                <td className="px-4 py-3 text-right font-mono tabular text-subtle">
+                <td className="px-4 py-3 whitespace-nowrap text-right font-mono tabular text-subtle">
                   {rural
                     ? `${formatAlq(normalizeRural(p.rural).totalAlq ?? 0)} alq`
                     : `${formatNumber(p.area)} m²`}
                 </td>
-                <td className="px-4 py-3 text-right font-mono font-medium tabular">
+                <td className="whitespace-nowrap px-4 py-3 text-right font-mono font-medium tabular">
                   {formatBRL(p.price)}
                   {rural && pricePerAlq(p.price, normalizeRural(p.rural).totalAlq) && (
                     <span className="block text-[10.5px] font-normal text-subtle">
