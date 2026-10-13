@@ -224,7 +224,7 @@ export default async function ImovelPage({ params }: { params: Params }) {
 
           {/* Sidebar */}
           {/* No celular, o preço vem logo depois das fotos */}
-          <aside className="order-first lg:sticky lg:top-28 lg:order-none lg:self-start">
+          <aside className="order-first lg:sticky lg:top-[calc(7rem+var(--adminbar,0px))] lg:order-none lg:self-start">
             <div className="rounded-2xl border border-hairline bg-card p-5 md:p-6">
               <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-subtle">
                 {p.code} · {TYPE_LABELS[p.type]}

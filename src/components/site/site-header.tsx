@@ -61,7 +61,7 @@ export function SiteHeader({
     <>
       <header
         className={cn(
-          "fixed inset-x-0 top-0 z-40 text-ink transition-all duration-500 ease-expo",
+          "fixed inset-x-0 top-[var(--adminbar,0px)] z-40 text-ink transition-all duration-500 ease-expo",
           overHero && !scrolled && "dark",
           scrolled
             ? "border-b border-hairline bg-canvas/80 backdrop-blur-xl"

@@ -147,7 +147,7 @@ export function ImoveisBrowser({
       </div>
 
       {/* Barra de filtros — no celular fica presa no topo ao rolar */}
-      <div className="sticky top-16 z-20 -mx-5 mt-3 flex flex-wrap items-center gap-3 border-b border-hairline bg-canvas/85 px-5 py-2.5 backdrop-blur-xl sm:mx-0 sm:px-0 md:static md:mt-0 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
+      <div className="sticky top-[calc(4rem+var(--adminbar,0px))] z-20 -mx-5 mt-3 flex flex-wrap items-center gap-3 border-b border-hairline bg-canvas/85 px-5 py-2.5 backdrop-blur-xl sm:mx-0 sm:px-0 md:static md:mt-0 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
         <div className="relative hidden min-w-64 flex-1 md:block">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-subtle" />
           <Input

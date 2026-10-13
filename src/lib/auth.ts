@@ -140,3 +140,19 @@ export async function requireAdmin(from?: string): Promise<SessionUser> {
   if (user.role !== "admin") redirect("/crm?forbidden=1");
   return user;
 }
+
+/** Cookie que marca o navegador de quem usa o painel (modo de acesso liberado). */
+export const CRM_MARK_COOKIE = "imob_crm";
+
+/**
+ * Quem vê a barra de edição no site público. Com login ativo, é a sessão real.
+ * Com o acesso liberado (AUTH_OPEN), todos "estão logados" — então só mostra
+ * para o navegador que já abriu o painel (cookie marcado pelo middleware).
+ */
+export async function getSiteEditor(): Promise<SessionUser | null> {
+  if (AUTH_TEMP_DISABLED) {
+    const jar = await cookies();
+    if (!jar.has(CRM_MARK_COOKIE)) return null;
+  }
+  return getCurrentUser();
+}
