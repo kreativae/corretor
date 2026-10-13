@@ -115,9 +115,27 @@ export async function getWhiteLabel(): Promise<WhiteLabel> {
 export type PropertyWithImages = Property & {
   images: PropertyImage[];
   cover: string | null;
+  /** Marca d'água das fotos no site (modo do parceiro; "padrao" = Configurações) */
+  wm: string;
 };
 
-function attachImages(rows: Property[], imgs: PropertyImage[]): PropertyWithImages[] {
+/** Modo de marca d'água de cada parceiro */
+async function partnerModes(rows: Property[]) {
+  const ids = [...new Set(rows.map((r) => r.partnerId).filter(Boolean))] as string[];
+  if (!ids.length) return new Map<string, string>();
+  const list = await db
+    .select({ id: partners.id, mode: partners.watermark })
+    .from(partners)
+    .where(inArray(partners.id, ids))
+    .catch(() => []);
+  return new Map(list.map((p) => [p.id, p.mode]));
+}
+
+function attachImages(
+  rows: Property[],
+  imgs: PropertyImage[],
+  modes = new Map<string, string>(),
+): PropertyWithImages[] {
   const byProp = new Map<string, PropertyImage[]>();
   const sorted = [...imgs].sort((a, b) => a.position - b.position);
   for (const img of sorted) {
@@ -127,7 +145,12 @@ function attachImages(rows: Property[], imgs: PropertyImage[]): PropertyWithImag
   }
   return rows.map((p) => {
     const images = byProp.get(p.id) ?? [];
-    return { ...p, images, cover: images[0]?.url ?? null };
+    return {
+      ...p,
+      images,
+      cover: images[0]?.url ?? null,
+      wm: (p.partnerId && modes.get(p.partnerId)) || "padrao",
+    };
   });
 }
 
@@ -146,7 +169,7 @@ export async function listProperties(): Promise<PropertyWithImages[]> {
         rows.map((r) => r.id),
       ),
     );
-  return attachImages(rows, imgs);
+  return attachImages(rows, imgs, await partnerModes(rows));
 }
 
 /** Apenas imóveis publicados e comercialmente ativos (site público) */
@@ -164,7 +187,7 @@ export async function getPropertyById(id: string) {
     .select()
     .from(propertyImages)
     .where(eq(propertyImages.propertyId, id));
-  return attachImages(rows, imgs)[0];
+  return attachImages(rows, imgs, await partnerModes(rows))[0];
 }
 
 export async function getPropertyByCode(code: string) {
@@ -177,7 +200,7 @@ export async function getPropertyByCode(code: string) {
     .select()
     .from(propertyImages)
     .where(eq(propertyImages.propertyId, rows[0].id));
-  return attachImages(rows, imgs)[0];
+  return attachImages(rows, imgs, await partnerModes(rows))[0];
 }
 
 /* ─────────────────────── Contatos / CRM ─────────────────────── */
@@ -483,21 +506,3 @@ export async function getPartner(id: string) {
 }
 
 
-/**
- * Modo de marca d'água do parceiro dono da foto (pelo caminho no Blob).
- * Fotos da carteira própria (ou não encontradas) seguem o padrão do site.
- */
-export async function partnerWatermarkForImage(pathname: string) {
-  try {
-    const [row] = await db
-      .select({ mode: partners.watermark })
-      .from(propertyImages)
-      .innerJoin(properties, eq(properties.id, propertyImages.propertyId))
-      .innerJoin(partners, eq(partners.id, properties.partnerId))
-      .where(sql`${propertyImages.url} LIKE ${"%/api/media/" + pathname}`)
-      .limit(1);
-    return row?.mode ?? "padrao";
-  } catch {
-    return "padrao";
-  }
-}

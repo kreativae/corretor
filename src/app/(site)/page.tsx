@@ -64,7 +64,7 @@ export default async function HomePage() {
       text: cat.urbanText,
       href: "/imoveis",
       n: urban.length,
-      image: cat.urbanImage || urban.find((p) => p.cover)?.cover || "",
+      image: siteImage(cat.urbanImage) || coverOf(urban.find((p) => p.cover)),
       overlay: "from-[#F47525]/95 via-[#F47525]/75 to-[#F47525]/35",
       icon: Building2,
     },
@@ -74,7 +74,7 @@ export default async function HomePage() {
       text: cat.ruralText,
       href: searchHref({ categoria: "rurais" }),
       n: rural.length,
-      image: cat.ruralImage || rural.find((p) => p.cover)?.cover || "",
+      image: siteImage(cat.ruralImage) || coverOf(rural.find((p) => p.cover)),
       overlay: "from-[#2B2B5D]/95 via-[#2B2B5D]/75 to-[#2B2B5D]/35",
       icon: Tractor,
     },
@@ -157,7 +157,7 @@ export default async function HomePage() {
   for (const p of urban) {
     if (!p.neighborhood) continue;
     const cur = byHood.get(p.neighborhood) ?? { n: 0, cover: null, city: p.city };
-    byHood.set(p.neighborhood, { n: cur.n + 1, cover: cur.cover ?? p.cover, city: cur.city });
+    byHood.set(p.neighborhood, { n: cur.n + 1, cover: cur.cover ?? coverOf(p), city: cur.city });
   }
   const hoods = [...byHood.entries()].sort((a, b) => b[1].n - a[1].n).slice(0, 8);
 
@@ -277,7 +277,7 @@ export default async function HomePage() {
                 {c.image && (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img
-                    src={siteImage(c.image)}
+                    src={c.image}
                     alt=""
                     loading="lazy"
                     className="absolute inset-0 -z-20 h-full w-full object-cover transition-transform duration-700 ease-expo group-hover:scale-[1.06]"
@@ -351,7 +351,7 @@ export default async function HomePage() {
                   {h.cover ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img
-                      src={siteImage(h.cover)}
+                      src={h.cover}
                       alt=""
                       loading="lazy"
                       className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-expo group-hover:scale-[1.06]"
@@ -406,6 +406,11 @@ export default async function HomePage() {
       />
     </div>
   );
+}
+
+/** Capa de um imóvel já com a marca d'água do modo dele */
+function coverOf(p?: { cover: string | null; wm: string }) {
+  return p?.cover ? siteImage(p.cover, p.wm) : "";
 }
 
 const URBAN_ORDER = ["apartamento", "casa", "cobertura", "estudio", "terreno"];

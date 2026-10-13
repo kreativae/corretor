@@ -1,7 +1,6 @@
 import { blobToken, isMediaPath } from "@/lib/blob";
 import { get } from "@vercel/blob";
 import { getWatermarkSettings } from "@/lib/features";
-import { partnerWatermarkForImage } from "@/lib/queries";
 import { watermark } from "@/lib/watermark";
 
 /**
@@ -24,23 +23,22 @@ export async function GET(
   if (!result || result.statusCode !== 200) {
     return new Response("Not found", { status: 404 });
   }
-  // ?wm=1: fotos de imóveis exibidas no site saem com marca d'água
+  // ?wm=padrao|logo|linhas (ou 1): fotos de imóveis exibidas no site saem com marca
+  // d'água. O modo vem na URL (definido pelo parceiro dono do imóvel) — assim a
+  // mesma foto usada em dois anúncios respeita o modo de cada um.
+  const mode = new URL(req.url).searchParams.get("wm") ?? "";
   const wantsMark =
-    new URL(req.url).searchParams.get("wm") === "1" &&
+    ["1", "padrao", "logo", "linhas"].includes(mode) &&
     pathname.startsWith("imoveis/") &&
     /^image\/(jpeg|png|webp)/.test(result.blob.contentType ?? "");
-  // Imóvel de parceiro pode ter outro modo (só logotipo, só linhas ou sem marca)
-  const [base, mode] = wantsMark
-    ? await Promise.all([getWatermarkSettings(), partnerWatermarkForImage(pathname)])
-    : [null, "padrao"];
-  const wm =
-    !base || mode === "nenhuma"
-      ? null
-      : mode === "logo"
-        ? { ...base, enabled: true, logo: true, lines: false }
-        : mode === "linhas"
-          ? { ...base, enabled: true, logo: false, lines: true }
-          : base;
+  const base = wantsMark ? await getWatermarkSettings() : null;
+  const wm = !base
+    ? null
+    : mode === "logo"
+      ? { ...base, enabled: true, logo: true, lines: false }
+      : mode === "linhas"
+        ? { ...base, enabled: true, logo: false, lines: true }
+        : base;
   if (wm?.enabled && (wm.logo || wm.lines)) {
     try {
       const buf = Buffer.from(await new Response(result.stream).arrayBuffer());

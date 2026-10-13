@@ -133,7 +133,7 @@ export default async function ImovelPage({ params }: { params: Params }) {
         {/* Galeria */}
         <div data-reveal className="mt-8">
           <Gallery
-            images={p.images.map((i) => siteImage(i.url))}
+            images={p.images.map((i) => siteImage(i.url, p.wm))}
             title={p.title}
           />
         </div>

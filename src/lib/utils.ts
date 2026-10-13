@@ -2,9 +2,14 @@ import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
 /** Foto de imóvel servida pelo proxy → versão com marca d'água (site público). */
-export function siteImage<T extends string | null | undefined>(url: T): T {
+export function siteImage<T extends string | null | undefined>(
+  url: T,
+  /** Modo do parceiro dono do imóvel; vazio = padrão do site */
+  mode?: string | null,
+): T {
   if (!url || !url.includes("/api/media/imoveis/") || url.includes("?")) return url;
-  return `${url}?wm=1` as T;
+  if (mode === "nenhuma") return url;
+  return `${url}?wm=${mode === "logo" || mode === "linhas" ? mode : "padrao"}` as T;
 }
 
 /** Telefone para exibição: "43. 99664 7565" (sem o 55 do país). */

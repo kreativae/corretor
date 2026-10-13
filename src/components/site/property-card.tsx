@@ -36,7 +36,7 @@ export function PropertyCard({
         {p.cover ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
-            src={siteImage(p.cover)}
+            src={siteImage(p.cover, p.wm)}
             alt={p.title}
             loading="lazy"
             className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-expo group-hover:scale-[1.05]"
