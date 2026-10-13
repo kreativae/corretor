@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import { Building2, CalendarPlus, Plus, RefreshCw, Tractor, UserPlus } from "lucide-react";
+import { Building2, Calculator, CalendarPlus, Plus, RefreshCw, Tractor, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -63,6 +63,12 @@ export function HeaderActions() {
 
   return (
     <div className="flex items-center gap-2">
+      <Link href="/crm/calculadora" aria-label="Calculadora" title="Calculadora e conversões">
+        <Button variant="outline" size="icon" className="size-9">
+          <Calculator className="size-4" />
+        </Button>
+      </Link>
+
       {/* Computador: botões lado a lado */}
       <div className="hidden items-center gap-2 xl:flex">
         <Link href={items[0].href}>
