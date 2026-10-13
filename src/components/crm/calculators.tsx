@@ -64,7 +64,7 @@ function Card({
   className?: string;
 }) {
   return (
-    <section className={cn("rounded-2xl border border-hairline bg-card p-5 sm:p-6", className)}>
+    <section className={cn("flex h-full flex-col rounded-2xl border border-hairline bg-card p-5 sm:p-6", className)}>
       <div className="mb-5 flex items-start gap-3">
         <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent">
           <Icon className="size-[18px]" />
@@ -74,7 +74,8 @@ function Card({
           {desc && <p className="mt-0.5 text-xs text-subtle">{desc}</p>}
         </div>
       </div>
-      {children}
+      {/* Resultados descem para o rodapé do card: cards lado a lado ficam alinhados */}
+      <div className="flex flex-1 flex-col">{children}</div>
     </section>
   );
 }
@@ -190,21 +191,23 @@ function Picks({
 
 function Rows({ rows }: { rows: { label: ReactNode; value: ReactNode; strong?: boolean; muted?: boolean }[] }) {
   return (
-    <dl className="mt-5 space-y-2 rounded-xl bg-soft px-4 py-3.5 text-sm">
-      {rows.map((r, i) => (
-        <div
-          key={i}
-          className={cn(
-            "flex items-baseline justify-between gap-4",
-            r.strong && "border-t border-hairline pt-2 font-semibold",
-            r.muted && "text-xs",
-          )}
-        >
-          <dt className={cn(!r.strong && "text-subtle")}>{r.label}</dt>
-          <dd className="shrink-0 text-right font-mono tabular">{r.value}</dd>
-        </div>
-      ))}
-    </dl>
+    <div className="mt-auto pt-5">
+      <dl className="space-y-2 rounded-xl bg-soft px-4 py-3.5 text-sm">
+        {rows.map((r, i) => (
+          <div
+            key={i}
+            className={cn(
+              "flex items-baseline justify-between gap-4",
+              r.strong && "border-t border-hairline pt-2 font-semibold",
+              r.muted && "text-xs",
+            )}
+          >
+            <dt className={cn(!r.strong && "text-subtle")}>{r.label}</dt>
+            <dd className="shrink-0 text-right font-mono tabular">{r.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
   );
 }
 
@@ -305,26 +308,31 @@ function AreaConverter() {
 
   return (
     <Card icon={ArrowLeftRight} title="Conversor de áreas" desc="Alqueire, hectare, metro quadrado e outras medidas.">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Num label="Quantidade" value={value} onChange={setValue} />
-        <UnitSelect value={from} onChange={setFrom} label="Em" />
+      <div className="grid gap-5 lg:grid-cols-[260px_1fr]">
+        <div className="space-y-4">
+          <Num label="Quantidade" value={value} onChange={setValue} />
+          <UnitSelect value={from} onChange={setFrom} label="Em" />
+          <p className="text-[11px] text-subtle">
+            No Paraná e em São Paulo, &quot;alqueire&quot; é o paulista: 24.200 m² = 2,42 ha.
+          </p>
+        </div>
+        <dl className="grid gap-px overflow-hidden rounded-xl bg-hairline sm:grid-cols-2 xl:grid-cols-4">
+          {UNITS.map((u) => (
+            <div
+              key={u.id}
+              className={cn("flex flex-col justify-between gap-1 bg-soft px-4 py-3", u.id === from && "bg-accent/10")}
+            >
+              <dt className="text-xs text-subtle">
+                <span className={cn("font-medium", u.id === from ? "text-accent" : "text-ink")}>{u.label}</span>
+                {u.hint && <span className="block text-[10.5px]">{u.hint}</span>}
+              </dt>
+              <dd className="font-mono text-base tabular">
+                {dec(m2 / u.m2, u.m2 >= 10_000 ? 4 : 2)} <span className="text-xs text-subtle">{u.short}</span>
+              </dd>
+            </div>
+          ))}
+        </dl>
       </div>
-      <dl className="mt-5 divide-y divide-hairline rounded-xl bg-soft px-4 text-sm">
-        {UNITS.filter((u) => u.id !== from).map((u) => (
-          <div key={u.id} className="flex items-baseline justify-between gap-4 py-2.5">
-            <dt className="min-w-0">
-              <span className="text-ink">{u.label}</span>
-              {u.hint && <span className="ml-2 text-[11px] text-subtle">{u.hint}</span>}
-            </dt>
-            <dd className="shrink-0 font-mono tabular">
-              {dec(m2 / u.m2, u.m2 >= 10_000 ? 4 : 2)} <span className="text-xs text-subtle">{u.short}</span>
-            </dd>
-          </div>
-        ))}
-      </dl>
-      <p className="mt-3 text-[11px] text-subtle">
-        No Paraná e em São Paulo, &quot;alqueire&quot; é o paulista: 24.200 m² = 2,42 ha.
-      </p>
     </Card>
   );
 }
@@ -442,15 +450,15 @@ function Financing() {
         ]}
       />
       <div className="grid gap-4 sm:grid-cols-2">
-        <Money label="Valor do imóvel" value={price} onChange={setPrice} className="sm:col-span-2" />
+        <Money label="Valor do imóvel" value={price} onChange={setPrice} />
+        <Num label="Juros ao ano" value={rate} onChange={setRate} suffix="% a.a." />
         <div>
           <Num label="Entrada" value={down} onChange={setDown} suffix="%" />
           <Picks values={[20, 30, 50]} current={down} onPick={setDown} />
         </div>
-        <Num label="Juros ao ano" value={rate} onChange={setRate} suffix="% a.a." />
-        <div className="sm:col-span-2">
+        <div>
           <Num label="Prazo" value={years} onChange={setYears} suffix="anos" />
-          <Picks values={[10, 20, 30, 35]} current={years} onPick={setYears} suffix=" anos" />
+          <Picks values={[10, 20, 30, 35]} current={years} onPick={setYears} suffix="" />
         </div>
       </div>
       <Rows
@@ -622,6 +630,26 @@ function PercentCalc() {
 
 /* ─────────────────────── página ─────────────────────── */
 
+function Group({
+  title,
+  desc,
+  children,
+}: {
+  title: string;
+  desc: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="mt-10 first-of-type:mt-8">
+      <div className="mb-4 flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-hairline pb-3">
+        <h2 className="font-mono text-[11px] uppercase tracking-[0.2em] text-ink">{title}</h2>
+        <p className="text-xs text-subtle">{desc}</p>
+      </div>
+      <div className="grid gap-4 lg:grid-cols-2">{children}</div>
+    </div>
+  );
+}
+
 export function Calculators() {
   return (
     <div>
@@ -630,17 +658,29 @@ export function Calculators() {
       <p className="mt-1 text-sm text-subtle">
         Contas do dia a dia: porcentagem, comissão, conversão de áreas, preço por alqueire, financiamento e mais.
       </p>
-      <div className="mt-6 grid items-start gap-4 lg:grid-cols-2">
+      <Group title="Contas rápidas" desc="Porcentagens, descontos e propostas.">
         <PercentCalc />
+        <Negotiation />
+      </Group>
+
+      <Group title="Venda" desc="O que fica para cada um e o que o comprador paga além do preço.">
         <CommissionCalc />
-        <AreaConverter />
+        <PurchaseCosts />
+      </Group>
+
+      <Group title="Áreas e terras" desc="Alqueire, hectare, m² e o preço de cada um.">
+        <div className="lg:col-span-2">
+          <AreaConverter />
+        </div>
         <PricePerArea />
         <LotSize />
+      </Group>
+
+      <Group title="Financiamento e aluguel" desc="Parcelas do banco e quanto o imóvel rende.">
         <Financing />
-        <PurchaseCosts />
         <RentCalc />
-        <Negotiation />
-      </div>
+      </Group>
+
       <p className="mt-6 text-[11px] text-subtle">
         Valores estimados, para orientação. Alíquotas e taxas variam por cidade, cartório e banco.
       </p>
