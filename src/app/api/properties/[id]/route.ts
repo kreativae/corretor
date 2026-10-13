@@ -12,6 +12,7 @@ import { blobToken } from "@/lib/blob";
 import { del } from "@vercel/blob";
 import { eq } from "drizzle-orm";
 import { alqToM2, isRuralType, sanitizeRural } from "@/lib/rural";
+import { sanitizePropertyPartnerFields } from "@/lib/partners";
 import { NextResponse } from "next/server";
 
 type Params = { params: Promise<{ id: string }> };
@@ -49,6 +50,12 @@ export async function PATCH(req: Request, { params }: Params) {
         data.rural = null;
       }
     }
+
+    // Parceria: só valores válidos (id do parceiro, percentuais 0–100)
+    delete data.partnerId;
+    delete data.commissionPct;
+    delete data.partnerSharePct;
+    Object.assign(data, sanitizePropertyPartnerFields(body));
 
     const [updated] = await db
       .update(properties)

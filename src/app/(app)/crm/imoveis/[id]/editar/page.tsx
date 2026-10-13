@@ -1,5 +1,5 @@
 import { PropertyForm } from "@/components/crm/property-form";
-import { getPropertyById } from "@/lib/queries";
+import { getPropertyById, listPartners } from "@/lib/queries";
 import { crmPropertyPath, isRuralType } from "@/lib/rural";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
@@ -15,10 +15,11 @@ export default async function EditarImovelPage({
   const { id } = await params;
   const property = await getPropertyById(id);
   if (!property) notFound();
+  const partners = await listPartners();
   if (isRuralType(property.type)) redirect(crmPropertyPath(property, "/editar"));
   return (
     <div className="mx-auto max-w-6xl">
-      <PropertyForm initial={property} />
+      <PropertyForm initial={property} partners={partners} />
     </div>
   );
 }

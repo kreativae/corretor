@@ -2,6 +2,7 @@ import { apiUser, unauthorized } from "@/lib/api-auth";
 import { db } from "@/db";
 import { activities, properties, propertyImages } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
+import { sanitizePropertyPartnerFields } from "@/lib/partners";
 import { nextPropertyCode } from "@/lib/property-code";
 import { alqToM2, isRuralType, sanitizeRural } from "@/lib/rural";
 import { NextResponse } from "next/server";
@@ -13,6 +14,12 @@ export async function POST(req: Request) {
     const { images = [], ...data } = body as Record<string, unknown> & {
       images?: string[];
     };
+
+    // Parceria: só valores válidos (id do parceiro, percentuais 0–100)
+    delete data.partnerId;
+    delete data.commissionPct;
+    delete data.partnerSharePct;
+    Object.assign(data, sanitizePropertyPartnerFields(body));
 
     const rural = isRuralType(data.type as string);
     if (rural) {

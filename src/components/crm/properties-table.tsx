@@ -315,6 +315,7 @@ export function PropertiesTable({
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-mono text-[10px] uppercase tracking-wider text-subtle">
                     {p.code} · {TYPE_LABELS[p.type]}
+                    {p.partnerId && <span className="ml-1.5 rounded bg-[#F47525]/15 px-1 py-px text-[#C9551A]">parceiro</span>}
                   </span>
                   <span className="mt-0.5 block truncate text-[15px] font-medium leading-tight">{p.title}</span>
                   <span className="mt-0.5 block truncate text-xs text-subtle">
@@ -436,6 +437,7 @@ export function PropertiesTable({
                       </span>
                       <span className="mt-0.5 block font-mono text-[10.5px] uppercase tracking-wider text-subtle">
                         {p.code} · {p.neighborhood}
+                        {p.partnerId && <span className="ml-1.5 rounded bg-[#F47525]/15 px-1 py-px text-[#C9551A] dark:text-[#F8975A]">parceiro</span>}
                       </span>
                     </span>
                   </Link>

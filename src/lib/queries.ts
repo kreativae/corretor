@@ -1,5 +1,6 @@
 import { db } from "@/db";
 import {
+  partners,
   activities,
   contacts,
   deals,
@@ -445,5 +446,58 @@ export async function listPropertyDocuments(propertyId: string): Promise<Propert
   } catch {
     // Tabela ainda sendo criada pela migração em runtime
     return [];
+  }
+}
+
+/* ─────────────────────── Parceiros ─────────────────────── */
+
+/** Parceiros com a quantidade de imóveis de cada um. */
+export async function listPartners() {
+  try {
+    const [rows, props] = await Promise.all([
+      db.select().from(partners).orderBy(asc(partners.name)),
+      db
+        .select({ partnerId: properties.partnerId, type: properties.type, published: properties.published })
+        .from(properties),
+    ]);
+    return rows.map((p) => {
+      const mine = props.filter((x) => x.partnerId === p.id);
+      return {
+        ...p,
+        propertyCount: mine.length,
+        publishedCount: mine.filter((x) => x.published).length,
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
+export async function getPartner(id: string) {
+  try {
+    const [p] = await db.select().from(partners).where(eq(partners.id, id));
+    return p ?? null;
+  } catch {
+    return null;
+  }
+}
+
+
+/**
+ * Modo de marca d'água do parceiro dono da foto (pelo caminho no Blob).
+ * Fotos da carteira própria (ou não encontradas) seguem o padrão do site.
+ */
+export async function partnerWatermarkForImage(pathname: string) {
+  try {
+    const [row] = await db
+      .select({ mode: partners.watermark })
+      .from(propertyImages)
+      .innerJoin(properties, eq(properties.id, propertyImages.propertyId))
+      .innerJoin(partners, eq(partners.id, properties.partnerId))
+      .where(sql`${propertyImages.url} LIKE ${"%/api/media/" + pathname}`)
+      .limit(1);
+    return row?.mode ?? "padrao";
+  } catch {
+    return "padrao";
   }
 }

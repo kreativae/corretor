@@ -1,6 +1,7 @@
 import { blobToken, isMediaPath } from "@/lib/blob";
 import { get } from "@vercel/blob";
 import { getWatermarkSettings } from "@/lib/features";
+import { partnerWatermarkForImage } from "@/lib/queries";
 import { watermark } from "@/lib/watermark";
 
 /**
@@ -28,7 +29,18 @@ export async function GET(
     new URL(req.url).searchParams.get("wm") === "1" &&
     pathname.startsWith("imoveis/") &&
     /^image\/(jpeg|png|webp)/.test(result.blob.contentType ?? "");
-  const wm = wantsMark ? await getWatermarkSettings() : null;
+  // Imóvel de parceiro pode ter outro modo (só logotipo, só linhas ou sem marca)
+  const [base, mode] = wantsMark
+    ? await Promise.all([getWatermarkSettings(), partnerWatermarkForImage(pathname)])
+    : [null, "padrao"];
+  const wm =
+    !base || mode === "nenhuma"
+      ? null
+      : mode === "logo"
+        ? { ...base, enabled: true, logo: true, lines: false }
+        : mode === "linhas"
+          ? { ...base, enabled: true, logo: false, lines: true }
+          : base;
   if (wm?.enabled && (wm.logo || wm.lines)) {
     try {
       const buf = Buffer.from(await new Response(result.stream).arrayBuffer());

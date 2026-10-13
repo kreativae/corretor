@@ -89,6 +89,27 @@ export const apiKeys = pgTable("api_keys", {
 
 /* ─────────────────────────── Imóveis ─────────────────────────── */
 
+/** Parceiros: corretores/imobiliárias que trazem imóveis para a carteira. */
+export const partners = pgTable("partners", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  company: text("company"),
+  phone: text("phone"),
+  email: text("email"),
+  creci: text("creci"),
+  /** Comissão padrão combinada com o parceiro (% do valor do negócio) */
+  commissionPct: real("commission_pct"),
+  /** Parte padrão do parceiro (% da comissão) */
+  partnerSharePct: real("partner_share_pct"),
+  /** Marca d'água nas fotos dos imóveis dele: padrao | logo | linhas | nenhuma */
+  watermark: text("watermark", { enum: ["padrao", "logo", "linhas", "nenhuma"] })
+    .notNull()
+    .default("padrao"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const properties = pgTable("properties", {
   id: uuid("id").primaryKey().defaultRandom(),
   code: text("code").notNull().unique(),
@@ -136,6 +157,12 @@ export const properties = pgTable("properties", {
   published: boolean("published").notNull().default(true),
   /** Dados de propriedade rural (fazenda, sítio, chácara) — ver src/lib/rural.ts */
   rural: jsonb("rural").$type<RuralData>(),
+  /** Imóvel de parceiro (captado por outro corretor/imobiliária) */
+  partnerId: uuid("partner_id").references(() => partners.id, { onDelete: "set null" }),
+  /** Comissão total combinada na venda/locação (%) */
+  commissionPct: real("commission_pct"),
+  /** Parte da comissão que vai para o parceiro (% da comissão) */
+  partnerSharePct: real("partner_share_pct"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -317,6 +344,7 @@ export const settings = pgTable("settings", {
 
 /* ─────────────────────────── Tipos ─────────────────────────── */
 
+export type Partner = typeof partners.$inferSelect;
 export type Property = typeof properties.$inferSelect;
 export type PropertyImage = typeof propertyImages.$inferSelect;
 export type PropertyDocument = typeof propertyDocuments.$inferSelect;

@@ -6,8 +6,10 @@ import type { PropertyWithImages } from "@/lib/queries";
 import { PhotoManager } from "./photo-manager";
 import { RuralFields } from "./rural-fields";
 import { crmPropertyPath, isRuralType, normalizeRural, pricePerAlq, RURAL_TYPES, type RuralData } from "@/lib/rural";
+import { commissionValues } from "@/lib/partners";
 import { cn, formatBRL } from "@/lib/utils";
-import { ArrowLeft, Check, ImageIcon, Save, Sparkles } from "lucide-react";
+import { ArrowLeft, Check, Handshake, ImageIcon, Save, Sparkles } from "lucide-react";
+import Link from "next/link";
 import { generateDescription } from "@/lib/description";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -15,11 +17,22 @@ import { toast } from "sonner";
 
 const inputCls = "h-10";
 
+export type PartnerOption = {
+  id: string;
+  name: string;
+  company: string | null;
+  commissionPct: number | null;
+  partnerSharePct: number | null;
+};
+
 export function PropertyForm({
   initial,
   kind,
+  partners = [],
 }: {
   initial?: PropertyWithImages;
+  /** Parceiros cadastrados (imóvel captado por parceiro) */
+  partners?: PartnerOption[];
   /** Novo cadastro: urbano (padrão) ou rural. Na edição, vem do tipo. */
   kind?: "urbano" | "rural";
 }) {
@@ -53,7 +66,21 @@ export function PropertyForm({
     features: initial?.features ?? ([] as string[]),
     images: (initial?.images ?? []).map((i) => i.url),
     published: initial?.published ?? true,
+    partnerId: initial?.partnerId ?? "",
+    commissionPct: initial?.commissionPct?.toString() ?? "",
+    partnerSharePct: initial?.partnerSharePct?.toString() ?? "",
   });
+
+  /** Escolher o parceiro já sugere a comissão combinada com ele */
+  function pickPartner(id: string) {
+    const p = partners.find((x) => x.id === id);
+    setForm((f) => ({
+      ...f,
+      partnerId: id,
+      commissionPct: f.commissionPct || (p?.commissionPct?.toString() ?? ""),
+      partnerSharePct: id ? f.partnerSharePct || (p?.partnerSharePct?.toString() ?? "") : "",
+    }));
+  }
 
   const set = (k: string, v: string | boolean | string[]) =>
     setForm((f) => ({ ...f, [k]: v }));
@@ -137,6 +164,9 @@ export function PropertyForm({
         features: form.features,
         images: imageUrls,
         published: form.published,
+        partnerId: form.partnerId || null,
+        commissionPct: form.commissionPct === "" ? null : form.commissionPct,
+        partnerSharePct: form.partnerId && form.partnerSharePct !== "" ? form.partnerSharePct : null,
         ...(rural
           ? {
               rural: ruralData,
@@ -348,6 +378,90 @@ export function PropertyForm({
                   </Field>
                 </>
               )}
+            </div>
+          </section>
+
+          {/* Parceria e comissão (uso interno, não aparece no site) */}
+          <section className={sectionCls}>
+            <h2 className={cn(h2Cls, "flex items-center gap-2")}>
+              <Handshake className="size-4 text-subtle" />
+              Parceria e comissão
+            </h2>
+            <div className="space-y-4">
+              <Field label="Captação">
+                <Select value={form.partnerId} onChange={(e) => pickPartner(e.target.value)}>
+                  <option value="">Carteira própria</option>
+                  {partners.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      Parceiro: {p.name}
+                      {p.company ? ` · ${p.company}` : ""}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              {partners.length === 0 && (
+                <p className="text-[11px] text-subtle">
+                  Nenhum parceiro cadastrado.{" "}
+                  <Link href="/crm/parceiros" className="font-medium text-ink underline underline-offset-2">
+                    Cadastrar parceiro
+                  </Link>
+                </p>
+              )}
+              <div className={cn("grid gap-3", form.partnerId && "grid-cols-2")}>
+                <Field label="Comissão (%)">
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step="0.1"
+                    value={form.commissionPct}
+                    onChange={(e) => set("commissionPct", e.target.value)}
+                    placeholder="6"
+                    className={cn(inputCls, "font-mono tabular")}
+                  />
+                </Field>
+                {form.partnerId && (
+                  <Field label="Parte do parceiro (%)">
+                    <Input
+                      type="number"
+                      min={0}
+                      max={100}
+                      step="1"
+                      value={form.partnerSharePct}
+                      onChange={(e) => set("partnerSharePct", e.target.value)}
+                      placeholder="50"
+                      className={cn(inputCls, "font-mono tabular")}
+                    />
+                  </Field>
+                )}
+              </div>
+              {(() => {
+                const v = commissionValues(
+                  Number(form.price) || 0,
+                  form.commissionPct === "" ? null : Number(form.commissionPct),
+                  form.partnerId && form.partnerSharePct !== "" ? Number(form.partnerSharePct) : null,
+                );
+                if (v.total == null || !Number(form.price)) return null;
+                return (
+                  <div className="space-y-1.5 rounded-xl bg-soft px-4 py-3 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-subtle">Comissão total</span>
+                      <span className="font-mono tabular">{formatBRL(v.total)}</span>
+                    </div>
+                    {form.partnerId && v.partner != null && (
+                      <div className="flex justify-between">
+                        <span className="text-subtle">Repasse ao parceiro</span>
+                        <span className="font-mono tabular">{formatBRL(v.partner)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between font-medium">
+                      <span>Fica com a imobiliária</span>
+                      <span className="font-mono tabular">{formatBRL(v.ours ?? 0)}</span>
+                    </div>
+                  </div>
+                );
+              })()}
+              <p className="text-[11px] text-subtle">Uso interno — não aparece no site nem na ficha.</p>
             </div>
           </section>
 

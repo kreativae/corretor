@@ -25,4 +25,31 @@ export const RUNTIME_MIGRATIONS = [
      created_at timestamptz NOT NULL DEFAULT now()
    );`,
   `CREATE INDEX IF NOT EXISTS property_documents_property_idx ON property_documents (property_id);`,
+  // Parceiros (imóveis captados por outros corretores/imobiliárias)
+  `CREATE TABLE IF NOT EXISTS partners (
+     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+     name text NOT NULL,
+     company text,
+     phone text,
+     email text,
+     creci text,
+     commission_pct real,
+     partner_share_pct real,
+     watermark text NOT NULL DEFAULT 'padrao',
+     notes text,
+     created_at timestamptz NOT NULL DEFAULT now(),
+     updated_at timestamptz NOT NULL DEFAULT now()
+   );`,
+  `DO $$ BEGIN
+     IF NOT EXISTS (
+       SELECT 1 FROM information_schema.columns
+       WHERE table_name = 'properties' AND column_name = 'partner_id'
+     ) THEN
+       ALTER TABLE properties
+         ADD COLUMN partner_id uuid REFERENCES partners(id) ON DELETE SET NULL,
+         ADD COLUMN commission_pct real,
+         ADD COLUMN partner_share_pct real;
+     END IF;
+   END $$;`,
+  `CREATE INDEX IF NOT EXISTS properties_partner_idx ON properties (partner_id);`,
 ];

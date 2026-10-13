@@ -1,4 +1,5 @@
 import { RuralDetails } from "@/components/rural-details";
+import { commissionValues } from "@/lib/partners";
 import {
   APTIDAO_LABELS,
   crmPropertyPath,
@@ -17,7 +18,7 @@ import { PortalPanel } from "@/components/crm/portal-panel";
 import { PropertyDocuments } from "@/components/crm/property-documents";
 import { Timeline } from "@/components/crm/timeline";
 import { Badge, Button } from "@/components/ui";
-import { getPropertyViewStats, getWhiteLabel } from "@/lib/queries";
+import { getPropertyViewStats, getWhiteLabel, getPartner } from "@/lib/queries";
 import {
   PURPOSE_LABELS,
   STATUS_LABELS,
@@ -33,7 +34,7 @@ import {
   listPropertyDocuments,
   listVisits,
 } from "@/lib/queries";
-import { cn, formatBRL, formatDateTime, timeAgo, formatNumber } from "@/lib/utils";
+import { cn, formatBRL, formatDateTime, timeAgo, formatNumber, formatPhone } from "@/lib/utils";
 import {
   ArrowLeft,
   BedDouble,
@@ -49,6 +50,7 @@ import {
   Sprout,
   Trees,
   Wheat,
+  Handshake,
 } from "lucide-react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -71,11 +73,13 @@ export async function PropertyDetail({
   // Rurais vivem em /crm/propriedades; urbanos em /crm/imoveis
   if (isRuralType(p.type) !== (section === "propriedades")) redirect(crmPropertyPath(p));
 
-  const [activities, views, documents] = await Promise.all([
+  const [activities, views, documents, partner] = await Promise.all([
     listActivitiesFor("imovel", p.id, 15),
     getPropertyViewStats(p.id),
     listPropertyDocuments(p.id),
+    p.partnerId ? getPartner(p.partnerId) : null,
   ]);
+  const commission = commissionValues(p.price, p.commissionPct, p.partnerSharePct);
   const propertyVisits = allVisits.filter((v) => v.property?.id === p.id);
 
   const rural = isRuralType(p.type);
@@ -265,6 +269,47 @@ export async function PropertyDetail({
                 Dados da propriedade
               </h2>
               <RuralDetails r={r} mapHref={`/imoveis/${p.code}/mapa`} showDocs />
+            </div>
+          )}
+
+          {/* Parceria e comissão (uso interno) */}
+          {(partner || commission.total != null) && (
+            <div className="order-5 rounded-2xl border border-hairline bg-card p-5 lg:order-none">
+              <h2 className="flex items-center gap-2 font-display text-base font-semibold tracking-tight">
+                <Handshake className="size-4 text-subtle" />
+                {partner ? "Imóvel de parceiro" : "Comissão"}
+              </h2>
+              {partner && (
+                <div className="mt-3 rounded-xl bg-soft p-3">
+                  <Link href="/crm/parceiros" className="text-sm font-medium hover:underline">
+                    {partner.name}
+                  </Link>
+                  <p className="text-xs text-subtle">
+                    {[partner.company, partner.creci && `CRECI ${partner.creci}`, partner.phone && formatPhone(partner.phone)]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
+                </div>
+              )}
+              {commission.total != null && (
+                <dl className="mt-3 space-y-1.5 text-sm">
+                  <div className="flex justify-between">
+                    <dt className="text-subtle">Comissão ({p.commissionPct}%)</dt>
+                    <dd className="font-mono tabular">{formatBRL(commission.total)}</dd>
+                  </div>
+                  {partner && commission.partner != null && (
+                    <div className="flex justify-between">
+                      <dt className="text-subtle">Repasse ao parceiro ({p.partnerSharePct}%)</dt>
+                      <dd className="font-mono tabular">{formatBRL(commission.partner)}</dd>
+                    </div>
+                  )}
+                  <div className="flex justify-between border-t border-hairline pt-1.5 font-medium">
+                    <dt>Fica com a imobiliária</dt>
+                    <dd className="font-mono tabular">{formatBRL(commission.ours ?? 0)}</dd>
+                  </div>
+                </dl>
+              )}
+              <p className="mt-3 text-[11px] text-subtle">Uso interno — não aparece no site nem na ficha.</p>
             </div>
           )}
 

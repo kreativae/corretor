@@ -51,6 +51,7 @@ export type PropertyFilters = {
   neighborhoods: string[];
   cities: string[];
   published: "all" | "yes" | "no";
+  origin: "all" | "own" | "partner";
   photos: "all" | "with" | "without";
   views: "all" | "with" | "without";
   sort:
@@ -95,6 +96,7 @@ export const EMPTY_PROPERTY_FILTERS: PropertyFilters = {
   neighborhoods: [],
   cities: [],
   published: "all",
+  origin: "all",
   photos: "all",
   views: "all",
   sort: "recent",
@@ -187,6 +189,8 @@ export function applyPropertyFilters(
     if (f.cities.length && !f.cities.includes(p.city)) return false;
     if (f.published === "yes" && !p.published) return false;
     if (f.published === "no" && p.published) return false;
+    if (f.origin === "own" && p.partnerId) return false;
+    if (f.origin === "partner" && !p.partnerId) return false;
     if (f.photos === "with" && !p.images.length) return false;
     if (f.photos === "without" && p.images.length) return false;
     const v = views[p.id]?.total ?? 0;
@@ -286,6 +290,8 @@ export function activePropertyChips(f: PropertyFilters, rural: boolean): ActiveC
     chips.push({ key: `c-${c}`, label: c, clear: { cities: without(f.cities, c) } });
   if (f.published !== "all")
     chips.push({ key: "pb", label: f.published === "yes" ? "Publicado no site" : "Fora do site", clear: { published: "all" } });
+  if (f.origin !== "all")
+    chips.push({ key: "or", label: f.origin === "own" ? "Carteira própria" : "De parceiros", clear: { origin: "all" } });
   if (f.photos !== "all")
     chips.push({ key: "ph", label: f.photos === "with" ? "Com fotos" : "Sem fotos", clear: { photos: "all" } });
   if (f.views !== "all")
@@ -636,6 +642,20 @@ export function PropertyFiltersPanel({
 
       {!publicMode && (
         <>
+      {items.some((p) => p.partnerId) && (
+        <FilterGroup title="Captação">
+          <TriState
+            value={f.origin}
+            onChange={(origin) => onChange({ origin })}
+            options={[
+              { id: "all", label: "Todos" },
+              { id: "own", label: "Carteira própria", count: count((p) => !p.partnerId) },
+              { id: "partner", label: "De parceiros", count: count((p) => !!p.partnerId) },
+            ]}
+          />
+        </FilterGroup>
+      )}
+
       <FilterGroup title="Publicação no site">
         <TriState
           value={f.published}
