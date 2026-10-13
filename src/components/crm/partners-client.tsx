@@ -3,7 +3,7 @@
 import { Badge, Button, EmptyState, Field, Input, Modal, Select, Textarea } from "@/components/ui";
 import type { Partner } from "@/db/schema";
 import { TYPE_LABELS } from "@/lib/labels";
-import { SharePicks } from "@/components/crm/share-picks";
+import { PctInput, SharePicks } from "@/components/crm/share-picks";
 import { commissionValues, PARTNER_WATERMARK, type PartnerWatermark } from "@/lib/partners";
 import { crmPropertyPath } from "@/lib/rural";
 import { formatBRL, formatPhone, plural } from "@/lib/utils";
@@ -255,11 +255,11 @@ export function PartnersClient({ partners, properties }: { partners: Row[]; prop
             <Input value={form.creci} onChange={(e) => set({ creci: e.target.value })} />
           </Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Comissão (% do imóvel)">
-              <Input type="number" min={0} max={100} step="0.1" value={form.commissionPct} onChange={(e) => set({ commissionPct: e.target.value })} placeholder="6" className="font-mono" />
+            <Field label="Comissão">
+              <PctInput suffix="% do imóvel" value={form.commissionPct} onChange={(e) => set({ commissionPct: e.target.value })} placeholder="6" />
             </Field>
-            <Field label="Repasse (% da comissão)">
-              <Input type="number" min={0} max={100} step="1" value={form.partnerSharePct} onChange={(e) => set({ partnerSharePct: e.target.value })} placeholder="50" className="font-mono" />
+            <Field label="Repasse ao parceiro">
+              <PctInput suffix="% da comissão" value={form.partnerSharePct} onChange={(e) => set({ partnerSharePct: e.target.value })} placeholder="50" />
             </Field>
             <div className="col-span-2 -mt-1 flex justify-end">
               <SharePicks value={form.partnerSharePct} onPick={(v) => set({ partnerSharePct: v })} />

@@ -7,7 +7,7 @@ import { PhotoManager } from "./photo-manager";
 import { RuralFields } from "./rural-fields";
 import { crmPropertyPath, isRuralType, normalizeRural, pricePerAlq, RURAL_TYPES, type RuralData } from "@/lib/rural";
 import { commissionValues } from "@/lib/partners";
-import { SharePicks } from "@/components/crm/share-picks";
+import { PctInput, SharePicks } from "@/components/crm/share-picks";
 import { cn, formatBRL } from "@/lib/utils";
 import { ArrowLeft, Check, Handshake, ImageIcon, Save, Sparkles } from "lucide-react";
 import Link from "next/link";
@@ -409,29 +409,23 @@ export function PropertyForm({
                 </p>
               )}
               <div className={cn("grid gap-3", form.partnerId && "grid-cols-2")}>
-                <Field label="Comissão (% do imóvel)">
-                  <Input
-                    type="number"
-                    min={0}
-                    max={100}
-                    step="0.1"
+                <Field label="Comissão">
+                  <PctInput
+                    suffix="% do imóvel"
                     value={form.commissionPct}
                     onChange={(e) => set("commissionPct", e.target.value)}
                     placeholder="6"
-                    className={cn(inputCls, "font-mono tabular")}
+                    className={inputCls}
                   />
                 </Field>
                 {form.partnerId && (
-                  <Field label="Repasse ao parceiro (% da comissão)">
-                    <Input
-                      type="number"
-                      min={0}
-                      max={100}
-                      step="1"
+                  <Field label="Repasse ao parceiro">
+                    <PctInput
+                      suffix="% da comissão"
                       value={form.partnerSharePct}
                       onChange={(e) => set("partnerSharePct", e.target.value)}
                       placeholder="50"
-                      className={cn(inputCls, "font-mono tabular")}
+                      className={inputCls}
                     />
                   </Field>
                 )}
