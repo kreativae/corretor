@@ -31,7 +31,22 @@ export function PrintBar({
   // compartilhamento logo após o toque, então o arquivo precisa estar pronto
   const pdf = useRef<Promise<File> | null>(null);
 
+  // Aberta pela Negociação (iframe oculto): gera o PDF e devolve para a página
   useEffect(() => {
+    if (window.parent === window || new URLSearchParams(location.search).get("embed") !== "envio") return;
+    const t = window.setTimeout(() => {
+      document.fonts.ready
+        .then(() => buildFichaPdf(share.fileName))
+        .then((file) => window.parent.postMessage({ type: "ficha-pdf", file }, location.origin))
+        .catch((e) =>
+          window.parent.postMessage({ type: "ficha-pdf-error", error: String(e?.message ?? e) }, location.origin),
+        );
+    }, 600);
+    return () => window.clearTimeout(t);
+  }, [share.fileName]);
+
+  useEffect(() => {
+    if (window.parent !== window) return;
     const start = () => {
       if (!pdf.current) {
         pdf.current = buildFichaPdf(share.fileName).catch((e) => {

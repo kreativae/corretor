@@ -342,6 +342,26 @@ export const settings = pgTable("settings", {
   value: jsonb("value").notNull(),
 });
 
+/** Seleções de imóveis enviadas por e-mail ao cliente (página Negociação) */
+export type SentProperty = { id: string; code: string; title: string; price: number; city: string };
+export type SentAttachment = { pathname: string; name: string; size: number; access?: "public" | "private" };
+
+export const propertySends = pgTable("property_sends", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  contactId: uuid("contact_id").references(() => contacts.id, { onDelete: "set null" }),
+  toName: text("to_name"),
+  toEmail: text("to_email").notNull(),
+  subject: text("subject").notNull(),
+  message: text("message"),
+  properties: jsonb("properties").$type<SentProperty[]>().notNull().default(sql`'[]'::jsonb`),
+  attachments: jsonb("attachments").$type<SentAttachment[]>().notNull().default(sql`'[]'::jsonb`),
+  status: text("status", { enum: ["enviado", "falhou"] }).notNull().default("enviado"),
+  error: text("error"),
+  providerId: text("provider_id"),
+  sentBy: text("sent_by"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 /* ─────────────────────────── Tipos ─────────────────────────── */
 
 export type Partner = typeof partners.$inferSelect;
@@ -358,3 +378,4 @@ export type Session = typeof sessions.$inferSelect;
 export type Integration = typeof integrations.$inferSelect;
 export type PropertyView = typeof propertyViews.$inferSelect;
 export type ApiKey = typeof apiKeys.$inferSelect;
+export type PropertySend = typeof propertySends.$inferSelect;

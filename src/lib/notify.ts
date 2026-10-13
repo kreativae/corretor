@@ -40,23 +40,42 @@ export function emailConfigured() {
   return !!process.env.RESEND_API_KEY;
 }
 
-async function sendEmail(to: string[], subject: string, html: string) {
+export type EmailAttachment = { filename: string; content: string /* base64 */ };
+
+/** Envia pelo Resend; devolve o id da mensagem. */
+export async function sendEmail(
+  to: string[],
+  subject: string,
+  html: string,
+  extra: { replyTo?: string; attachments?: EmailAttachment[]; fromName?: string } = {},
+) {
   const key = process.env.RESEND_API_KEY;
   if (!key) throw new Error("RESEND_API_KEY não configurada na Vercel.");
   const wl = await getWhiteLabel();
-  const from = process.env.LEADS_FROM_EMAIL || `${wl.orgName} <onboarding@resend.dev>`;
+  let from = process.env.LEADS_FROM_EMAIL || `${wl.orgName} <onboarding@resend.dev>`;
+  // Nome de exibição do remetente (ex.: corretor), mantendo o endereço verificado
+  if (extra.fromName) {
+    const addr = from.match(/<([^>]+)>/)?.[1] ?? from;
+    from = `${extra.fromName.replace(/[<>"]/g, "")} <${addr}>`;
+  }
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from, to, subject, html }),
+    body: JSON.stringify({
+      from,
+      to,
+      subject,
+      html,
+      ...(extra.replyTo ? { reply_to: extra.replyTo } : {}),
+      ...(extra.attachments?.length ? { attachments: extra.attachments } : {}),
+    }),
   });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data?.message || `Resend: HTTP ${res.status}`);
-  }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.message || `Resend: HTTP ${res.status}`);
+  return (data?.id as string | undefined) ?? null;
 }
 
-const esc = (s: string) =>
+export const esc = (s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
 export type LeadNotice = {

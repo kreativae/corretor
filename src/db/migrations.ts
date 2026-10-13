@@ -52,4 +52,21 @@ export const RUNTIME_MIGRATIONS = [
      END IF;
    END $$;`,
   `CREATE INDEX IF NOT EXISTS properties_partner_idx ON properties (partner_id);`,
+  // Negociação: e-mails com seleção de imóveis enviados ao cliente (histórico)
+  `CREATE TABLE IF NOT EXISTS property_sends (
+     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+     contact_id uuid REFERENCES contacts(id) ON DELETE SET NULL,
+     to_name text,
+     to_email text NOT NULL,
+     subject text NOT NULL,
+     message text,
+     properties jsonb NOT NULL DEFAULT '[]'::jsonb,
+     attachments jsonb NOT NULL DEFAULT '[]'::jsonb,
+     status text NOT NULL DEFAULT 'enviado',
+     error text,
+     provider_id text,
+     sent_by text,
+     created_at timestamptz NOT NULL DEFAULT now()
+   );`,
+  `CREATE INDEX IF NOT EXISTS property_sends_contact_idx ON property_sends (contact_id, created_at DESC);`,
 ];

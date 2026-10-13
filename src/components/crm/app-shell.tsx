@@ -27,6 +27,7 @@ import {
   Tractor,
   Handshake,
   Briefcase,
+  Send,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -39,6 +40,7 @@ const CRM_NAV = [
   { href: "/crm/pipeline", label: "Pipeline", icon: Columns3 },
   { href: "/crm/fechados", label: "Negócios fechados", icon: Handshake, feature: "closedDeals" as const },
   { href: "/crm/contatos", label: "Contatos", icon: Users },
+  { href: "/crm/negociacao", label: "Negociação", icon: Send },
   { href: "/crm/agenda", label: "Agenda", icon: CalendarDays },
   { href: "/crm/parceiros", label: "Parceiros", icon: Briefcase },
 ];

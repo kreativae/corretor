@@ -3,6 +3,7 @@ import type { Activity } from "@/db/schema";
 import {
   CalendarDays,
   FileText,
+  Mail,
   MessageCircle,
   Move,
   Pencil,
@@ -22,6 +23,7 @@ const ICONS: Record<string, typeof Plus> = {
   message: MessageCircle,
   match: Sparkles,
   lead: User,
+  email: Mail,
 };
 
 export function Timeline({ items }: { items: Activity[] }) {

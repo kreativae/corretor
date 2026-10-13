@@ -1,6 +1,7 @@
 import { db } from "@/db";
 import {
   partners,
+  propertySends,
   activities,
   contacts,
   deals,
@@ -17,6 +18,7 @@ import {
   type Deal,
   type Portal,
   type Property,
+  type PropertySend,
   type PropertyDocument,
   type PropertyImage,
   type User,
@@ -506,3 +508,14 @@ export async function getPartner(id: string) {
 }
 
 
+
+/** Histórico da Negociação (e-mails com imóveis enviados ao cliente) */
+export async function listPropertySends(contactId?: string, limit = 200): Promise<PropertySend[]> {
+  try {
+    const q = db.select().from(propertySends);
+    const rows = contactId ? await q.where(eq(propertySends.contactId, contactId)) : await q;
+    return rows.sort((a, b) => +b.createdAt - +a.createdAt).slice(0, limit);
+  } catch {
+    return [];
+  }
+}

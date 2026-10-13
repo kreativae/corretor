@@ -3,6 +3,7 @@ import { NotesHistory } from "@/components/crm/notes-history";
 import { ContactActions } from "@/components/crm/contact-actions";
 import { Timeline } from "@/components/crm/timeline";
 import { MobileSection } from "@/components/crm/mobile-section";
+import { SendRow } from "@/components/crm/negotiation-client";
 import { Badge, Button } from "@/components/ui";
 import {
   CONTACT_TYPE_LABELS,
@@ -18,6 +19,7 @@ import {
   getMatchesFor,
   listActivitiesFor,
   listLeadDates,
+  listPropertySends,
   listDeals,
   listProperties,
   listVisits,
@@ -29,6 +31,7 @@ import {
   Mail,
   MessageCircle,
   Phone,
+  Send,
   Sparkles,
 } from "lucide-react";
 import type { Metadata } from "next";
@@ -52,10 +55,11 @@ export default async function ContatoPage({
   ]);
   if (!c) notFound();
 
-  const [matches, activities, leadDates] = await Promise.all([
+  const [matches, activities, leadDates, sends] = await Promise.all([
     getMatchesFor(c),
     listActivitiesFor("contato", c.id, 15),
     listLeadDates(c.id),
+    listPropertySends(c.id, 20),
   ]);
 
   const myVisits = allVisits.filter((v) => v.contact?.id === c.id);
@@ -186,8 +190,18 @@ export default async function ContatoPage({
                 <Sparkles className="size-4 text-accent" />
                 Smart Match
               </h2>
-              <span className="font-mono text-[10px] uppercase tracking-wider text-subtle">
-                {matches.length} imóveis compatíveis
+              <span className="flex items-center gap-3">
+                <span className="font-mono text-[10px] uppercase tracking-wider text-subtle">
+                  {matches.length} imóveis compatíveis
+                </span>
+                {matches.length > 0 && (
+                  <Link
+                    href={`/crm/negociacao?contato=${c.id}&imoveis=${matches.slice(0, 12).map((m) => m.property.id).join(",")}`}
+                    className="inline-flex items-center gap-1 rounded-full border border-hairline px-2.5 py-1 text-[11px] font-medium hover:bg-soft"
+                  >
+                    <Send className="size-3" /> Enviar por e-mail
+                  </Link>
+                )}
               </span>
             </div>
             <p className="mt-1 text-xs text-subtle">
@@ -335,6 +349,31 @@ export default async function ContatoPage({
               </div>
             )}
           </div>
+
+          {/* Imóveis enviados por e-mail (Negociação) */}
+          <MobileSection
+            className="order-6 rounded-2xl border border-hairline bg-card p-4 md:p-5 lg:order-none"
+            title="Imóveis enviados"
+            meta={sends[0] ? timeAgo(sends[0].createdAt) : undefined}
+          >
+            {sends.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-hairline-strong py-6 text-center text-sm text-subtle">
+                Nenhum imóvel enviado por e-mail ainda.
+              </p>
+            ) : (
+              <ul className="divide-y divide-hairline">
+                {sends.map((s) => (
+                  <SendRow key={s.id} s={s} hideContact />
+                ))}
+              </ul>
+            )}
+            <Link
+              href={`/crm/negociacao?contato=${c.id}`}
+              className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-accent hover:underline"
+            >
+              <Send className="size-3.5" /> Enviar imóveis para {c.name.split(" ")[0]}
+            </Link>
+          </MobileSection>
 
           {/* Linha do tempo — sanfona no celular */}
           <MobileSection
