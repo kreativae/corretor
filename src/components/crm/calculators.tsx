@@ -567,6 +567,59 @@ function Negotiation() {
   );
 }
 
+function PercentCalc() {
+  const [mode, setMode] = useState<"of" | "which" | "change">("of");
+  const [a, setA] = useState("");
+  const [b, setB] = useState("");
+  const x = num(a);
+  const y = num(b);
+
+  const labels = {
+    of: ["Valor", "Porcentagem", "%"],
+    which: ["Valor", "É quantos % de", ""],
+    change: ["Valor", "Aumentar / diminuir", "%"],
+  } as const;
+  const [la, lb, sb] = labels[mode];
+
+  return (
+    <Card icon={Percent} title="Porcentagem" desc="Conta rápida: quanto é X%, quantos % um valor representa, acréscimo e desconto.">
+      <Seg
+        value={mode}
+        onChange={setMode}
+        options={[
+          ["of", "X% de um valor"],
+          ["which", "Quantos %"],
+          ["change", "+ / − %"],
+        ]}
+      />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Num label={la} value={a} onChange={setA} />
+        <Num label={lb} value={b} onChange={setB} suffix={sb || undefined} />
+      </div>
+      <Rows
+        rows={
+          mode === "of"
+            ? [
+                { label: `${pct(y)} de ${dec(x)}`, value: x && y ? dec((x * y) / 100) : "—", strong: true },
+                { label: "Valor + porcentagem", value: x && y ? dec(x + (x * y) / 100) : "—" },
+                { label: "Valor − porcentagem", value: x && y ? dec(x - (x * y) / 100) : "—" },
+              ]
+            : mode === "which"
+              ? [
+                  { label: `${dec(x)} é de ${dec(y)}`, value: x && y ? pct((x / y) * 100) : "—", strong: true },
+                  { label: "Diferença entre eles", value: x && y ? `${pct(((x - y) / y) * 100)}` : "—" },
+                ]
+              : [
+                  { label: `${dec(x)} + ${pct(y)}`, value: x && y ? dec(x * (1 + y / 100)) : "—", strong: true },
+                  { label: `${dec(x)} − ${pct(y)}`, value: x && y ? dec(x * (1 - y / 100)) : "—", strong: true },
+                  { label: "Quanto é a porcentagem", value: x && y ? dec((x * y) / 100) : "—" },
+                ]
+        }
+      />
+    </Card>
+  );
+}
+
 /* ─────────────────────── página ─────────────────────── */
 
 export function Calculators() {
@@ -575,9 +628,10 @@ export function Calculators() {
       <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-subtle">Ferramentas</p>
       <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight">Calculadora</h1>
       <p className="mt-1 text-sm text-subtle">
-        Contas do dia a dia: comissão, conversão de áreas, preço por alqueire, financiamento e mais.
+        Contas do dia a dia: porcentagem, comissão, conversão de áreas, preço por alqueire, financiamento e mais.
       </p>
       <div className="mt-6 grid items-start gap-4 lg:grid-cols-2">
+        <PercentCalc />
         <CommissionCalc />
         <AreaConverter />
         <PricePerArea />
