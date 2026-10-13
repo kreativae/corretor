@@ -320,14 +320,18 @@ function AreaConverter() {
           {UNITS.map((u) => (
             <div
               key={u.id}
-              className={cn("flex flex-col justify-between gap-1 bg-soft px-4 py-3", u.id === from && "bg-accent/10")}
+              className={cn(
+                "flex flex-col justify-between gap-1 px-4 py-3",
+                u.id === from ? "bg-accent text-on-accent" : "bg-soft",
+              )}
             >
-              <dt className="text-xs text-subtle">
-                <span className={cn("font-medium", u.id === from ? "text-accent" : "text-ink")}>{u.label}</span>
+              <dt className={cn("text-xs", u.id === from ? "text-on-accent/80" : "text-subtle")}>
+                <span className={cn("font-medium", u.id === from ? "text-on-accent" : "text-ink")}>{u.label}</span>
                 {u.hint && <span className="block text-[10.5px]">{u.hint}</span>}
               </dt>
               <dd className="font-mono text-base tabular">
-                {dec(m2 / u.m2, u.m2 >= 10_000 ? 4 : 2)} <span className="text-xs text-subtle">{u.short}</span>
+                {dec(m2 / u.m2, u.m2 >= 10_000 ? 4 : 2)}{" "}
+                <span className={cn("text-xs", u.id === from ? "text-on-accent/80" : "text-subtle")}>{u.short}</span>
               </dd>
             </div>
           ))}
