@@ -13,6 +13,8 @@ export type SiteContent = {
     /** Botão de destaque (vazio = esconde) */
     ctaLabel: string;
     ctaHref: string;
+    /** Barra de edição (logado): sempre visível ou oculta até o mouse chegar ao topo */
+    adminBar: "fixa" | "oculta";
   };
   hero: {
     eyebrow: string;
@@ -119,6 +121,7 @@ export const DEFAULT_CONTENT: SiteContent = {
       { label: "Contato", href: "/#fale-conosco" },
     ],
     loginLabel: "Acessar sistema",
+    adminBar: "fixa",
     ctaLabel: "Falar com corretor",
     ctaHref: "/#fale-conosco",
   },

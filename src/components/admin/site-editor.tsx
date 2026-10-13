@@ -188,7 +188,33 @@ export function SiteEditor({
                   onChange={(e) => patch("header", { loginLabel: e.target.value })}
                 />
               </Field>
-              <div />
+              <Field
+                label="Barra de edição (quando logado)"
+                hint="Oculta: aparece ao levar o mouse ao topo da tela"
+              >
+                <div className="flex gap-1 rounded-xl border border-hairline p-1">
+                  {(
+                    [
+                      ["fixa", "Fixa"],
+                      ["oculta", "Oculta"],
+                    ] as const
+                  ).map(([v, l]) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => patch("header", { adminBar: v })}
+                      className={cn(
+                        "h-8 flex-1 rounded-lg text-xs font-medium transition-colors",
+                        (c.header.adminBar ?? "fixa") === v
+                          ? "bg-ink text-canvas"
+                          : "text-subtle hover:text-ink",
+                      )}
+                    >
+                      {l}
+                    </button>
+                  ))}
+                </div>
+              </Field>
               <Field label="Botão de destaque" hint="Vazio = esconde">
                 <Input
                   value={c.header.ctaLabel}

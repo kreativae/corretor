@@ -26,10 +26,58 @@ const item =
  * Barra de edição no topo do site (como a do WordPress): aparece só para quem
  * está logado no painel e traz atalhos ligados à página aberta.
  */
-export function AdminBar({ name, admin }: { name: string; admin: boolean }) {
+export function AdminBar({
+  name,
+  admin,
+  hidden = false,
+}: {
+  name: string;
+  admin: boolean;
+  /** Oculta: só aparece quando o mouse vai ao topo (ou tocando na alça, no celular) */
+  hidden?: boolean;
+}) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const menu = useRef<HTMLDivElement>(null);
+  const [shown, setShown] = useState(false);
+  const bar = useRef<HTMLDivElement>(null);
+  const visible = !hidden || shown || open;
+
+  // Modo oculto: mostra ao chegar perto do topo; esconde ao se afastar
+  useEffect(() => {
+    if (!hidden) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const onMove = (e: MouseEvent) => {
+      if (e.clientY <= 24) {
+        clearTimeout(timer);
+        timer = undefined;
+        setShown(true);
+      } else if (e.clientY > H + 80 && !timer) {
+        timer = setTimeout(() => {
+          setShown(false);
+          timer = undefined;
+        }, 500);
+      } else if (e.clientY <= H + 80 && timer) {
+        clearTimeout(timer);
+        timer = undefined;
+      }
+    };
+    window.addEventListener("mousemove", onMove, { passive: true });
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      clearTimeout(timer);
+    };
+  }, [hidden]);
+
+  // Celular: aberta pela alça, fecha ao tocar fora dela
+  useEffect(() => {
+    if (!hidden || !shown) return;
+    const onDown = (e: PointerEvent) => {
+      if (e.pointerType !== "mouse" && !bar.current?.contains(e.target as Node)) setShown(false);
+    };
+    document.addEventListener("pointerdown", onDown);
+    return () => document.removeEventListener("pointerdown", onDown);
+  }, [hidden, shown]);
 
   useEffect(() => {
     if (!open) return;
@@ -47,10 +95,31 @@ export function AdminBar({ name, admin }: { name: string; admin: boolean }) {
   return (
     <>
       {/* Empurra o header fixo e o conteúdo para baixo da barra */}
-      <style>{`@media screen{:root{--adminbar:${H}px}body{padding-top:${H}px}}`}</style>
+      {!hidden && (
+        <style>{`@media screen{:root{--adminbar:${H}px}body{padding-top:${H}px}}`}</style>
+      )}
+      {hidden && (
+        // Alça discreta: no celular (sem mouse) é por ela que a barra abre
+        <button
+          type="button"
+          onClick={() => setShown((v) => !v)}
+          aria-label="Mostrar barra de edição"
+          className={cn(
+            "fixed left-1/2 top-0 z-[46] h-2.5 w-14 -translate-x-1/2 rounded-b-lg bg-[#1d1d42]/70 shadow transition-opacity duration-300 hover:bg-[#1d1d42] print:hidden",
+            visible && "pointer-events-none opacity-0",
+          )}
+        />
+      )}
       <div
-        className="fixed inset-x-0 top-0 z-[45] flex items-stretch bg-[#1d1d42] text-white shadow-[0_1px_0_rgba(255,255,255,0.06)] print:hidden"
+        className={cn(
+          "fixed inset-x-0 top-0 z-[45] flex items-stretch bg-[#1d1d42] text-white shadow-[0_1px_0_rgba(255,255,255,0.06)] transition-transform duration-300 ease-out print:hidden",
+          hidden && "shadow-2xl shadow-black/40",
+          !visible && "-translate-y-full",
+        )}
         style={{ height: H }}
+        onMouseEnter={() => hidden && setShown(true)}
+        inert={!visible || undefined}
+        ref={bar}
         role="navigation"
         aria-label="Barra de edição"
       >
