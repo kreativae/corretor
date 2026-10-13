@@ -16,6 +16,7 @@ import {
   Search,
   Send,
   Sparkles,
+  Trash2,
   User,
   X,
 } from "lucide-react";
@@ -282,6 +283,24 @@ export function NegotiationClient({
       norm(`${s.toName ?? ""} ${s.toEmail} ${s.subject} ${s.properties.map((p) => `${p.code} ${p.title}`).join(" ")}`).includes(w),
     );
   }, [sends, hq]);
+
+  const [clearing, setClearing] = useState(false);
+  async function clearHistory() {
+    const n = history.length;
+    const what = hq.trim() ? `os ${n} ${plural(n, "envio encontrado", "envios encontrados")} na busca` : `todo o histórico (${n} ${plural(n, "envio", "envios")})`;
+    if (!confirm(`Apagar ${what}? Os PDFs guardados também são apagados. Os e-mails que os clientes já receberam não são afetados.`)) return;
+    setClearing(true);
+    try {
+      const deleted = await deleteSends(history.map((s) => s.id));
+      toast.success(`${deleted} ${plural(deleted, "envio apagado", "envios apagados")} do histórico.`);
+      setHq("");
+      router.refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao apagar.");
+    } finally {
+      setClearing(false);
+    }
+  }
 
   return (
     <div>
@@ -571,9 +590,17 @@ export function NegotiationClient({
             <FileText className="size-4" /> Histórico de envios
             <span className="font-mono text-[11px] font-normal text-subtle">{sends.length}</span>
           </h2>
-          <div className="relative w-full sm:w-72">
-            <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-subtle" />
-            <Input value={hq} onChange={(e) => setHq(e.target.value)} placeholder="Cliente, e-mail ou código…" className="pl-10" />
+          <div className="flex w-full items-center gap-2 sm:w-auto">
+            <div className="relative flex-1 sm:w-72">
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-subtle" />
+              <Input value={hq} onChange={(e) => setHq(e.target.value)} placeholder="Cliente, e-mail ou código…" className="pl-10" />
+            </div>
+            {history.length > 0 && (
+              <Button variant="outline" size="sm" className="h-10 shrink-0" onClick={clearHistory} disabled={clearing}>
+                {clearing ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                {hq.trim() ? `Apagar ${history.length}` : "Limpar tudo"}
+              </Button>
+            )}
           </div>
         </div>
         {history.length === 0 ? (
@@ -592,10 +619,37 @@ export function NegotiationClient({
   );
 }
 
+async function deleteSends(ids: string[]) {
+  const res = await fetch("/api/negociacao", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Falha ao apagar.");
+  return data.deleted as number;
+}
+
 /** Uma linha do histórico (também usada na ficha do contato) */
 export function SendRow({ s, hideContact = false }: { s: PropertySend; hideContact?: boolean }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+
+  async function remove() {
+    if (!confirm("Apagar este envio do histórico? Os PDFs guardados também são apagados (o e-mail que o cliente já recebeu não é afetado).")) return;
+    setBusy(true);
+    try {
+      await deleteSends([s.id]);
+      toast.success("Envio apagado do histórico.");
+      router.refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao apagar.");
+      setBusy(false);
+    }
+  }
+
   return (
-    <li className="flex flex-col gap-2 py-3.5 sm:flex-row sm:items-start sm:gap-4">
+    <li className={cn("group flex flex-col gap-2 py-3.5 sm:flex-row sm:items-start sm:gap-4", busy && "opacity-50")}>
       <div className="w-36 shrink-0 font-mono text-[11px] text-subtle">{formatDateTime(s.createdAt)}</div>
       <div className="min-w-0 flex-1">
         {!hideContact && (
@@ -647,6 +701,14 @@ export function SendRow({ s, hideContact = false }: { s: PropertySend; hideConta
           </span>
         )}
         {s.sentBy && <p className="mt-1 text-subtle">por {s.sentBy}</p>}
+        <button
+          type="button"
+          onClick={remove}
+          disabled={busy}
+          className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-subtle transition-colors hover:text-red-500 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+        >
+          <Trash2 className="size-3" /> Apagar
+        </button>
       </div>
     </li>
   );
