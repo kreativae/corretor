@@ -1,4 +1,5 @@
 import { PropertyForm } from "@/components/crm/property-form";
+import { getCustomFeatures } from "@/lib/features";
 import { getPropertyById, listPartners } from "@/lib/queries";
 import { crmPropertyPath, isRuralType } from "@/lib/rural";
 import type { Metadata } from "next";
@@ -15,11 +16,11 @@ export default async function EditarImovelPage({
   const { id } = await params;
   const property = await getPropertyById(id);
   if (!property) notFound();
-  const partners = await listPartners();
+  const [partners, customFeatures] = await Promise.all([listPartners(), getCustomFeatures()]);
   if (isRuralType(property.type)) redirect(crmPropertyPath(property, "/editar"));
   return (
     <div className="mx-auto max-w-6xl">
-      <PropertyForm initial={property} partners={partners} />
+      <PropertyForm initial={property} partners={partners} customFeatures={customFeatures} />
     </div>
   );
 }

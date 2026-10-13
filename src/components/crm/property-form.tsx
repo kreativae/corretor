@@ -1,13 +1,14 @@
 "use client";
 
 import { Button, Field, Input, Select, Switch, Textarea } from "@/components/ui";
-import { FEATURES, PURPOSE_LABELS, STATUS_LABELS, TYPE_LABELS } from "@/lib/labels";
+import { PURPOSE_LABELS, STATUS_LABELS, TYPE_LABELS } from "@/lib/labels";
 import type { PropertyWithImages } from "@/lib/queries";
 import { PhotoManager } from "./photo-manager";
 import { RuralFields } from "./rural-fields";
 import { crmPropertyPath, isRuralType, normalizeRural, pricePerAlq, RURAL_TYPES, type RuralData } from "@/lib/rural";
 import { commissionValues } from "@/lib/partners";
 import { PctInput, SharePicks } from "@/components/crm/share-picks";
+import { AmenityPicker } from "@/components/crm/amenity-picker";
 import { cn, formatBRL } from "@/lib/utils";
 import { ArrowLeft, Check, Handshake, ImageIcon, Save, Sparkles } from "lucide-react";
 import Link from "next/link";
@@ -30,10 +31,13 @@ export function PropertyForm({
   initial,
   kind,
   partners = [],
+  customFeatures = [],
 }: {
   initial?: PropertyWithImages;
   /** Parceiros cadastrados (imóvel captado por parceiro) */
   partners?: PartnerOption[];
+  /** Comodidades extras cadastradas pela equipe */
+  customFeatures?: string[];
   /** Novo cadastro: urbano (padrão) ou rural. Na edição, vem do tipo. */
   kind?: "urbano" | "rural";
 }) {
@@ -303,27 +307,12 @@ export function PropertyForm({
                 {form.features.length} selecionadas
               </span>
             </h2>
-            <div className="flex flex-wrap gap-2">
-              {FEATURES.map((f) => {
-                const on = form.features.includes(f);
-                return (
-                  <button
-                    key={f}
-                    type="button"
-                    onClick={() => toggleFeature(f)}
-                    className={cn(
-                      "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-medium transition-all duration-200",
-                      on
-                        ? "border-transparent bg-accent text-on-accent"
-                        : "border-hairline text-subtle hover:border-hairline-strong hover:text-ink",
-                    )}
-                  >
-                    {on && <Check className="size-3.5" />}
-                    {f}
-                  </button>
-                );
-              })}
-            </div>
+            <AmenityPicker
+              selected={form.features}
+              onToggle={toggleFeature}
+              onAdd={toggleFeature}
+              custom={customFeatures}
+            />
           </section>
 
             </>

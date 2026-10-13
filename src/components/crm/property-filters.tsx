@@ -489,7 +489,7 @@ export function PropertyFiltersPanel({
           </FilterGroup>
           <FilterGroup title="Comodidades (precisa ter todas)">
             <div className="flex flex-wrap gap-2">
-              {FEATURES.map((x) => (
+              {[...new Set([...FEATURES, ...items.flatMap((p) => p.features)])].map((x) => (
                 <FilterChip key={x} on={f.features.includes(x)} onClick={() => toggle("features", x)} count={count((p) => p.features.includes(x))}>
                   {x}
                 </FilterChip>

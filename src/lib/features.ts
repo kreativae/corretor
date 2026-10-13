@@ -64,3 +64,22 @@ export function sanitizeFeatures(input: Record<string, unknown>): Features {
   }
   return out;
 }
+
+/** Comodidades extras cadastradas pela equipe (somam-se às de FEATURES). */
+export async function getCustomFeatures(): Promise<string[]> {
+  try {
+    const [row] = await db.select().from(settings).where(eq(settings.key, "customFeatures"));
+    return Array.isArray(row?.value) ? (row.value as unknown[]).filter((x): x is string => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function saveCustomFeatures(list: string[]) {
+  const [row] = await db.select().from(settings).where(eq(settings.key, "customFeatures"));
+  if (row) {
+    await db.update(settings).set({ value: list }).where(eq(settings.key, "customFeatures"));
+  } else {
+    await db.insert(settings).values({ key: "customFeatures", value: list });
+  }
+}
