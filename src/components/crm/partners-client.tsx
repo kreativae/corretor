@@ -188,7 +188,7 @@ export function PartnersClient({ partners, properties }: { partners: Row[]; prop
                 <div className="mt-4 flex flex-wrap gap-2">
                   <Badge>
                     Comissão {p.commissionPct != null ? `${p.commissionPct}%` : "—"}
-                    {p.partnerSharePct != null && ` · parceiro ${p.partnerSharePct}%`}
+                    {p.partnerSharePct != null && ` · parceiro ${p.partnerSharePct}% da comissão`}
                   </Badge>
                   <Badge>
                     <Droplets className="size-3" />
@@ -257,7 +257,7 @@ export function PartnersClient({ partners, properties }: { partners: Row[]; prop
             <Field label="Comissão (%)">
               <Input type="number" min={0} max={100} step="0.1" value={form.commissionPct} onChange={(e) => set({ commissionPct: e.target.value })} placeholder="6" className="font-mono" />
             </Field>
-            <Field label="Parte dele (%)">
+            <Field label="Parte dele (% da comissão)">
               <Input type="number" min={0} max={100} step="1" value={form.partnerSharePct} onChange={(e) => set({ partnerSharePct: e.target.value })} placeholder="50" className="font-mono" />
             </Field>
           </div>

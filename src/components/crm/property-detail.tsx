@@ -299,7 +299,7 @@ export async function PropertyDetail({
                   </div>
                   {partner && commission.partner != null && (
                     <div className="flex justify-between">
-                      <dt className="text-subtle">Repasse ao parceiro ({p.partnerSharePct}%)</dt>
+                      <dt className="text-subtle">Repasse ao parceiro ({p.partnerSharePct}% da comissão)</dt>
                       <dd className="font-mono tabular">{formatBRL(commission.partner)}</dd>
                     </div>
                   )}

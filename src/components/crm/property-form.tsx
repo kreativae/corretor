@@ -421,7 +421,7 @@ export function PropertyForm({
                   />
                 </Field>
                 {form.partnerId && (
-                  <Field label="Parte do parceiro (%)">
+                  <Field label="Parte do parceiro (% da comissão)">
                     <Input
                       type="number"
                       min={0}
