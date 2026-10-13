@@ -22,7 +22,7 @@ import {
   TYPE_LABELS,
 } from "@/lib/labels";
 import type { Contact } from "@/db/schema";
-import { cn, formatCompact, initials, timeAgo } from "@/lib/utils";
+import { cn, formatCompact, formatPhone, initials, timeAgo } from "@/lib/utils";
 import { isRuralType } from "@/lib/rural";
 import {
   ArrowUpRight,
@@ -419,7 +419,7 @@ export function ContactsClient({
                     )}
                   </span>
                   <span className="mt-0.5 block truncate font-mono text-[11px] tabular text-subtle">
-                    {c.phone}
+                    {formatPhone(c.phone)}
                     {c.email ? ` · ${c.email}` : ""}
                   </span>
                 </span>
@@ -531,7 +531,7 @@ export function ContactsClient({
                           )}
                         </span>
                         <span className="mt-0.5 block font-mono text-[10.5px] tabular text-subtle">
-                          {c.email ?? c.phone}
+                          {c.email ?? formatPhone(c.phone)}
                         </span>
                       </span>
                     </button>

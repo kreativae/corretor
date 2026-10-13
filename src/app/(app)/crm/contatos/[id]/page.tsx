@@ -22,7 +22,7 @@ import {
   listProperties,
   listVisits,
 } from "@/lib/queries";
-import { cn, formatBRL, formatCompact, formatDateTime, initials, timeAgo } from "@/lib/utils";
+import { cn, formatBRL, formatCompact, formatDateTime, formatPhone, initials, timeAgo } from "@/lib/utils";
 import {
   ArrowLeft,
   Building2,
@@ -146,7 +146,7 @@ export default async function ContatoPage({
                 <p className="mt-1.5 flex flex-col gap-1">
                   <span className="flex items-center gap-1.5 text-[13px]">
                     <Phone className="size-3.5 text-subtle" />
-                    {c.phone}
+                    {formatPhone(c.phone)}
                   </span>
                   {c.email && (
                     <span className="flex items-center gap-1.5 truncate text-[13px]">

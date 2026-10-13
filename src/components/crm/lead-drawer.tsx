@@ -11,7 +11,7 @@ import {
   VISIT_STATUS_LABELS,
   VISIT_STATUS_STYLES,
 } from "@/lib/labels";
-import { cn, formatBRL, formatCompact, formatDateTime, initials, timeAgo } from "@/lib/utils";
+import { cn, formatBRL, formatCompact, formatDateTime, formatPhone, initials, timeAgo } from "@/lib/utils";
 import {
   ArrowUpRight,
   Building2,
@@ -359,7 +359,7 @@ export function LeadDrawer({
               <div className="space-y-1 rounded-2xl border border-hairline p-4">
                 <p className="flex items-center gap-2.5 font-mono text-[13px] tabular">
                   <Phone className="size-3.5 text-subtle" />
-                  {c.phone}
+                  {formatPhone(c.phone)}
                 </p>
                 {c.email && (
                   <p className="flex items-center gap-2.5 truncate text-[13px]">
@@ -522,8 +522,8 @@ export function LeadDrawer({
               </Button>
             </div>
           ) : (
-            <div className="space-y-2">
-              <Link href={`/crm/contatos/${contactId}`} onClick={onClose}>
+            <div className="flex flex-col gap-3">
+              <Link href={`/crm/contatos/${contactId}`} onClick={onClose} className="block">
                 <Button variant="primary" className="w-full">
                   Abrir perfil completo
                   <ArrowUpRight className="size-4" />
