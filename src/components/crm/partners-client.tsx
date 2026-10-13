@@ -248,22 +248,20 @@ export function PartnersClient({ partners, properties }: { partners: Row[]; prop
           <Field label="WhatsApp">
             <Input value={form.phone} onChange={(e) => set({ phone: e.target.value })} inputMode="tel" placeholder="(43) 99999-9999" />
           </Field>
-          <Field label="E-mail">
-            <Input type="email" value={form.email} onChange={(e) => set({ email: e.target.value })} />
-          </Field>
           <Field label="CRECI">
             <Input value={form.creci} onChange={(e) => set({ creci: e.target.value })} />
           </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Comissão">
-              <PctInput suffix="% do imóvel" value={form.commissionPct} onChange={(e) => set({ commissionPct: e.target.value })} placeholder="6" />
-            </Field>
+          <Field label="E-mail" className="sm:col-span-2">
+            <Input type="email" value={form.email} onChange={(e) => set({ email: e.target.value })} />
+          </Field>
+          <Field label="Comissão">
+            <PctInput suffix="% do imóvel" value={form.commissionPct} onChange={(e) => set({ commissionPct: e.target.value })} placeholder="6" />
+          </Field>
+          <div className="space-y-2">
             <Field label="Repasse ao parceiro">
               <PctInput suffix="% da comissão" value={form.partnerSharePct} onChange={(e) => set({ partnerSharePct: e.target.value })} placeholder="50" />
             </Field>
-            <div className="col-span-2 -mt-1 flex justify-end">
-              <SharePicks value={form.partnerSharePct} onPick={(v) => set({ partnerSharePct: v })} />
-            </div>
+            <SharePicks value={form.partnerSharePct} onPick={(v) => set({ partnerSharePct: v })} />
           </div>
           <Field label="Marca d'água nas fotos dos imóveis dele" className="sm:col-span-2">
             <Select value={form.watermark} onChange={(e) => set({ watermark: e.target.value as PartnerWatermark })}>
@@ -279,7 +277,7 @@ export function PartnersClient({ partners, properties }: { partners: Row[]; prop
           </Field>
         </div>
         <p className="mt-3 text-[11px] text-subtle">
-          Comissão e parte do parceiro são o padrão para novos imóveis dele; dá para ajustar imóvel a imóvel.
+          Comissão e repasse são o padrão para novos imóveis dele; dá para ajustar imóvel a imóvel.
         </p>
         <div className="mt-5 flex justify-end gap-2">
           <Button variant="outline" onClick={() => setOpen(false)}>
