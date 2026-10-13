@@ -294,7 +294,7 @@ export async function PropertyDetail({
               {commission.total != null && (
                 <dl className="mt-3 space-y-1.5 text-sm">
                   <div className="flex justify-between">
-                    <dt className="text-subtle">Comissão ({p.commissionPct}%)</dt>
+                    <dt className="text-subtle">Comissão ({p.commissionPct}% do imóvel)</dt>
                     <dd className="font-mono tabular">{formatBRL(commission.total)}</dd>
                   </div>
                   {partner && commission.partner != null && (

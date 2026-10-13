@@ -3,6 +3,7 @@
 import { Badge, Button, EmptyState, Field, Input, Modal, Select, Textarea } from "@/components/ui";
 import type { Partner } from "@/db/schema";
 import { TYPE_LABELS } from "@/lib/labels";
+import { SharePicks } from "@/components/crm/share-picks";
 import { commissionValues, PARTNER_WATERMARK, type PartnerWatermark } from "@/lib/partners";
 import { crmPropertyPath } from "@/lib/rural";
 import { formatBRL, formatPhone, plural } from "@/lib/utils";
@@ -188,7 +189,7 @@ export function PartnersClient({ partners, properties }: { partners: Row[]; prop
                 <div className="mt-4 flex flex-wrap gap-2">
                   <Badge>
                     Comissão {p.commissionPct != null ? `${p.commissionPct}%` : "—"}
-                    {p.partnerSharePct != null && ` · parceiro ${p.partnerSharePct}% da comissão`}
+                    {p.partnerSharePct != null && ` · repasse ${p.partnerSharePct}% da comissão`}
                   </Badge>
                   <Badge>
                     <Droplets className="size-3" />
@@ -254,12 +255,15 @@ export function PartnersClient({ partners, properties }: { partners: Row[]; prop
             <Input value={form.creci} onChange={(e) => set({ creci: e.target.value })} />
           </Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Comissão (%)">
+            <Field label="Comissão (% do imóvel)">
               <Input type="number" min={0} max={100} step="0.1" value={form.commissionPct} onChange={(e) => set({ commissionPct: e.target.value })} placeholder="6" className="font-mono" />
             </Field>
-            <Field label="Parte dele (% da comissão)">
+            <Field label="Repasse (% da comissão)">
               <Input type="number" min={0} max={100} step="1" value={form.partnerSharePct} onChange={(e) => set({ partnerSharePct: e.target.value })} placeholder="50" className="font-mono" />
             </Field>
+            <div className="col-span-2 -mt-1 flex justify-end">
+              <SharePicks value={form.partnerSharePct} onPick={(v) => set({ partnerSharePct: v })} />
+            </div>
           </div>
           <Field label="Marca d'água nas fotos dos imóveis dele" className="sm:col-span-2">
             <Select value={form.watermark} onChange={(e) => set({ watermark: e.target.value as PartnerWatermark })}>

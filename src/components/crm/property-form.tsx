@@ -7,6 +7,7 @@ import { PhotoManager } from "./photo-manager";
 import { RuralFields } from "./rural-fields";
 import { crmPropertyPath, isRuralType, normalizeRural, pricePerAlq, RURAL_TYPES, type RuralData } from "@/lib/rural";
 import { commissionValues } from "@/lib/partners";
+import { SharePicks } from "@/components/crm/share-picks";
 import { cn, formatBRL } from "@/lib/utils";
 import { ArrowLeft, Check, Handshake, ImageIcon, Save, Sparkles } from "lucide-react";
 import Link from "next/link";
@@ -408,7 +409,7 @@ export function PropertyForm({
                 </p>
               )}
               <div className={cn("grid gap-3", form.partnerId && "grid-cols-2")}>
-                <Field label="Comissão (%)">
+                <Field label="Comissão (% do imóvel)">
                   <Input
                     type="number"
                     min={0}
@@ -421,7 +422,7 @@ export function PropertyForm({
                   />
                 </Field>
                 {form.partnerId && (
-                  <Field label="Parte do parceiro (% da comissão)">
+                  <Field label="Repasse ao parceiro (% da comissão)">
                     <Input
                       type="number"
                       min={0}
@@ -434,6 +435,11 @@ export function PropertyForm({
                     />
                   </Field>
                 )}
+                {form.partnerId && (
+                  <div className="col-span-2 -mt-1 flex justify-end">
+                    <SharePicks value={form.partnerSharePct} onPick={(v) => set("partnerSharePct", v)} />
+                  </div>
+                )}
               </div>
               {(() => {
                 const v = commissionValues(
@@ -445,12 +451,12 @@ export function PropertyForm({
                 return (
                   <div className="space-y-1.5 rounded-xl bg-soft px-4 py-3 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-subtle">Comissão total</span>
+                      <span className="text-subtle">Comissão total ({form.commissionPct}% do imóvel)</span>
                       <span className="font-mono tabular">{formatBRL(v.total)}</span>
                     </div>
                     {form.partnerId && v.partner != null && (
                       <div className="flex justify-between">
-                        <span className="text-subtle">Repasse ao parceiro</span>
+                        <span className="text-subtle">Repasse ao parceiro ({form.partnerSharePct}% da comissão)</span>
                         <span className="font-mono tabular">{formatBRL(v.partner)}</span>
                       </div>
                     )}
