@@ -224,10 +224,10 @@ export function WhiteLabelCard({ initial }: { initial: WhiteLabel }) {
   const set = <K extends keyof WhiteLabel>(k: K, v: WhiteLabel[K]) =>
     setWl((cur) => ({ ...cur, [k]: v }));
 
-  async function save() {
+  async function save(): Promise<boolean> {
     if (!wl.orgName.trim()) {
       toast.error("Informe o nome da organização.");
-      return;
+      return false;
     }
     setSaving(true);
     try {
@@ -239,10 +239,44 @@ export function WhiteLabelCard({ initial }: { initial: WhiteLabel }) {
       if (!res.ok) throw new Error();
       toast.success("Identidade aplicada em toda a plataforma.");
       router.refresh();
+      return true;
     } catch {
       toast.error("Erro ao salvar identidade.");
+      return false;
     } finally {
       setSaving(false);
+    }
+  }
+
+  const [recoding, setRecoding] = useState(false);
+  const prefixOf = (v: string, d: string) =>
+    v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6) || d;
+  const pu = prefixOf(wl.codePrefix ?? "", "NRD");
+  const pr = prefixOf(wl.codePrefixRural ?? "", "RUR");
+
+  async function recode() {
+    if (
+      !confirm(
+        `Trocar o prefixo dos anúncios já cadastrados para ${pu}- (imóveis) e ${pr}- (rurais)? O número de cada um é mantido. Links e fichas antigos continuam abrindo.`,
+      )
+    )
+      return;
+    setRecoding(true);
+    try {
+      if (dirty && !(await save())) return;
+      const res = await fetch("/api/properties/recode", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Falha ao atualizar.");
+      toast.success(
+        data.changed
+          ? `${data.changed} ${data.changed === 1 ? "código atualizado" : "códigos atualizados"}.`
+          : "Todos os anúncios já usam esses prefixos.",
+      );
+      router.refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao atualizar.");
+    } finally {
+      setRecoding(false);
     }
   }
 
@@ -454,6 +488,38 @@ export function WhiteLabelCard({ initial }: { initial: WhiteLabel }) {
           <p className="text-[11px] text-subtle">
             Com a logo principal enviada, ela substitui ícone e nome no cabeçalho da ficha.
           </p>
+        </div>
+
+        {/* Códigos dos anúncios */}
+        <div className="space-y-3 lg:col-span-2">
+          <p className={h3}>Código dos anúncios</p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Prefixo dos imóveis" hint={`${pu}-2401 · Ficha-${pu}-2401.pdf`}>
+              <Input
+                value={wl.codePrefix ?? ""}
+                onChange={(e) => set("codePrefix", e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6))}
+                placeholder="NRD"
+                className="font-mono uppercase"
+              />
+            </Field>
+            <Field label="Prefixo das propriedades rurais" hint={`${pr}-2402 · Ficha-${pr}-2402.pdf`}>
+              <Input
+                value={wl.codePrefixRural ?? ""}
+                onChange={(e) => set("codePrefixRural", e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6))}
+                placeholder="RUR"
+                className="font-mono uppercase"
+              />
+            </Field>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-soft px-4 py-3">
+            <p className="text-[11px] text-subtle">
+              Vale para os próximos cadastros. Para trocar também os já cadastrados (mantendo o número), aplique abaixo.
+            </p>
+            <Button type="button" variant="outline" size="sm" onClick={recode} disabled={recoding}>
+              {recoding ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
+              Aplicar aos já cadastrados
+            </Button>
+          </div>
         </div>
 
         {/* Contato */}

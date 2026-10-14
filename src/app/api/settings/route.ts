@@ -6,7 +6,7 @@ import { sanitizeFeatures } from "@/lib/features";
 import { sanitizeMapOptions } from "@/lib/map-options";
 import { sanitizeWatermark } from "@/lib/watermark-settings";
 import { sanitizeStatCards } from "@/lib/stat-cards";
-import { getWhiteLabel, WL_DEFAULTS, type WhiteLabel } from "@/lib/queries";
+import { getWhiteLabel, WL_DEFAULTS, type WhiteLabel, cleanCodePrefix } from "@/lib/queries";
 import { NextResponse } from "next/server";
 
 export async function GET() {
@@ -33,6 +33,8 @@ function sanitizeWhiteLabel(input: Record<string, unknown>): WhiteLabel {
     if (out[k] && !/^https?:\/\//.test(out[k])) out[k] = "";
   }
   if (!out.orgName) out.orgName = WL_DEFAULTS.orgName;
+  out.codePrefix = cleanCodePrefix(out.codePrefix, WL_DEFAULTS.codePrefix);
+  out.codePrefixRural = cleanCodePrefix(out.codePrefixRural, WL_DEFAULTS.codePrefixRural);
   return out;
 }
 

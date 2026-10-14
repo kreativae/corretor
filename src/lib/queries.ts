@@ -54,6 +54,10 @@ export type WhiteLabel = {
   fichaShowName: boolean;
   /** Ficha do imóvel: exibir o domínio no cabeçalho e no rodapé */
   fichaShowDomain: boolean;
+  /** Prefixo do código dos imóveis urbanos (NRD-2401) */
+  codePrefix: string;
+  /** Prefixo do código das propriedades rurais (RUR-2401) */
+  codePrefixRural: string;
 };
 
 export const WL_DEFAULTS: WhiteLabel = {
@@ -73,7 +77,15 @@ export const WL_DEFAULTS: WhiteLabel = {
   fichaShowIcon: true,
   fichaShowName: true,
   fichaShowDomain: true,
+  codePrefix: "NRD",
+  codePrefixRural: "RUR",
 };
+
+/** "ca " → "CA" (letras e números, até 6) */
+export function cleanCodePrefix(v: string, fallback: string) {
+  const s = v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
+  return s || fallback;
+}
 
 /** Nome curto da marca (cabeçalhos). */
 export function brandShortName(wl: Pick<WhiteLabel, "shortName" | "orgName">) {
@@ -193,10 +205,19 @@ export async function getPropertyById(id: string) {
 }
 
 export async function getPropertyByCode(code: string) {
-  const rows = await db
+  let rows = await db
     .select()
     .from(properties)
     .where(eq(properties.code, code));
+  // Link antigo (prefixo trocado no White Label): mesmo número, único anúncio
+  const num = code.match(/^[A-Za-z0-9]+-(\d+)$/)?.[1];
+  if (!rows.length && num) {
+    const same = await db
+      .select()
+      .from(properties)
+      .where(sql`${properties.code} ~ ${`^[A-Za-z0-9]+-${num}$`}`);
+    if (same.length === 1) rows = same;
+  }
   if (!rows.length) return null;
   const imgs = await db
     .select()

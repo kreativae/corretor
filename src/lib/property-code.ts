@@ -1,10 +1,18 @@
 import "server-only";
 import { db } from "@/db";
 import { properties } from "@/db/schema";
+import { getWhiteLabel } from "@/lib/queries";
 
-/** Próximo código livre (RUR- para rurais, NRD- para urbanos). */
+/** Prefixos configurados no White Label (padrão NRD e RUR). */
+export async function codePrefixes() {
+  const wl = await getWhiteLabel();
+  return { urban: wl.codePrefix || "NRD", rural: wl.codePrefixRural || "RUR" };
+}
+
+/** Próximo código livre, com o prefixo do White Label (rural ou urbano). */
 export async function nextPropertyCode(rural: boolean) {
-  const prefix = rural ? "RUR" : "NRD";
+  const p = await codePrefixes();
+  const prefix = rural ? p.rural : p.urban;
   const taken = new Set(
     (await db.select({ code: properties.code }).from(properties)).map((r) => r.code),
   );
