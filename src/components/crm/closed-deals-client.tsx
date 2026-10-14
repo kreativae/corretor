@@ -142,22 +142,7 @@ export function ClosedDealsClient({
         ))}
       </div>
 
-      {/* Indicadores do recorte filtrado */}
-      <StatsGrid gridClassName="gap-3 md:grid-cols-4">
-        {[
-          { label: "Negócios", value: formatNumber(filtered.length) },
-          { label: "Volume vendido", value: formatCompact(total) },
-          { label: "Ticket médio", value: formatCompact(Math.round(ticket)) },
-          { label: "Ciclo médio", value: `${avgCycle} ${avgCycle === 1 ? "dia" : "dias"}` },
-        ].map((k) => (
-          <div key={k.label} className="rounded-2xl border border-hairline bg-card p-4">
-            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-subtle">{k.label}</p>
-            <p className="mt-2 font-mono text-2xl font-medium tabular">{k.value}</p>
-          </div>
-        ))}
-      </StatsGrid>
-
-      <div className="mt-5 flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <MobileCollapse count={chips.length + (filters.q ? 1 : 0)}>
           <div className="relative min-w-56 flex-1">
             <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-subtle" />
@@ -183,6 +168,21 @@ export function ClosedDealsClient({
         </MobileCollapse>
       </div>
       <ActiveChips chips={chips} onClear={patch} onClearAll={resetFilters} />
+
+      {/* Indicadores do recorte filtrado */}
+      <StatsGrid className="mt-5" gridClassName="gap-3 md:grid-cols-4">
+        {[
+          { label: "Negócios", value: formatNumber(filtered.length) },
+          { label: "Volume vendido", value: formatCompact(total) },
+          { label: "Ticket médio", value: formatCompact(Math.round(ticket)) },
+          { label: "Ciclo médio", value: `${avgCycle} ${avgCycle === 1 ? "dia" : "dias"}` },
+        ].map((k) => (
+          <div key={k.label} className="rounded-2xl border border-hairline bg-card p-4">
+            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-subtle">{k.label}</p>
+            <p className="mt-2 font-mono text-2xl font-medium tabular">{k.value}</p>
+          </div>
+        ))}
+      </StatsGrid>
 
       <FilterSheet
         open={showFilters}
