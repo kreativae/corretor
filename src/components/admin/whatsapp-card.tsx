@@ -2,11 +2,16 @@
 
 import { Button, Field, Input, Switch } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, ChevronDown, Copy, Loader2, MessageCircle, PlugZap, Save } from "lucide-react";
-import { useEffect, useState } from "react";
+import { CheckCircle2, ChevronDown, Copy, Loader2, LogOut, MessageCircle, PlugZap, QrCode, RefreshCw, Save } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 type Cfg = {
+  provider: "evolution" | "meta";
+  evolutionUrl: string;
+  evolutionKey: string;
+  evolutionInstance: string;
+  evolutionWebhookUrl: string;
   phoneNumberId: string;
   wabaId: string;
   accessToken: string;
@@ -38,6 +43,63 @@ export function WhatsAppCard() {
   }, []);
 
   const set = <K extends keyof Cfg>(k: K, v: Cfg[K]) => setCfg((c) => (c ? { ...c, [k]: v } : c));
+
+  /* ── Conexão por QR code (Evolution API) ── */
+  const [conn, setConn] = useState<{ state: string; number?: string | null; name?: string | null; error?: string } | null>(null);
+  const [qr, setQr] = useState<string | null>(null);
+  const [connecting, setConnecting] = useState(false);
+
+  const refreshState = useCallback(async () => {
+    const r = await fetch("/api/whatsapp/evolution/status", { cache: "no-store" }).catch(() => null);
+    if (!r?.ok) return null;
+    const d = await r.json();
+    setConn(d);
+    if (d.state === "open") setQr(null);
+    return d.state as string;
+  }, []);
+
+  useEffect(() => {
+    if (!open || cfg?.provider !== "evolution" || !cfg.ready) return;
+    const first = window.setTimeout(refreshState, 0);
+    // Enquanto o QR está na tela, confere a cada 3 s se o celular já leu
+    const t = window.setInterval(refreshState, qr ? 3000 : 15000);
+    return () => {
+      window.clearTimeout(first);
+      window.clearInterval(t);
+    };
+  }, [open, cfg?.provider, cfg?.ready, qr, refreshState]);
+
+  async function connect() {
+    setConnecting(true);
+    try {
+      await save();
+      const res = await fetch("/api/whatsapp/evolution/connect", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      if (data.state === "open") {
+        toast.success("WhatsApp já está conectado.");
+        refreshState();
+      } else if (data.qr) {
+        setQr(data.qr);
+        setConn({ state: "connecting" });
+      } else {
+        toast.error("O servidor não devolveu o QR code. Tente de novo em alguns segundos.");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error && e.message ? e.message : "Falha ao conectar.");
+    } finally {
+      setConnecting(false);
+    }
+  }
+
+  async function logout() {
+    if (!confirm("Desconectar o WhatsApp do CRM? As conversas salvas continuam no sistema.")) return;
+    const res = await fetch("/api/whatsapp/evolution/logout", { method: "POST" });
+    if (!res.ok) return toast.error("Não foi possível desconectar.");
+    toast.success("WhatsApp desconectado.");
+    setQr(null);
+    refreshState();
+  }
 
   async function save() {
     if (!cfg) return;
@@ -96,9 +158,11 @@ export function WhatsAppCard() {
           </span>
           <span className={cn("mt-1 block max-w-xl text-xs text-subtle", !open && "truncate")}>
             {open
-              ? "API oficial da Meta (WhatsApp Cloud API). As mensagens chegam em CRM › WhatsApp e número novo vira lead."
+              ? "Conexão por QR code (Evolution API) ou API oficial da Meta. As mensagens chegam em CRM › WhatsApp e número novo vira lead."
               : cfg?.ready
-                ? "Conectado à API oficial — clique para ver ou alterar"
+                ? cfg.provider === "evolution"
+                  ? "Conexão por QR code configurada — clique para ver o status"
+                  : "Conectado à API oficial — clique para ver ou alterar"
                 : "Não conectado — clique para configurar"}
           </span>
         </span>
@@ -113,6 +177,117 @@ export function WhatsAppCard() {
             </div>
           ) : (
             <>
+              <div className="flex gap-1 rounded-xl border border-hairline p-1">
+                {(
+                  [
+                    ["evolution", "QR code (Evolution API)"],
+                    ["meta", "API oficial da Meta"],
+                  ] as const
+                ).map(([v, l]) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => set("provider", v)}
+                    className={cn(
+                      "h-9 flex-1 rounded-lg text-xs font-medium transition-colors",
+                      cfg.provider === v ? "bg-ink text-canvas" : "text-subtle hover:text-ink",
+                    )}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
+
+              {cfg.provider === "evolution" ? (
+                <div className="space-y-5">
+                  <p className="text-xs leading-relaxed text-subtle">
+                    Conecta o número atual lendo um QR code, como o WhatsApp Web. Precisa de um servidor da{" "}
+                    <span className="font-medium text-ink">Evolution API</span> (gratuita) — veja o guia em{" "}
+                    <code className="font-mono">docs/evolution-api.md</code>.
+                  </p>
+                  <div className="grid gap-4 sm:grid-cols-[1fr_1fr_160px]">
+                    <Field label="Endereço do servidor">
+                      <Input value={cfg.evolutionUrl} onChange={(e) => set("evolutionUrl", e.target.value)} className="font-mono text-xs" placeholder="https://evolution.seudominio.com" />
+                    </Field>
+                    <Field label="Chave da API (AUTHENTICATION_API_KEY)">
+                      <Input
+                        value={cfg.evolutionKey}
+                        onFocus={() => cfg.evolutionKey.includes("•") && set("evolutionKey", "")}
+                        onChange={(e) => set("evolutionKey", e.target.value)}
+                        className="font-mono text-xs"
+                      />
+                    </Field>
+                    <Field label="Instância">
+                      <Input value={cfg.evolutionInstance} onChange={(e) => set("evolutionInstance", e.target.value)} className="font-mono text-xs" placeholder="corretor" />
+                    </Field>
+                  </div>
+
+                  {/* Conexão */}
+                  <div className="rounded-2xl border border-hairline p-5">
+                    {conn?.state === "open" ? (
+                      <div className="flex flex-wrap items-center gap-4">
+                        <span className="grid size-12 place-items-center rounded-full bg-emerald-500/15 text-emerald-600">
+                          <CheckCircle2 className="size-6" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold">Conectado</p>
+                          <p className="text-xs text-subtle">
+                            {[conn.name, conn.number && `+${conn.number}`].filter(Boolean).join(" · ") || "WhatsApp ativo"}
+                          </p>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={logout}>
+                          <LogOut className="size-4" />
+                          Desconectar
+                        </Button>
+                      </div>
+                    ) : qr ? (
+                      <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={qr} alt="QR code do WhatsApp" className="size-56 rounded-xl bg-white p-2" />
+                        <div className="space-y-2 text-sm">
+                          <p className="font-semibold">Leia com o celular</p>
+                          <ol className="list-decimal space-y-1 pl-5 text-xs text-subtle">
+                            <li>Abra o WhatsApp no celular do número da imobiliária</li>
+                            <li>Toque em ⋮ (ou Configurações) › Dispositivos conectados</li>
+                            <li>Conectar um dispositivo e aponte para este QR code</li>
+                          </ol>
+                          <p className="flex items-center gap-1.5 text-xs text-subtle">
+                            <Loader2 className="size-3.5 animate-spin" /> Aguardando a leitura…
+                          </p>
+                          <Button variant="outline" size="sm" onClick={connect} disabled={connecting}>
+                            <RefreshCw className={cn("size-4", connecting && "animate-spin")} />
+                            Gerar outro QR
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap items-center gap-4">
+                        <span className="grid size-12 place-items-center rounded-full bg-soft text-subtle">
+                          <QrCode className="size-6" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold">Desconectado</p>
+                          <p className="text-xs text-subtle">
+                            {conn?.state === "error" ? conn.error : "Salve os dados do servidor e gere o QR code."}
+                          </p>
+                        </div>
+                        <Button variant="accent" size="sm" onClick={connect} disabled={connecting || !cfg.evolutionUrl}>
+                          {connecting ? <Loader2 className="size-4 animate-spin" /> : <QrCode className="size-4" />}
+                          Conectar com QR code
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-subtle">
+                    O webhook é configurado sozinho ao conectar ({" "}
+                    <button type="button" onClick={() => copy(cfg.evolutionWebhookUrl)} className="underline underline-offset-2">
+                      copiar URL
+                    </button>
+                    ). Não é a API oficial: use para atendimento, sem disparos em massa.
+                  </p>
+                </div>
+              ) : (
+              <>
               <ol className="list-decimal space-y-1.5 rounded-xl bg-soft p-4 pl-8 text-xs leading-relaxed text-subtle">
                 <li>
                   Em <span className="font-medium text-ink">developers.facebook.com</span>, crie um app do tipo{" "}
@@ -177,6 +352,9 @@ export function WhatsAppCard() {
                 </Field>
               </div>
 
+              </>
+              )}
+
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="flex items-start justify-between gap-4 rounded-xl border border-hairline p-4">
                   <span>
@@ -194,6 +372,7 @@ export function WhatsAppCard() {
                 </label>
               </div>
 
+              {cfg.provider === "meta" && (
               <div className="grid gap-4 sm:grid-cols-[1fr_140px]">
                 <Field
                   label="Modelo para reabrir conversa (opcional)"
@@ -205,12 +384,15 @@ export function WhatsAppCard() {
                   <Input value={cfg.templateLang} onChange={(e) => set("templateLang", e.target.value)} className="font-mono" placeholder="pt_BR" />
                 </Field>
               </div>
+              )}
 
               <div className="flex flex-wrap justify-end gap-2">
+                {cfg.provider === "meta" && (
                 <Button variant="outline" onClick={test} disabled={testing || saving}>
                   {testing ? <Loader2 className="size-4 animate-spin" /> : <PlugZap className="size-4" />}
                   Salvar e testar conexão
                 </Button>
+                )}
                 <Button variant="accent" onClick={save} loading={saving}>
                   <Save className="size-4" />
                   Salvar

@@ -1,6 +1,6 @@
 import { getCurrentUser } from "@/lib/auth";
 import { requestPublicOrigin } from "@/lib/google";
-import { getWhatsAppConfig, mask, saveWhatsAppConfig, whatsappReady } from "@/lib/whatsapp";
+import { evolutionWebhookUrl, getWhatsAppConfig, mask, saveWhatsAppConfig, whatsappReady } from "@/lib/whatsapp";
 import { NextResponse } from "next/server";
 
 async function admin() {
@@ -13,8 +13,11 @@ function view(c: Awaited<ReturnType<typeof getWhatsAppConfig>>, req: Request) {
     ...c,
     accessToken: mask(c.accessToken),
     appSecret: mask(c.appSecret),
+    evolutionKey: mask(c.evolutionKey),
+    webhookToken: undefined,
     ready: whatsappReady(c),
     webhookUrl: `${requestPublicOrigin(req)}/api/whatsapp/webhook`,
+    evolutionWebhookUrl: evolutionWebhookUrl(requestPublicOrigin(req), c),
   };
 }
 

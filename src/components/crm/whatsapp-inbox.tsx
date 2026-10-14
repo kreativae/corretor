@@ -13,6 +13,7 @@ import {
   ExternalLink,
   Loader2,
   MessageCircle,
+  Paperclip,
   Search,
   Send,
   Settings,
@@ -61,11 +62,14 @@ export function WhatsAppInbox({
   isAdmin,
   initialPhone,
   hasTemplate,
+  provider = "meta",
 }: {
   ready: boolean;
   isAdmin: boolean;
   initialPhone?: string;
   hasTemplate: boolean;
+  /** evolution = QR code (sem janela de 24 h, envia arquivos) */
+  provider?: "evolution" | "meta";
 }) {
   const [threads, setThreads] = useState<Thread[] | null>(null);
   const [archived, setArchived] = useState(false);
@@ -128,7 +132,8 @@ export function WhatsAppInbox({
   }, [threads, q]);
 
   const thread = threads?.find((t) => t.phone === active) ?? null;
-  const windowOpen = !!thread?.lastInboundAt && now - new Date(thread.lastInboundAt).getTime() < DAY;
+  const qrMode = provider === "evolution";
+  const windowOpen = qrMode || (!!thread?.lastInboundAt && now - new Date(thread.lastInboundAt).getTime() < DAY);
   const windowUntil = thread?.lastInboundAt ? new Date(new Date(thread.lastInboundAt).getTime() + DAY) : null;
 
   async function send(template = false) {
@@ -151,6 +156,46 @@ export function WhatsAppInbox({
       setSending(false);
     }
   }
+
+  const fileInput = useRef<HTMLInputElement>(null);
+  async function sendFile(file: File) {
+    if (!active) return;
+    if (file.size > 4 * 1024 * 1024) return toast.error("Arquivo acima de 4 MB.");
+    setSending(true);
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      body.append("phone", active);
+      if (text.trim()) body.append("caption", text.trim());
+      const res = await fetch("/api/whatsapp/send-file", { method: "POST", body });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Falha no envio.");
+      setText("");
+      setMessages((cur) => [...cur, data]);
+      loadThreads();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha no envio.");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  /* Conexão por QR code: avisa se o celular desconectou */
+  const [connState, setConnState] = useState<string | null>(null);
+  useEffect(() => {
+    if (!qrMode || !ready) return;
+    const check = () =>
+      fetch("/api/whatsapp/evolution/status", { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => d && setConnState(d.state))
+        .catch(() => undefined);
+    const first = window.setTimeout(check, 0);
+    const t = window.setInterval(check, 30000);
+    return () => {
+      window.clearTimeout(first);
+      window.clearInterval(t);
+    };
+  }, [qrMode, ready]);
 
   async function makeLead() {
     if (!active) return;
@@ -213,6 +258,19 @@ export function WhatsAppInbox({
             </Link>
           ) : (
             "Peça a um administrador para configurar em Configurações › WhatsApp."
+          )}
+        </div>
+      )}
+
+      {ready && qrMode && connState && connState !== "open" && (
+        <div className="mt-6 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm">
+          O WhatsApp está desconectado do CRM — as mensagens novas não estão chegando.{" "}
+          {isAdmin ? (
+            <Link href="/admin/configuracoes#whatsapp" className="font-medium underline underline-offset-2">
+              Ler o QR code de novo
+            </Link>
+          ) : (
+            "Peça a um administrador para reconectar em Configurações › WhatsApp."
           )}
         </div>
       )}
@@ -413,11 +471,36 @@ export function WhatsAppInbox({
                         className="max-h-40 min-h-11 flex-1 resize-none"
                         disabled={!ready}
                       />
+                      {qrMode && (
+                        <>
+                          <input
+                            ref={fileInput}
+                            type="file"
+                            accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx"
+                            className="hidden"
+                            onChange={(e) => {
+                              const f = e.target.files?.[0];
+                              e.target.value = "";
+                              if (f) sendFile(f);
+                            }}
+                          />
+                          <Button
+                            variant="outline"
+                            onClick={() => fileInput.current?.click()}
+                            disabled={!ready || sending}
+                            className="h-11"
+                            aria-label="Enviar foto ou arquivo"
+                            title="Enviar foto ou arquivo (até 4 MB)"
+                          >
+                            <Paperclip className="size-4" />
+                          </Button>
+                        </>
+                      )}
                       <Button variant="accent" onClick={() => send()} disabled={!ready || sending || !text.trim()} className="h-11">
                         {sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
                       </Button>
                     </div>
-                    {windowUntil && (
+                    {!qrMode && windowUntil && (
                       <p className="mt-1.5 flex items-center gap-1 text-[11px] text-subtle">
                         <Clock className="size-3" />
                         Pode responder livremente até {windowUntil.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}

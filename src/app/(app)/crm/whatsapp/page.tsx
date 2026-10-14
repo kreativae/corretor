@@ -15,6 +15,7 @@ export default async function WhatsAppPage({ searchParams }: { searchParams: Pro
         isAdmin={user?.role === "admin"}
         initialPhone={tel ? waPhone(tel) : undefined}
         hasTemplate={!!cfg.templateName}
+        provider={cfg.provider}
       />
     </div>
   );

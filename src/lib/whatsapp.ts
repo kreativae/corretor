@@ -14,7 +14,17 @@ import { eq, sql } from "drizzle-orm";
 
 const GRAPH = "https://graph.facebook.com/v21.0";
 
+export type WhatsAppProvider = "evolution" | "meta";
+
 export type WhatsAppConfig = {
+  /** evolution = QR code (Evolution API) · meta = API oficial (Cloud API) */
+  provider: WhatsAppProvider;
+  /** Evolution API: endereço do servidor, chave global e nome da instância */
+  evolutionUrl: string;
+  evolutionKey: string;
+  evolutionInstance: string;
+  /** Segredo na URL do webhook da Evolution (ela não assina as chamadas) */
+  webhookToken: string;
   phoneNumberId: string;
   wabaId: string;
   accessToken: string;
@@ -30,6 +40,11 @@ export type WhatsAppConfig = {
 };
 
 const DEFAULTS: WhatsAppConfig = {
+  provider: "evolution",
+  evolutionUrl: "",
+  evolutionKey: "",
+  evolutionInstance: "corretor",
+  webhookToken: "",
   phoneNumberId: "",
   wabaId: "",
   accessToken: "",
@@ -53,6 +68,9 @@ export async function getWhatsAppConfig(): Promise<WhatsAppConfig> {
   return {
     ...DEFAULTS,
     ...saved,
+    evolutionUrl: (saved.evolutionUrl || env.EVOLUTION_API_URL || "").replace(/\/+$/, ""),
+    evolutionKey: saved.evolutionKey || env.EVOLUTION_API_KEY || "",
+    evolutionInstance: saved.evolutionInstance || env.EVOLUTION_INSTANCE || "corretor",
     phoneNumberId: saved.phoneNumberId || env.WHATSAPP_PHONE_NUMBER_ID || "",
     wabaId: saved.wabaId || env.WHATSAPP_WABA_ID || "",
     accessToken: saved.accessToken || env.WHATSAPP_TOKEN || "",
@@ -70,6 +88,11 @@ export async function saveWhatsAppConfig(input: Partial<WhatsAppConfig>) {
     return !s || s.includes("•") ? prev : s;
   };
   const next: WhatsAppConfig = {
+    provider: input.provider === "meta" ? "meta" : "evolution",
+    evolutionUrl: str(input.evolutionUrl, 300).replace(/\/+$/, ""),
+    evolutionKey: secret(input.evolutionKey, cur.evolutionKey),
+    evolutionInstance: str(input.evolutionInstance, 60).replace(/[^\w-]/g, "") || "corretor",
+    webhookToken: cur.webhookToken || randomBytes(18).toString("hex"),
     phoneNumberId: str(input.phoneNumberId, 40).replace(/\D/g, ""),
     wabaId: str(input.wabaId, 40).replace(/\D/g, ""),
     accessToken: secret(input.accessToken, cur.accessToken),
@@ -89,7 +112,7 @@ export async function saveWhatsAppConfig(input: Partial<WhatsAppConfig>) {
 export const mask = (s: string) => (s ? `${"•".repeat(8)}${s.slice(-4)}` : "");
 
 export function whatsappReady(c: WhatsAppConfig) {
-  return !!(c.phoneNumberId && c.accessToken);
+  return c.provider === "evolution" ? !!(c.evolutionUrl && c.evolutionKey) : !!(c.phoneNumberId && c.accessToken);
 }
 
 /* ─────────────────────── números ─────────────────────── */
@@ -183,13 +206,17 @@ export async function sendText(phone: string, text: string, sentBy: string) {
   const cfg = await getWhatsAppConfig();
   if (!whatsappReady(cfg)) throw new WhatsAppError("WhatsApp não configurado.");
   const to = waPhone(phone);
-  const id = await send(cfg, to, { type: "text", text: { body: text, preview_url: true } });
+  const id =
+    cfg.provider === "evolution"
+      ? await evoSendText(cfg, to, text)
+      : await send(cfg, to, { type: "text", text: { body: text, preview_url: true } });
   return recordOutgoing(to, { type: "text", body: text, waMessageId: id, sentBy });
 }
 
 /** Envia o modelo aprovado (reabre a conversa fora da janela de 24 h) */
 export async function sendTemplate(phone: string, sentBy: string) {
   const cfg = await getWhatsAppConfig();
+  if (cfg.provider === "evolution") throw new WhatsAppError("Modelos só existem na API oficial — pela conexão por QR code a mensagem normal funciona sempre.");
   if (!whatsappReady(cfg)) throw new WhatsAppError("WhatsApp não configurado.");
   if (!cfg.templateName) throw new WhatsAppError("Cadastre o nome do modelo aprovado em Configurações › WhatsApp.");
   const to = waPhone(phone);
@@ -223,6 +250,7 @@ async function recordOutgoing(
 /** Arquivo de mídia recebida (foto, áudio, documento) */
 export async function fetchMedia(mediaId: string) {
   const cfg = await getWhatsAppConfig();
+  if (cfg.provider === "evolution") return evoMedia(cfg, mediaId);
   const meta = await graph<{ url: string; mime_type: string }>(mediaId, cfg);
   const res = await fetch(meta.url, { headers: { Authorization: `Bearer ${cfg.accessToken}` } });
   if (!res.ok || !res.body) throw new WhatsAppError("Mídia indisponível.");
@@ -317,9 +345,59 @@ export async function handleWebhook(payload: unknown, baseUrl: string) {
 }
 
 async function ingest(m: Incoming, profileName: string | undefined, cfg: WhatsAppConfig, baseUrl: string) {
-  const phone = m.from.replace(/\D/g, "");
-  const at = m.timestamp ? new Date(Number(m.timestamp) * 1000) : new Date();
   const { body, mediaId, mime } = describe(m);
+  await ingestNormalized(
+    {
+      phone: m.from.replace(/\D/g, ""),
+      id: m.id,
+      at: m.timestamp ? new Date(Number(m.timestamp) * 1000) : new Date(),
+      type: m.type,
+      body,
+      mediaId,
+      mime,
+      profileName,
+    },
+    cfg,
+    baseUrl,
+  );
+}
+
+export type NormalizedMessage = {
+  phone: string;
+  id: string;
+  at: Date;
+  type: string;
+  body: string;
+  mediaId?: string;
+  mime?: string;
+  profileName?: string;
+};
+
+/** Mensagem enviada pelo próprio celular (aparece na conversa do CRM) */
+export async function ingestFromMe(m: NormalizedMessage) {
+  const [dup] = await db.select({ id: waMessages.id }).from(waMessages).where(eq(waMessages.waMessageId, m.id));
+  if (dup) return;
+  const [thread] = await db.select().from(waThreads).where(eq(waThreads.phone, m.phone));
+  const contactId = thread?.contactId ?? (await findContactByPhone(m.phone))?.id ?? null;
+  await db
+    .insert(waMessages)
+    .values({ phone: m.phone, contactId, direction: "out", type: m.type, body: m.body, mediaId: m.mediaId, mediaMime: m.mime, waMessageId: m.id, status: "sent", sentBy: "Celular", createdAt: m.at })
+    .onConflictDoNothing();
+  await db
+    .insert(waThreads)
+    .values({ phone: m.phone, contactId, lastMessage: m.body.slice(0, 200), lastMessageAt: m.at })
+    .onConflictDoUpdate({
+      target: waThreads.phone,
+      set: { lastMessage: m.body.slice(0, 200), lastMessageAt: m.at, ...(contactId ? { contactId } : {}) },
+    });
+}
+
+export async function ingestNormalized(n: NormalizedMessage, cfg: WhatsAppConfig, baseUrl: string) {
+  const m = { id: n.id };
+  const phone = n.phone;
+  const at = n.at;
+  const { body, mediaId, mime } = n;
+  const profileName = n.profileName;
 
   // Mensagem repetida (a Meta reenvia em caso de falha): ignora
   const [dup] = await db.select({ id: waMessages.id }).from(waMessages).where(eq(waMessages.waMessageId, m.id));
@@ -361,7 +439,7 @@ async function ingest(m: Incoming, profileName: string | undefined, cfg: WhatsAp
 
   await db
     .insert(waMessages)
-    .values({ phone, contactId, direction: "in", type: m.type, body, mediaId, mediaMime: mime, waMessageId: m.id, status: "received", createdAt: at })
+    .values({ phone, contactId, direction: "in", type: n.type, body, mediaId, mediaMime: mime, waMessageId: m.id, status: "received", createdAt: at })
     .onConflictDoNothing();
 
   await db
@@ -427,4 +505,221 @@ export async function linkThreadContact(phone: string) {
   await db.update(waThreads).set({ contactId }).where(eq(waThreads.phone, phone));
   await db.update(waMessages).set({ contactId }).where(eq(waMessages.phone, phone));
   return contactId;
+}
+
+/* ─────────────────────── Evolution API (QR code) ─────────────────────── */
+
+async function evo<T>(cfg: WhatsAppConfig, path: string, init?: RequestInit): Promise<T> {
+  if (!cfg.evolutionUrl || !cfg.evolutionKey) throw new WhatsAppError("Informe o endereço e a chave da Evolution API.");
+  let res: Response;
+  try {
+    res = await fetch(`${cfg.evolutionUrl}${path}`, {
+      ...init,
+      headers: { apikey: cfg.evolutionKey, "Content-Type": "application/json", ...(init?.headers ?? {}) },
+      cache: "no-store",
+    });
+  } catch {
+    throw new WhatsAppError("Não foi possível falar com o servidor da Evolution API. Confira o endereço.");
+  }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const msg = data?.response?.message ?? data?.message ?? data?.error;
+    throw new WhatsAppError(
+      Array.isArray(msg) ? msg.flat().join(" ") : typeof msg === "string" ? msg : `Evolution API: HTTP ${res.status}`,
+    );
+  }
+  return data as T;
+}
+
+const inst = (cfg: WhatsAppConfig) => encodeURIComponent(cfg.evolutionInstance || "corretor");
+
+export function evolutionWebhookUrl(baseUrl: string, cfg: WhatsAppConfig) {
+  return `${baseUrl}/api/whatsapp/evolution?token=${cfg.webhookToken}`;
+}
+
+const EVO_EVENTS = ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "CONNECTION_UPDATE"];
+
+/** Estado da conexão: open (conectado) · connecting (aguardando QR) · close · missing (instância não existe) */
+export async function evolutionState(cfg: WhatsAppConfig) {
+  try {
+    const d = await evo<{ instance?: { state?: string } }>(cfg, `/instance/connectionState/${inst(cfg)}`);
+    const state = d.instance?.state ?? "close";
+    let number: string | null = null;
+    let name: string | null = null;
+    if (state === "open") {
+      const list = await evo<{ ownerJid?: string; profileName?: string; name?: string }[]>(
+        cfg,
+        `/instance/fetchInstances?instanceName=${inst(cfg)}`,
+      ).catch(() => []);
+      const me = Array.isArray(list) ? list[0] : null;
+      number = me?.ownerJid?.split("@")[0] ?? null;
+      name = me?.profileName ?? null;
+    }
+    return { state, number, name };
+  } catch (e) {
+    if (e instanceof WhatsAppError && /not.*exist|não existe|404/i.test(e.message)) return { state: "missing", number: null, name: null };
+    throw e;
+  }
+}
+
+/** Cria a instância (se preciso), aponta o webhook para o CRM e devolve o QR code */
+export async function evolutionConnect(cfg: WhatsAppConfig, baseUrl: string) {
+  const webhook = { enabled: true, url: evolutionWebhookUrl(baseUrl, cfg), byEvents: false, base64: false, events: EVO_EVENTS };
+  const { state } = await evolutionState(cfg);
+  if (state === "missing") {
+    await evo(cfg, "/instance/create", {
+      method: "POST",
+      body: JSON.stringify({
+        instanceName: cfg.evolutionInstance || "corretor",
+        integration: "WHATSAPP-BAILEYS",
+        qrcode: true,
+        groupsIgnore: true,
+        alwaysOnline: false,
+        readMessages: false,
+        webhook,
+      }),
+    });
+  } else {
+    await evo(cfg, `/webhook/set/${inst(cfg)}`, { method: "POST", body: JSON.stringify({ webhook }) }).catch(() => undefined);
+    if (state === "open") return { state: "open", qr: null, pairingCode: null };
+  }
+  const qr = await evo<{ base64?: string; code?: string; pairingCode?: string }>(cfg, `/instance/connect/${inst(cfg)}`);
+  return { state: "connecting", qr: qr.base64 ?? null, pairingCode: qr.pairingCode ?? null };
+}
+
+export async function evolutionLogout(cfg: WhatsAppConfig) {
+  await evo(cfg, `/instance/logout/${inst(cfg)}`, { method: "DELETE" });
+}
+
+async function evoSendText(cfg: WhatsAppConfig, to: string, text: string) {
+  const d = await evo<{ key?: { id?: string } }>(cfg, `/message/sendText/${inst(cfg)}`, {
+    method: "POST",
+    body: JSON.stringify({ number: to, text, linkPreview: true }),
+  });
+  return d.key?.id ?? null;
+}
+
+/** Envia arquivo (foto ou PDF) por URL pública */
+export async function sendMediaUrl(phone: string, url: string, opts: { caption?: string; fileName?: string; mime?: string; sentBy: string }) {
+  const cfg = await getWhatsAppConfig();
+  if (cfg.provider !== "evolution") throw new WhatsAppError("Envio de arquivos disponível na conexão por QR code.");
+  const to = waPhone(phone);
+  const mediatype = (opts.mime ?? "").startsWith("image/") ? "image" : "document";
+  const d = await evo<{ key?: { id?: string } }>(cfg, `/message/sendMedia/${inst(cfg)}`, {
+    method: "POST",
+    body: JSON.stringify({ number: to, mediatype, mimetype: opts.mime, caption: opts.caption ?? "", media: url, fileName: opts.fileName }),
+  });
+  return recordOutgoing(to, {
+    type: mediatype,
+    body: opts.caption || (mediatype === "image" ? "📷 Foto" : `📄 ${opts.fileName ?? "Arquivo"}`),
+    waMessageId: d.key?.id ?? null,
+    sentBy: opts.sentBy,
+  });
+}
+
+async function evoMedia(cfg: WhatsAppConfig, messageId: string) {
+  const d = await evo<{ base64?: string; mimetype?: string }>(cfg, `/chat/getBase64FromMediaMessage/${inst(cfg)}`, {
+    method: "POST",
+    body: JSON.stringify({ message: { key: { id: messageId } }, convertToMp4: false }),
+  });
+  if (!d.base64) throw new WhatsAppError("Mídia indisponível.");
+  const buf = Buffer.from(d.base64.replace(/^data:[^,]+,/, ""), "base64");
+  return { body: new Blob([new Uint8Array(buf)]).stream(), type: d.mimetype || "application/octet-stream" };
+}
+
+type EvoKey = { id?: string; remoteJid?: string; remoteJidAlt?: string; senderPn?: string; fromMe?: boolean };
+type EvoMessage = Record<string, unknown> & {
+  conversation?: string;
+  extendedTextMessage?: { text?: string };
+  imageMessage?: { caption?: string; mimetype?: string };
+  videoMessage?: { caption?: string; mimetype?: string };
+  audioMessage?: { mimetype?: string };
+  documentMessage?: { caption?: string; fileName?: string; mimetype?: string };
+  documentWithCaptionMessage?: { message?: { documentMessage?: { caption?: string; fileName?: string; mimetype?: string } } };
+  stickerMessage?: { mimetype?: string };
+  locationMessage?: { degreesLatitude?: number; degreesLongitude?: number; name?: string; address?: string };
+  contactMessage?: { displayName?: string };
+  buttonsResponseMessage?: { selectedDisplayText?: string };
+  listResponseMessage?: { title?: string };
+  reactionMessage?: unknown;
+  protocolMessage?: unknown;
+};
+
+/** Número real do remetente (contas novas chegam como @lid) */
+function jidPhone(key: EvoKey, data: Record<string, unknown>) {
+  const jid = key.remoteJid ?? "";
+  if (!jid || jid.endsWith("@g.us") || jid.includes("broadcast") || jid.endsWith("@newsletter")) return null;
+  if (jid.endsWith("@lid")) {
+    const alt = key.senderPn || key.remoteJidAlt || (data.senderPn as string | undefined);
+    return alt ? alt.split("@")[0].replace(/\D/g, "") : null;
+  }
+  return jid.split("@")[0].replace(/\D/g, "");
+}
+
+function describeEvo(m: EvoMessage): { type: string; body: string; media: boolean; mime?: string } | null {
+  if (!m || m.reactionMessage || m.protocolMessage) return null;
+  if (m.conversation) return { type: "text", body: m.conversation, media: false };
+  if (m.extendedTextMessage) return { type: "text", body: m.extendedTextMessage.text ?? "", media: false };
+  if (m.imageMessage) return { type: "image", body: m.imageMessage.caption || "📷 Foto", media: true, mime: m.imageMessage.mimetype };
+  if (m.videoMessage) return { type: "video", body: m.videoMessage.caption || "🎬 Vídeo", media: true, mime: m.videoMessage.mimetype };
+  if (m.audioMessage) return { type: "audio", body: "🎤 Áudio", media: true, mime: m.audioMessage.mimetype };
+  const doc = m.documentMessage ?? m.documentWithCaptionMessage?.message?.documentMessage;
+  if (doc) return { type: "document", body: doc.caption || `📄 ${doc.fileName || "Documento"}`, media: true, mime: doc.mimetype };
+  if (m.stickerMessage) return { type: "sticker", body: "Figurinha", media: true, mime: m.stickerMessage.mimetype };
+  if (m.locationMessage) {
+    const l = m.locationMessage;
+    return {
+      type: "location",
+      body: `📍 ${[l.name, l.address].filter(Boolean).join(" — ") || "Localização"}\nhttps://maps.google.com/?q=${l.degreesLatitude},${l.degreesLongitude}`,
+      media: false,
+    };
+  }
+  if (m.contactMessage) return { type: "contacts", body: `👤 Contato: ${m.contactMessage.displayName ?? ""}`, media: false };
+  if (m.buttonsResponseMessage) return { type: "text", body: m.buttonsResponseMessage.selectedDisplayText ?? "", media: false };
+  if (m.listResponseMessage) return { type: "text", body: m.listResponseMessage.title ?? "", media: false };
+  return { type: "other", body: "Mensagem não suportada", media: false };
+}
+
+const EVO_STATUS: Record<string, string> = {
+  SERVER_ACK: "sent",
+  DELIVERY_ACK: "delivered",
+  READ: "read",
+  PLAYED: "read",
+  ERROR: "failed",
+};
+
+/** Eventos da Evolution API (mensagens recebidas, enviadas pelo celular e status) */
+export async function handleEvolutionWebhook(payload: unknown, baseUrl: string) {
+  const cfg = await getWhatsAppConfig();
+  const p = payload as { event?: string; data?: unknown };
+  const event = String(p?.event ?? "").toLowerCase().replace(/_/g, ".");
+  const items = Array.isArray(p?.data) ? p.data : p?.data ? [p.data] : [];
+
+  if (event === "messages.upsert") {
+    for (const raw of items as Record<string, unknown>[]) {
+      const key = (raw.key ?? {}) as EvoKey;
+      const phone = jidPhone(key, raw);
+      const d = describeEvo(raw.message as EvoMessage);
+      if (!phone || !key.id || !d) continue;
+      const ts = Number(raw.messageTimestamp);
+      const n: NormalizedMessage = {
+        phone,
+        id: key.id,
+        at: ts ? new Date(ts * 1000) : new Date(),
+        type: d.type,
+        body: d.body,
+        mediaId: d.media ? key.id : undefined,
+        mime: d.mime,
+        profileName: key.fromMe ? undefined : (raw.pushName as string | undefined),
+      };
+      if (key.fromMe) await ingestFromMe(n);
+      else await ingestNormalized(n, cfg, baseUrl);
+    }
+  } else if (event === "messages.update") {
+    for (const raw of items as Record<string, unknown>[]) {
+      const id = (raw.keyId as string) ?? ((raw.key as EvoKey | undefined)?.id) ?? (raw.messageId as string);
+      const status = EVO_STATUS[String(raw.status ?? "").toUpperCase()];
+      if (id && status) await db.update(waMessages).set({ status }).where(eq(waMessages.waMessageId, id));
+    }
+  }
 }
