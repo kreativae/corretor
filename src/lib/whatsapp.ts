@@ -2,7 +2,6 @@ import "server-only";
 import { db } from "@/db";
 import { activities, contacts, settings, waMessages, waThreads } from "@/db/schema";
 import { noteHeader } from "@/lib/contact-notes";
-import { notifyNewLead } from "@/lib/notify";
 import { formatPhone } from "@/lib/utils";
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
@@ -404,30 +403,9 @@ export async function ingestNormalized(n: NormalizedMessage, cfg: WhatsAppConfig
   if (dup) return;
 
   const [thread] = await db.select().from(waThreads).where(eq(waThreads.phone, phone));
-  let contactId = thread?.contactId ?? (await findContactByPhone(phone))?.id ?? null;
-  let createdLead = false;
-  const name = profileName?.trim() || formatPhone(nationalPhone(phone));
-
-  if (!contactId && cfg.autoLead) {
-    const [created] = await db
-      .insert(contacts)
-      .values({
-        name: name.slice(0, 120),
-        phone: nationalPhone(phone),
-        source: "whatsapp",
-        type: "lead",
-        notes: body ? `${noteHeader(["WhatsApp"], at)} ${body}` : null,
-      })
-      .returning({ id: contacts.id });
-    contactId = created.id;
-    createdLead = true;
-    await db.insert(activities).values({
-      entity: "contato",
-      entityId: contactId,
-      kind: "lead",
-      text: `${name} entrou em contato pelo WhatsApp.`,
-    });
-  } else if (contactId && (!thread?.lastInboundAt || at.getTime() - thread.lastInboundAt.getTime() > 12 * 3600_000)) {
+  const contactId = thread?.contactId ?? (await findContactByPhone(phone))?.id ?? null;
+  // Número novo não vira contato sozinho: só pelos botões da conversa
+  if (contactId && (!thread?.lastInboundAt || at.getTime() - thread.lastInboundAt.getTime() > 12 * 3600_000)) {
     // Contato conhecido voltando a falar: uma linha na linha do tempo (não a cada mensagem)
     await db.insert(activities).values({
       entity: "contato",
@@ -457,21 +435,10 @@ export async function ingestNormalized(n: NormalizedMessage, cfg: WhatsAppConfig
         archived: false,
       },
     });
-
-  if (createdLead && cfg.notify && contactId) {
-    await notifyNewLead({
-      contactId,
-      name,
-      phone: nationalPhone(phone),
-      message: body,
-      origin: "WhatsApp",
-      baseUrl,
-    });
-  }
 }
 
-/** Cria (ou vincula) o contato de uma conversa manualmente — botão "Criar lead" */
-export async function linkThreadContact(phone: string) {
+/** Cria (ou vincula) o contato de uma conversa — botões "Criar lead" e "Salvar contato" */
+export async function linkThreadContact(phone: string, kind: "lead" | "cliente" = "lead") {
   const [thread] = await db.select().from(waThreads).where(eq(waThreads.phone, phone));
   if (!thread) throw new WhatsAppError("Conversa não encontrada.");
   if (thread.contactId) return thread.contactId;
@@ -490,7 +457,7 @@ export async function linkThreadContact(phone: string) {
         name: name.slice(0, 120),
         phone: nationalPhone(phone),
         source: "whatsapp",
-        type: "lead",
+        type: kind,
         notes: first?.body ? `${noteHeader(["WhatsApp"], first.createdAt)} ${first.body}` : null,
       })
       .returning({ id: contacts.id });
@@ -498,8 +465,8 @@ export async function linkThreadContact(phone: string) {
     await db.insert(activities).values({
       entity: "contato",
       entityId: contactId,
-      kind: "lead",
-      text: `${name} virou lead a partir de uma conversa do WhatsApp.`,
+      kind: kind === "lead" ? "lead" : "note",
+      text: kind === "lead" ? `${name} virou lead a partir de uma conversa do WhatsApp.` : `${name} foi salvo nos contatos a partir do WhatsApp.`,
     });
   }
   await db.update(waThreads).set({ contactId }).where(eq(waThreads.phone, phone));

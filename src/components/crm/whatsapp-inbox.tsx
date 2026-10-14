@@ -18,6 +18,7 @@ import {
   Send,
   Settings,
   UserPlus,
+  UserRound,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -79,7 +80,7 @@ export function WhatsAppInbox({
   const [q, setQ] = useState("");
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
-  const [linking, setLinking] = useState(false);
+  const [linking, setLinking] = useState<"lead" | "contato" | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
 
   const loadThreads = useCallback(async () => {
@@ -197,23 +198,23 @@ export function WhatsAppInbox({
     };
   }, [qrMode, ready]);
 
-  async function makeLead() {
+  async function makeLead(action: "lead" | "contato") {
     if (!active) return;
-    setLinking(true);
+    setLinking(action);
     try {
       const res = await fetch(`/api/whatsapp/threads/${active}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "lead" }),
+        body: JSON.stringify({ action }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error);
-      toast.success("Contato vinculado à conversa.");
+      toast.success(action === "lead" ? "Lead criado no CRM." : "Contato salvo no CRM.");
       loadThreads();
     } catch (e) {
-      toast.error(e instanceof Error && e.message ? e.message : "Não foi possível criar o lead.");
+      toast.error(e instanceof Error && e.message ? e.message : "Não foi possível salvar no CRM.");
     } finally {
-      setLinking(false);
+      setLinking(null);
     }
   }
 
@@ -236,7 +237,7 @@ export function WhatsAppInbox({
           <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-subtle">Atendimento</p>
           <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight">WhatsApp</h1>
           <p className="mt-1 text-sm text-subtle">
-            Conversas do número da imobiliária. Número novo vira lead automaticamente.
+            Conversas do número da imobiliária. Números novos só entram no CRM quando você clica em Criar lead ou Salvar contato.
           </p>
         </div>
         {isAdmin && (
@@ -380,10 +381,16 @@ export function WhatsAppInbox({
                     </Button>
                   </Link>
                 ) : (
-                  <Button variant="accent" size="sm" onClick={makeLead} loading={linking}>
-                    <UserPlus className="size-3.5" />
-                    <span className="hidden sm:inline">Criar lead</span>
-                  </Button>
+                  <>
+                    <Button variant="outline" size="sm" onClick={() => makeLead("contato")} loading={linking === "contato"} disabled={!!linking} title="Salvar nos contatos, sem virar lead">
+                      <UserRound className="size-3.5" />
+                      <span className="hidden sm:inline">Salvar contato</span>
+                    </Button>
+                    <Button variant="accent" size="sm" onClick={() => makeLead("lead")} loading={linking === "lead"} disabled={!!linking}>
+                      <UserPlus className="size-3.5" />
+                      <span className="hidden sm:inline">Criar lead</span>
+                    </Button>
+                  </>
                 )}
                 <Button variant="ghost" size="sm" onClick={toggleArchive} aria-label={thread.archived ? "Desarquivar" : "Arquivar"} title={thread.archived ? "Desarquivar" : "Arquivar"}>
                   {thread.archived ? <ArchiveRestore className="size-4" /> : <Archive className="size-4" />}

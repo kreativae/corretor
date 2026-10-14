@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Field, Input, Switch } from "@/components/ui";
+import { Button, Field, Input } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { CheckCircle2, ChevronDown, Copy, Loader2, LogOut, MessageCircle, PlugZap, QrCode, RefreshCw, Save } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
@@ -415,22 +415,10 @@ export function WhatsAppCard() {
               </>
               )}
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="flex items-start justify-between gap-4 rounded-xl border border-hairline p-4">
-                  <span>
-                    <span className="block text-sm font-medium">Criar lead automaticamente</span>
-                    <span className="mt-0.5 block text-xs text-subtle">Número que não está no CRM vira lead com a primeira mensagem.</span>
-                  </span>
-                  <Switch checked={cfg.autoLead} onChange={(v) => set("autoLead", v)} />
-                </label>
-                <label className="flex items-start justify-between gap-4 rounded-xl border border-hairline p-4">
-                  <span>
-                    <span className="block text-sm font-medium">Avisar a equipe por e-mail</span>
-                    <span className="mt-0.5 block text-xs text-subtle">Usa os destinatários de &quot;Avisos de novos leads&quot;.</span>
-                  </span>
-                  <Switch checked={cfg.notify} onChange={(v) => set("notify", v)} />
-                </label>
-              </div>
+              <p className="rounded-xl bg-soft px-4 py-3 text-xs text-subtle">
+                Números novos ficam só na caixa de entrada. Para levar ao CRM, use <strong>Criar lead</strong> ou{" "}
+                <strong>Salvar contato</strong> na conversa.
+              </p>
 
               {cfg.provider === "meta" && (
               <div className="grid gap-4 sm:grid-cols-[1fr_140px]">

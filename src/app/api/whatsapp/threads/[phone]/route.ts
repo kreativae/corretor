@@ -21,13 +21,14 @@ export async function GET(_req: Request, { params }: Params) {
   return NextResponse.json(messages);
 }
 
-/** { action: "lead" } cria/vincula o contato · { archived: boolean } arquiva */
+/** { action: "lead" | "contato" } cria/vincula o contato · { archived: boolean } arquiva */
 export async function PATCH(req: Request, { params }: Params) {
   if (!(await apiUser())) return unauthorized();
   const phone = (await params).phone.replace(/\D/g, "");
   const body = await req.json().catch(() => ({}));
   try {
-    if (body.action === "lead") return NextResponse.json({ contactId: await linkThreadContact(phone) });
+    if (body.action === "lead" || body.action === "contato")
+      return NextResponse.json({ contactId: await linkThreadContact(phone, body.action === "lead" ? "lead" : "cliente") });
     if (typeof body.archived === "boolean") {
       await db.update(waThreads).set({ archived: body.archived }).where(eq(waThreads.phone, phone));
       return NextResponse.json({ ok: true });
