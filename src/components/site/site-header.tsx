@@ -68,7 +68,9 @@ export function SiteHeader({
       <div
         aria-hidden
         className={cn(
-          "pointer-events-none fixed inset-x-0 top-0 z-[41] h-[var(--header-safe,env(safe-area-inset-top))] transition-all duration-300",
+          // Começa acima da tela: no iPhone a área do relógio fica fora do topo
+          // da página e mostra o conteúdo rolando — a faixa cobre também essa parte
+          "pointer-events-none fixed inset-x-0 -top-24 z-[41] h-[calc(6rem+var(--header-safe,env(safe-area-inset-top)))] transition-all duration-300",
           moved ? "bg-canvas/70 backdrop-blur-xl" : "bg-transparent",
         )}
       />
