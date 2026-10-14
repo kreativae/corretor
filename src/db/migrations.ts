@@ -71,4 +71,34 @@ export const RUNTIME_MIGRATIONS = [
   `CREATE INDEX IF NOT EXISTS property_sends_contact_idx ON property_sends (contact_id, created_at DESC);`,
   // Vídeo do anúncio (link do YouTube)
   `ALTER TABLE properties ADD COLUMN IF NOT EXISTS video_url text;`,
+  // WhatsApp (API oficial da Meta): conversas e mensagens
+  `CREATE TABLE IF NOT EXISTS wa_threads (
+     phone text PRIMARY KEY,
+     contact_id uuid REFERENCES contacts(id) ON DELETE SET NULL,
+     profile_name text,
+     last_message text,
+     last_message_at timestamptz NOT NULL DEFAULT now(),
+     last_inbound_at timestamptz,
+     unread integer NOT NULL DEFAULT 0,
+     archived boolean NOT NULL DEFAULT false,
+     created_at timestamptz NOT NULL DEFAULT now()
+   );`,
+  `CREATE INDEX IF NOT EXISTS wa_threads_last_idx ON wa_threads (last_message_at DESC);`,
+  `CREATE TABLE IF NOT EXISTS wa_messages (
+     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+     phone text NOT NULL,
+     contact_id uuid REFERENCES contacts(id) ON DELETE SET NULL,
+     direction text NOT NULL,
+     type text NOT NULL DEFAULT 'text',
+     body text,
+     media_id text,
+     media_mime text,
+     wa_message_id text UNIQUE,
+     status text NOT NULL DEFAULT 'received',
+     error text,
+     sent_by text,
+     created_at timestamptz NOT NULL DEFAULT now()
+   );`,
+  `CREATE INDEX IF NOT EXISTS wa_messages_phone_idx ON wa_messages (phone, created_at);`,
+  `CREATE INDEX IF NOT EXISTS wa_messages_contact_idx ON wa_messages (contact_id, created_at);`,
 ];

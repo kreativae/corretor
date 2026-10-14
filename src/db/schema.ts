@@ -363,6 +363,37 @@ export const propertySends = pgTable("property_sends", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/** WhatsApp: uma conversa por número (dígitos com DDI) */
+export const waThreads = pgTable("wa_threads", {
+  phone: text("phone").primaryKey(),
+  contactId: uuid("contact_id").references(() => contacts.id, { onDelete: "set null" }),
+  profileName: text("profile_name"),
+  lastMessage: text("last_message"),
+  lastMessageAt: timestamp("last_message_at", { withTimezone: true }).notNull().defaultNow(),
+  /** Última mensagem do cliente — abre a janela de 24 h para responder livremente */
+  lastInboundAt: timestamp("last_inbound_at", { withTimezone: true }),
+  unread: integer("unread").notNull().default(0),
+  archived: boolean("archived").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const waMessages = pgTable("wa_messages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  phone: text("phone").notNull(),
+  contactId: uuid("contact_id").references(() => contacts.id, { onDelete: "set null" }),
+  direction: text("direction", { enum: ["in", "out"] }).notNull(),
+  type: text("type").notNull().default("text"),
+  body: text("body"),
+  mediaId: text("media_id"),
+  mediaMime: text("media_mime"),
+  waMessageId: text("wa_message_id").unique(),
+  /** received | sent | delivered | read | failed */
+  status: text("status").notNull().default("received"),
+  error: text("error"),
+  sentBy: text("sent_by"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 /* ─────────────────────────── Tipos ─────────────────────────── */
 
 export type Partner = typeof partners.$inferSelect;
@@ -380,3 +411,5 @@ export type Integration = typeof integrations.$inferSelect;
 export type PropertyView = typeof propertyViews.$inferSelect;
 export type ApiKey = typeof apiKeys.$inferSelect;
 export type PropertySend = typeof propertySends.$inferSelect;
+export type WaThread = typeof waThreads.$inferSelect;
+export type WaMessage = typeof waMessages.$inferSelect;

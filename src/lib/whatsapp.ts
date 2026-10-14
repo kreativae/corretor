@@ -1,0 +1,430 @@
+import "server-only";
+import { db } from "@/db";
+import { activities, contacts, settings, waMessages, waThreads } from "@/db/schema";
+import { noteHeader } from "@/lib/contact-notes";
+import { notifyNewLead } from "@/lib/notify";
+import { formatPhone } from "@/lib/utils";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { eq, sql } from "drizzle-orm";
+
+/**
+ * WhatsApp pela API oficial da Meta (WhatsApp Cloud API).
+ * Configuração em Configurações › WhatsApp (ou variáveis WHATSAPP_* na Vercel).
+ */
+
+const GRAPH = "https://graph.facebook.com/v21.0";
+
+export type WhatsAppConfig = {
+  phoneNumberId: string;
+  wabaId: string;
+  accessToken: string;
+  appSecret: string;
+  verifyToken: string;
+  /** Número desconhecido vira lead no CRM */
+  autoLead: boolean;
+  /** E-mail para a equipe a cada lead novo vindo do WhatsApp */
+  notify: boolean;
+  /** Modelo aprovado para reabrir conversa fora da janela de 24 h */
+  templateName: string;
+  templateLang: string;
+};
+
+const DEFAULTS: WhatsAppConfig = {
+  phoneNumberId: "",
+  wabaId: "",
+  accessToken: "",
+  appSecret: "",
+  verifyToken: "",
+  autoLead: true,
+  notify: true,
+  templateName: "",
+  templateLang: "pt_BR",
+};
+
+export async function getWhatsAppConfig(): Promise<WhatsAppConfig> {
+  let saved: Partial<WhatsAppConfig> = {};
+  try {
+    const [row] = await db.select().from(settings).where(eq(settings.key, "whatsapp"));
+    saved = (row?.value ?? {}) as Partial<WhatsAppConfig>;
+  } catch {
+    /* sem banco: só variáveis */
+  }
+  const env = process.env;
+  return {
+    ...DEFAULTS,
+    ...saved,
+    phoneNumberId: saved.phoneNumberId || env.WHATSAPP_PHONE_NUMBER_ID || "",
+    wabaId: saved.wabaId || env.WHATSAPP_WABA_ID || "",
+    accessToken: saved.accessToken || env.WHATSAPP_TOKEN || "",
+    appSecret: saved.appSecret || env.WHATSAPP_APP_SECRET || "",
+    verifyToken: saved.verifyToken || env.WHATSAPP_VERIFY_TOKEN || "",
+  };
+}
+
+export async function saveWhatsAppConfig(input: Partial<WhatsAppConfig>) {
+  const cur = await getWhatsAppConfig();
+  const str = (v: unknown, max = 600) => String(v ?? "").trim().slice(0, max);
+  // Segredos: campo vazio (ou mascarado) mantém o valor atual
+  const secret = (v: unknown, prev: string) => {
+    const s = str(v, 1000);
+    return !s || s.includes("•") ? prev : s;
+  };
+  const next: WhatsAppConfig = {
+    phoneNumberId: str(input.phoneNumberId, 40).replace(/\D/g, ""),
+    wabaId: str(input.wabaId, 40).replace(/\D/g, ""),
+    accessToken: secret(input.accessToken, cur.accessToken),
+    appSecret: secret(input.appSecret, cur.appSecret),
+    verifyToken: str(input.verifyToken, 120) || cur.verifyToken || randomBytes(16).toString("hex"),
+    autoLead: input.autoLead !== false,
+    notify: input.notify !== false,
+    templateName: str(input.templateName, 120).replace(/[^\w]/g, ""),
+    templateLang: str(input.templateLang, 10) || "pt_BR",
+  };
+  const [row] = await db.select().from(settings).where(eq(settings.key, "whatsapp"));
+  if (row) await db.update(settings).set({ value: next }).where(eq(settings.key, "whatsapp"));
+  else await db.insert(settings).values({ key: "whatsapp", value: next });
+  return next;
+}
+
+export const mask = (s: string) => (s ? `${"•".repeat(8)}${s.slice(-4)}` : "");
+
+export function whatsappReady(c: WhatsAppConfig) {
+  return !!(c.phoneNumberId && c.accessToken);
+}
+
+/* ─────────────────────── números ─────────────────────── */
+
+/** Só dígitos; número brasileiro sem DDI ganha o 55 */
+export function waPhone(raw: string) {
+  const d = String(raw ?? "").replace(/\D/g, "");
+  if (d.length === 10 || d.length === 11) return `55${d}`;
+  return d;
+}
+
+/** Número nacional para o cadastro do contato (sem o 55) */
+export function nationalPhone(d: string) {
+  return d.startsWith("55") && (d.length === 12 || d.length === 13) ? d.slice(2) : d;
+}
+
+/**
+ * Chave para achar o contato: DDD + 8 últimos dígitos. O WhatsApp às vezes
+ * entrega celulares antigos sem o 9 (554399664756 x 5543999664756).
+ */
+function matchKey(raw: string) {
+  const n = nationalPhone(String(raw ?? "").replace(/\D/g, ""));
+  if (n.length < 10) return null;
+  return { ddd: n.slice(0, 2), last8: n.slice(-8) };
+}
+
+export async function findContactByPhone(raw: string) {
+  const key = matchKey(raw);
+  if (!key) return null;
+  const rows = await db
+    .select({ id: contacts.id, name: contacts.name, phone: contacts.phone })
+    .from(contacts)
+    .where(sql`right(regexp_replace(${contacts.phone}, '\\D', '', 'g'), 8) = ${key.last8}`);
+  return rows.find((c) => matchKey(c.phone)?.ddd === key.ddd) ?? null;
+}
+
+/* ─────────────────────── API da Meta ─────────────────────── */
+
+async function graph<T>(path: string, cfg: WhatsAppConfig, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${GRAPH}/${path}`, {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${cfg.accessToken}`,
+      "Content-Type": "application/json",
+      ...(init?.headers ?? {}),
+    },
+    cache: "no-store",
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = data?.error;
+    const code = err?.code as number | undefined;
+    // 131047: mais de 24 h desde a última mensagem do cliente
+    if (code === 131047 || code === 131026 || /24 ?hours?|re-engagement/i.test(err?.message ?? "")) {
+      throw new WhatsAppError("Fora da janela de 24 h: o cliente precisa responder antes, ou envie um modelo aprovado.", "window");
+    }
+    throw new WhatsAppError(err?.error_user_msg || err?.message || `WhatsApp: HTTP ${res.status}`);
+  }
+  return data as T;
+}
+
+export class WhatsAppError extends Error {
+  constructor(
+    message: string,
+    public kind: "window" | "other" = "other",
+  ) {
+    super(message);
+  }
+}
+
+/** Confere token e número: devolve o nome verificado e o número exibido */
+export async function testConnection(cfg: WhatsAppConfig) {
+  return graph<{ display_phone_number: string; verified_name: string; quality_rating?: string }>(
+    `${cfg.phoneNumberId}?fields=display_phone_number,verified_name,quality_rating`,
+    cfg,
+  );
+}
+
+type SendResult = { messages?: { id: string }[] };
+
+async function send(cfg: WhatsAppConfig, to: string, payload: Record<string, unknown>) {
+  const data = await graph<SendResult>(`${cfg.phoneNumberId}/messages`, cfg, {
+    method: "POST",
+    body: JSON.stringify({ messaging_product: "whatsapp", recipient_type: "individual", to, ...payload }),
+  });
+  return data.messages?.[0]?.id ?? null;
+}
+
+/** Envia texto e grava na conversa */
+export async function sendText(phone: string, text: string, sentBy: string) {
+  const cfg = await getWhatsAppConfig();
+  if (!whatsappReady(cfg)) throw new WhatsAppError("WhatsApp não configurado.");
+  const to = waPhone(phone);
+  const id = await send(cfg, to, { type: "text", text: { body: text, preview_url: true } });
+  return recordOutgoing(to, { type: "text", body: text, waMessageId: id, sentBy });
+}
+
+/** Envia o modelo aprovado (reabre a conversa fora da janela de 24 h) */
+export async function sendTemplate(phone: string, sentBy: string) {
+  const cfg = await getWhatsAppConfig();
+  if (!whatsappReady(cfg)) throw new WhatsAppError("WhatsApp não configurado.");
+  if (!cfg.templateName) throw new WhatsAppError("Cadastre o nome do modelo aprovado em Configurações › WhatsApp.");
+  const to = waPhone(phone);
+  const id = await send(cfg, to, {
+    type: "template",
+    template: { name: cfg.templateName, language: { code: cfg.templateLang || "pt_BR" } },
+  });
+  return recordOutgoing(to, { type: "template", body: `Modelo: ${cfg.templateName}`, waMessageId: id, sentBy });
+}
+
+async function recordOutgoing(
+  phone: string,
+  m: { type: string; body: string; waMessageId: string | null; sentBy: string },
+) {
+  const [thread] = await db.select().from(waThreads).where(eq(waThreads.phone, phone));
+  const contactId = thread?.contactId ?? (await findContactByPhone(phone))?.id ?? null;
+  const [row] = await db
+    .insert(waMessages)
+    .values({ phone, contactId, direction: "out", type: m.type, body: m.body, waMessageId: m.waMessageId, status: "sent", sentBy: m.sentBy })
+    .returning();
+  await db
+    .insert(waThreads)
+    .values({ phone, contactId, lastMessage: m.body.slice(0, 200), lastMessageAt: new Date() })
+    .onConflictDoUpdate({
+      target: waThreads.phone,
+      set: { lastMessage: m.body.slice(0, 200), lastMessageAt: new Date(), archived: false, ...(contactId ? { contactId } : {}) },
+    });
+  return row;
+}
+
+/** Arquivo de mídia recebida (foto, áudio, documento) */
+export async function fetchMedia(mediaId: string) {
+  const cfg = await getWhatsAppConfig();
+  const meta = await graph<{ url: string; mime_type: string }>(mediaId, cfg);
+  const res = await fetch(meta.url, { headers: { Authorization: `Bearer ${cfg.accessToken}` } });
+  if (!res.ok || !res.body) throw new WhatsAppError("Mídia indisponível.");
+  return { body: res.body, type: meta.mime_type || res.headers.get("content-type") || "application/octet-stream" };
+}
+
+/* ─────────────────────── webhook ─────────────────────── */
+
+export function validSignature(raw: string, header: string | null, appSecret: string) {
+  if (!appSecret) return true; // sem App Secret configurado, não há como conferir
+  if (!header?.startsWith("sha256=")) return false;
+  const expected = createHmac("sha256", appSecret).update(raw).digest("hex");
+  const a = Buffer.from(header.slice(7));
+  const b = Buffer.from(expected);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+type Incoming = {
+  from: string;
+  id: string;
+  timestamp: string;
+  type: string;
+  text?: { body: string };
+  image?: { id: string; mime_type?: string; caption?: string };
+  video?: { id: string; mime_type?: string; caption?: string };
+  audio?: { id: string; mime_type?: string };
+  voice?: { id: string; mime_type?: string };
+  document?: { id: string; mime_type?: string; filename?: string; caption?: string };
+  sticker?: { id: string; mime_type?: string };
+  location?: { latitude: number; longitude: number; name?: string; address?: string };
+  button?: { text: string };
+  interactive?: { button_reply?: { title: string }; list_reply?: { title: string } };
+  contacts?: { name?: { formatted_name?: string } }[];
+};
+
+function describe(m: Incoming): { body: string; mediaId?: string; mime?: string } {
+  switch (m.type) {
+    case "text":
+      return { body: m.text?.body ?? "" };
+    case "image":
+      return { body: m.image?.caption || "📷 Foto", mediaId: m.image?.id, mime: m.image?.mime_type };
+    case "video":
+      return { body: m.video?.caption || "🎬 Vídeo", mediaId: m.video?.id, mime: m.video?.mime_type };
+    case "audio":
+    case "voice": {
+      const a = m.audio ?? m.voice;
+      return { body: "🎤 Áudio", mediaId: a?.id, mime: a?.mime_type };
+    }
+    case "document":
+      return { body: m.document?.caption || `📄 ${m.document?.filename || "Documento"}`, mediaId: m.document?.id, mime: m.document?.mime_type };
+    case "sticker":
+      return { body: "Figurinha", mediaId: m.sticker?.id, mime: m.sticker?.mime_type };
+    case "location": {
+      const l = m.location;
+      return { body: l ? `📍 ${[l.name, l.address].filter(Boolean).join(" — ") || "Localização"}\nhttps://maps.google.com/?q=${l.latitude},${l.longitude}` : "📍 Localização" };
+    }
+    case "button":
+      return { body: m.button?.text ?? "" };
+    case "interactive":
+      return { body: m.interactive?.button_reply?.title || m.interactive?.list_reply?.title || "" };
+    case "contacts":
+      return { body: `👤 Contato: ${m.contacts?.[0]?.name?.formatted_name ?? ""}` };
+    default:
+      return { body: "Mensagem não suportada" };
+  }
+}
+
+/** Processa o corpo do webhook da Meta (mensagens recebidas e status das enviadas). */
+export async function handleWebhook(payload: unknown, baseUrl: string) {
+  const cfg = await getWhatsAppConfig();
+  type Value = {
+    contacts?: { wa_id: string; profile?: { name?: string } }[];
+    messages?: Incoming[];
+    statuses?: { id: string; status: string; errors?: { title?: string; message?: string }[] }[];
+  };
+  const entries = (payload as { entry?: { changes?: { value?: Value }[] }[] })?.entry ?? [];
+  for (const entry of entries) {
+    for (const change of entry.changes ?? []) {
+      const v = change.value ?? {};
+      for (const st of v.statuses ?? []) {
+        await db
+          .update(waMessages)
+          .set({ status: st.status, error: st.errors?.[0]?.message || st.errors?.[0]?.title || null })
+          .where(eq(waMessages.waMessageId, st.id));
+      }
+      for (const m of v.messages ?? []) {
+        const profile = v.contacts?.find((c) => c.wa_id === m.from)?.profile?.name;
+        await ingest(m, profile, cfg, baseUrl);
+      }
+    }
+  }
+}
+
+async function ingest(m: Incoming, profileName: string | undefined, cfg: WhatsAppConfig, baseUrl: string) {
+  const phone = m.from.replace(/\D/g, "");
+  const at = m.timestamp ? new Date(Number(m.timestamp) * 1000) : new Date();
+  const { body, mediaId, mime } = describe(m);
+
+  // Mensagem repetida (a Meta reenvia em caso de falha): ignora
+  const [dup] = await db.select({ id: waMessages.id }).from(waMessages).where(eq(waMessages.waMessageId, m.id));
+  if (dup) return;
+
+  const [thread] = await db.select().from(waThreads).where(eq(waThreads.phone, phone));
+  let contactId = thread?.contactId ?? (await findContactByPhone(phone))?.id ?? null;
+  let createdLead = false;
+  const name = profileName?.trim() || formatPhone(nationalPhone(phone));
+
+  if (!contactId && cfg.autoLead) {
+    const [created] = await db
+      .insert(contacts)
+      .values({
+        name: name.slice(0, 120),
+        phone: nationalPhone(phone),
+        source: "whatsapp",
+        type: "lead",
+        notes: body ? `${noteHeader(["WhatsApp"], at)} ${body}` : null,
+      })
+      .returning({ id: contacts.id });
+    contactId = created.id;
+    createdLead = true;
+    await db.insert(activities).values({
+      entity: "contato",
+      entityId: contactId,
+      kind: "lead",
+      text: `${name} entrou em contato pelo WhatsApp.`,
+    });
+  } else if (contactId && (!thread?.lastInboundAt || at.getTime() - thread.lastInboundAt.getTime() > 12 * 3600_000)) {
+    // Contato conhecido voltando a falar: uma linha na linha do tempo (não a cada mensagem)
+    await db.insert(activities).values({
+      entity: "contato",
+      entityId: contactId,
+      kind: "message",
+      text: `Nova conversa pelo WhatsApp: “${body.slice(0, 120)}”`,
+    });
+  }
+
+  await db
+    .insert(waMessages)
+    .values({ phone, contactId, direction: "in", type: m.type, body, mediaId, mediaMime: mime, waMessageId: m.id, status: "received", createdAt: at })
+    .onConflictDoNothing();
+
+  await db
+    .insert(waThreads)
+    .values({ phone, contactId, profileName: profileName ?? null, lastMessage: body.slice(0, 200), lastMessageAt: at, lastInboundAt: at, unread: 1 })
+    .onConflictDoUpdate({
+      target: waThreads.phone,
+      set: {
+        ...(profileName ? { profileName } : {}),
+        ...(contactId ? { contactId } : {}),
+        lastMessage: body.slice(0, 200),
+        lastMessageAt: at,
+        lastInboundAt: at,
+        unread: sql`${waThreads.unread} + 1`,
+        archived: false,
+      },
+    });
+
+  if (createdLead && cfg.notify && contactId) {
+    await notifyNewLead({
+      contactId,
+      name,
+      phone: nationalPhone(phone),
+      message: body,
+      origin: "WhatsApp",
+      baseUrl,
+    });
+  }
+}
+
+/** Cria (ou vincula) o contato de uma conversa manualmente — botão "Criar lead" */
+export async function linkThreadContact(phone: string) {
+  const [thread] = await db.select().from(waThreads).where(eq(waThreads.phone, phone));
+  if (!thread) throw new WhatsAppError("Conversa não encontrada.");
+  if (thread.contactId) return thread.contactId;
+  let contactId = (await findContactByPhone(phone))?.id ?? null;
+  if (!contactId) {
+    const name = thread.profileName?.trim() || formatPhone(nationalPhone(phone));
+    const [first] = await db
+      .select({ body: waMessages.body, createdAt: waMessages.createdAt })
+      .from(waMessages)
+      .where(sql`${waMessages.phone} = ${phone} and ${waMessages.direction} = 'in'`)
+      .orderBy(waMessages.createdAt)
+      .limit(1);
+    const [created] = await db
+      .insert(contacts)
+      .values({
+        name: name.slice(0, 120),
+        phone: nationalPhone(phone),
+        source: "whatsapp",
+        type: "lead",
+        notes: first?.body ? `${noteHeader(["WhatsApp"], first.createdAt)} ${first.body}` : null,
+      })
+      .returning({ id: contacts.id });
+    contactId = created.id;
+    await db.insert(activities).values({
+      entity: "contato",
+      entityId: contactId,
+      kind: "lead",
+      text: `${name} virou lead a partir de uma conversa do WhatsApp.`,
+    });
+  }
+  await db.update(waThreads).set({ contactId }).where(eq(waThreads.phone, phone));
+  await db.update(waMessages).set({ contactId }).where(eq(waMessages.phone, phone));
+  return contactId;
+}

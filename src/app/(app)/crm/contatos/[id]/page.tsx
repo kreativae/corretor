@@ -4,6 +4,7 @@ import { ContactActions } from "@/components/crm/contact-actions";
 import { Timeline } from "@/components/crm/timeline";
 import { MobileSection } from "@/components/crm/mobile-section";
 import { SendRow } from "@/components/crm/negotiation-client";
+import { WhatsAppMini } from "@/components/crm/whatsapp-mini";
 import { Badge, Button } from "@/components/ui";
 import {
   CONTACT_TYPE_LABELS,
@@ -20,6 +21,7 @@ import {
   listActivitiesFor,
   listLeadDates,
   listPropertySends,
+  listContactWhatsApp,
   listDeals,
   listProperties,
   listVisits,
@@ -55,11 +57,12 @@ export default async function ContatoPage({
   ]);
   if (!c) notFound();
 
-  const [matches, activities, leadDates, sends] = await Promise.all([
+  const [matches, activities, leadDates, sends, waMsgs] = await Promise.all([
     getMatchesFor(c),
     listActivitiesFor("contato", c.id, 15),
     listLeadDates(c.id),
     listPropertySends(c.id, 20),
+    listContactWhatsApp(c.id, 8),
   ]);
 
   const myVisits = allVisits.filter((v) => v.contact?.id === c.id);
@@ -260,6 +263,15 @@ export default async function ContatoPage({
               ))}
             </div>
           </div>
+          {/* WhatsApp (API oficial) */}
+          <MobileSection
+            className="order-6 rounded-2xl border border-hairline bg-card p-4 md:p-6 lg:order-none"
+            title="WhatsApp"
+            meta={waMsgs.at(-1) ? timeAgo(waMsgs.at(-1)!.createdAt) : undefined}
+          >
+            <WhatsAppMini messages={waMsgs} phone={c.phone} />
+          </MobileSection>
+
           {/* Imóveis enviados por e-mail (Negociação) */}
           <MobileSection
             className="order-6 rounded-2xl border border-hairline bg-card p-4 md:p-6 lg:order-none"

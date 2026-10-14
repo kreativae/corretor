@@ -1,6 +1,7 @@
 "use client";
 
 import { NotesHistory } from "@/components/crm/notes-history";
+import { WhatsAppMini } from "@/components/crm/whatsapp-mini";
 import { Badge, Button, Field, Input, Select, Textarea } from "@/components/ui";
 import type { Contact } from "@/db/schema";
 import {
@@ -65,6 +66,8 @@ type LeadData = {
   /** Imóveis enviados por e-mail (Negociação) */
   sends?: { id: string; createdAt: string; subject: string; status: string; codes: string[]; attachments: number }[];
   allMatchIds?: string[];
+  /** Últimas mensagens do WhatsApp (API oficial) */
+  whatsapp?: { id: string; direction: string; body: string | null; createdAt: string }[];
 };
 
 function waLink(phone: string) {
@@ -471,6 +474,14 @@ export function LeadDrawer({
                   </div>
                 </div>
               )}
+
+              {/* WhatsApp */}
+              <div>
+                <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-subtle">WhatsApp</p>
+                <div className="mt-2">
+                  <WhatsAppMini messages={data.whatsapp ?? []} phone={c.phone} onNavigate={onClose} />
+                </div>
+              </div>
 
               {/* Imóveis enviados por e-mail */}
               <div>

@@ -6,6 +6,7 @@ import { WatermarkCard } from "@/components/admin/watermark-card";
 import { NotificationsCard } from "@/components/admin/notifications-card";
 import { getFeatures, getMapOptions, getMessages, getStatCards, getWatermarkSettings } from "@/lib/features";
 import { MessagesCard } from "@/components/admin/messages-card";
+import { WhatsAppCard } from "@/components/admin/whatsapp-card";
 import { WhiteLabelCard } from "@/components/admin/white-label-card";
 import { emailConfigured, getNotifySettings } from "@/lib/notify";
 import { db } from "@/db";
@@ -60,6 +61,7 @@ export default async function ConfiguracoesPage() {
         fallbackEmail={wl.email}
         configured={emailConfigured()}
       />
+      <WhatsAppCard />
       <MessagesCard initial={messages} />
       <IntegrationsClient
         integrations={ints.map((item) => ({

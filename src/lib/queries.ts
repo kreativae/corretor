@@ -2,6 +2,7 @@ import { db } from "@/db";
 import {
   partners,
   propertySends,
+  waMessages,
   activities,
   contacts,
   deals,
@@ -19,6 +20,7 @@ import {
   type Portal,
   type Property,
   type PropertySend,
+  type WaMessage,
   type PropertyDocument,
   type PropertyImage,
   type User,
@@ -536,6 +538,21 @@ export async function listPropertySends(contactId?: string, limit = 200): Promis
     const q = db.select().from(propertySends);
     const rows = contactId ? await q.where(eq(propertySends.contactId, contactId)) : await q;
     return rows.sort((a, b) => +b.createdAt - +a.createdAt).slice(0, limit);
+  } catch {
+    return [];
+  }
+}
+
+/** Últimas mensagens de WhatsApp do contato (mais recentes por último) */
+export async function listContactWhatsApp(contactId: string, limit = 6): Promise<WaMessage[]> {
+  try {
+    const rows = await db
+      .select()
+      .from(waMessages)
+      .where(eq(waMessages.contactId, contactId))
+      .orderBy(desc(waMessages.createdAt))
+      .limit(limit);
+    return rows.reverse();
   } catch {
     return [];
   }
