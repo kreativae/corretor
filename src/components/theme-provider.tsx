@@ -27,6 +27,31 @@ function ThemedToaster() {
 }
 
 /**
+ * Cor da barra do navegador/relógio (theme-color) acompanha o tema escolhido:
+ * no iPhone ela tinge o topo da tela; fixa escura deixava o modo claro cinza.
+ */
+function ThemeColorSync() {
+  const { resolvedTheme } = useTheme();
+  useEffect(() => {
+    if (!resolvedTheme) return;
+    const color = getComputedStyle(document.documentElement).getPropertyValue("--canvas").trim() ||
+      (resolvedTheme === "dark" ? "#11112a" : "#f5f5f9");
+    let metas = document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]');
+    if (!metas.length) {
+      const m = document.createElement("meta");
+      m.name = "theme-color";
+      document.head.appendChild(m);
+      metas = document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]');
+    }
+    metas.forEach((m) => {
+      m.removeAttribute("media");
+      m.content = color;
+    });
+  }, [resolvedTheme]);
+  return null;
+}
+
+/**
  * Tema da VITRINE pública — dark por padrão.
  * Persistência independente (imob-theme-site): o visitante pode alternar
  * sem afetar o tema do sistema.
@@ -42,6 +67,7 @@ export function SiteTheme({ children }: { children: ReactNode }) {
     >
       {children}
       <ThemedToaster />
+      <ThemeColorSync />
     </ThemeProvider>
   );
 }
@@ -61,6 +87,7 @@ export function AppTheme({ children }: { children: ReactNode }) {
     >
       {children}
       <ThemedToaster />
+      <ThemeColorSync />
     </ThemeProvider>
   );
 }
