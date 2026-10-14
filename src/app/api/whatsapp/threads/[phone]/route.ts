@@ -28,7 +28,12 @@ export async function PATCH(req: Request, { params }: Params) {
   const body = await req.json().catch(() => ({}));
   try {
     if (body.action === "lead" || body.action === "contato")
-      return NextResponse.json({ contactId: await linkThreadContact(phone, body.action === "lead" ? "lead" : "cliente") });
+      return NextResponse.json({
+        contactId: await linkThreadContact(phone, body.action === "lead" ? "lead" : "cliente", {
+          name: typeof body.name === "string" ? body.name.slice(0, 120) : undefined,
+          email: typeof body.email === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email.trim()) ? body.email.slice(0, 200) : undefined,
+        }),
+      });
     if (typeof body.archived === "boolean") {
       await db.update(waThreads).set({ archived: body.archived }).where(eq(waThreads.phone, phone));
       return NextResponse.json({ ok: true });

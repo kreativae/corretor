@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Input, Textarea } from "@/components/ui";
+import { Button, Field, Input, Modal, Textarea } from "@/components/ui";
 import type { WaMessage } from "@/db/schema";
 import { cn, formatPhone, initials } from "@/lib/utils";
 import {
@@ -198,18 +198,32 @@ export function WhatsAppInbox({
     };
   }, [qrMode, ready]);
 
-  async function makeLead(action: "lead" | "contato") {
-    if (!active) return;
+  // Antes de salvar no CRM, pede o nome (muitos números chegam sem nome)
+  const [saveAs, setSaveAs] = useState<{ action: "lead" | "contato"; name: string; email: string } | null>(null);
+
+  function askSave(action: "lead" | "contato") {
+    if (!thread) return;
+    setSaveAs({ action, name: thread.profileName?.trim() ?? "", email: "" });
+  }
+
+  async function makeLead() {
+    if (!active || !saveAs) return;
+    const { action, name, email } = saveAs;
+    if (!name.trim()) {
+      toast.error("Informe o nome do contato.");
+      return;
+    }
     setLinking(action);
     try {
       const res = await fetch(`/api/whatsapp/threads/${active}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ action, name: name.trim(), email: email.trim() }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error);
       toast.success(action === "lead" ? "Lead criado no CRM." : "Contato salvo no CRM.");
+      setSaveAs(null);
       loadThreads();
     } catch (e) {
       toast.error(e instanceof Error && e.message ? e.message : "Não foi possível salvar no CRM.");
@@ -382,11 +396,11 @@ export function WhatsAppInbox({
                   </Link>
                 ) : (
                   <>
-                    <Button variant="outline" size="sm" onClick={() => makeLead("contato")} loading={linking === "contato"} disabled={!!linking} title="Salvar nos contatos, sem virar lead">
+                    <Button variant="outline" size="sm" onClick={() => askSave("contato")} disabled={!!linking} title="Salvar nos contatos, sem virar lead">
                       <UserRound className="size-3.5" />
                       <span className="hidden sm:inline">Salvar contato</span>
                     </Button>
-                    <Button variant="accent" size="sm" onClick={() => makeLead("lead")} loading={linking === "lead"} disabled={!!linking}>
+                    <Button variant="accent" size="sm" onClick={() => askSave("lead")} disabled={!!linking}>
                       <UserPlus className="size-3.5" />
                       <span className="hidden sm:inline">Criar lead</span>
                     </Button>
@@ -531,6 +545,48 @@ export function WhatsAppInbox({
           )}
         </section>
       </div>
+
+      <Modal open={!!saveAs} onClose={() => !linking && setSaveAs(null)} title={saveAs?.action === "lead" ? "Criar lead" : "Salvar contato"}>
+        {saveAs && thread && (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              makeLead();
+            }}
+            className="space-y-4"
+          >
+            <Field label="Nome">
+              <Input
+                autoFocus
+                value={saveAs.name}
+                onChange={(e) => setSaveAs({ ...saveAs, name: e.target.value })}
+                placeholder="Ex.: Maria Souza"
+                maxLength={120}
+              />
+            </Field>
+            <Field label="WhatsApp">
+              <Input value={formatPhone(national(thread.phone))} disabled className="font-mono" />
+            </Field>
+            <Field label="E-mail (opcional)">
+              <Input
+                type="email"
+                value={saveAs.email}
+                onChange={(e) => setSaveAs({ ...saveAs, email: e.target.value })}
+                placeholder="maria@email.com"
+              />
+            </Field>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setSaveAs(null)} disabled={!!linking}>
+                Cancelar
+              </Button>
+              <Button type="submit" variant="accent" loading={!!linking}>
+                {saveAs.action === "lead" ? <UserPlus className="size-4" /> : <UserRound className="size-4" />}
+                {saveAs.action === "lead" ? "Criar lead" : "Salvar contato"}
+              </Button>
+            </div>
+          </form>
+        )}
+      </Modal>
     </div>
   );
 }

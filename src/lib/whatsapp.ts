@@ -438,13 +438,14 @@ export async function ingestNormalized(n: NormalizedMessage, cfg: WhatsAppConfig
 }
 
 /** Cria (ou vincula) o contato de uma conversa — botões "Criar lead" e "Salvar contato" */
-export async function linkThreadContact(phone: string, kind: "lead" | "cliente" = "lead") {
+export async function linkThreadContact(phone: string, kind: "lead" | "cliente" = "lead", opts: { name?: string; email?: string } = {}) {
   const [thread] = await db.select().from(waThreads).where(eq(waThreads.phone, phone));
   if (!thread) throw new WhatsAppError("Conversa não encontrada.");
   if (thread.contactId) return thread.contactId;
   let contactId = (await findContactByPhone(phone))?.id ?? null;
   if (!contactId) {
-    const name = thread.profileName?.trim() || formatPhone(nationalPhone(phone));
+    const name = opts.name?.trim() || thread.profileName?.trim() || formatPhone(nationalPhone(phone));
+    const email = opts.email?.trim() || null;
     const [first] = await db
       .select({ body: waMessages.body, createdAt: waMessages.createdAt })
       .from(waMessages)
@@ -458,6 +459,7 @@ export async function linkThreadContact(phone: string, kind: "lead" | "cliente" 
         phone: nationalPhone(phone),
         source: "whatsapp",
         type: kind,
+        email,
         notes: first?.body ? `${noteHeader(["WhatsApp"], first.createdAt)} ${first.body}` : null,
       })
       .returning({ id: contacts.id });
