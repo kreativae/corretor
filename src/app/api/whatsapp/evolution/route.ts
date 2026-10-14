@@ -21,3 +21,11 @@ export async function POST(req: Request) {
   after(() => handleEvolutionWebhook(payload, baseUrl).catch((e) => console.error("[evolution webhook]", e)));
   return NextResponse.json({ ok: true });
 }
+
+/** Aberto no navegador: só confirma que o endereço existe (quem usa é a Evolution, via POST) */
+export async function GET() {
+  return NextResponse.json({
+    ok: true,
+    message: "Webhook do WhatsApp ativo. Este endereço é usado pela Evolution API — não precisa abrir no navegador.",
+  });
+}
