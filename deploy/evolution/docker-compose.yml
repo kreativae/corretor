@@ -1,0 +1,40 @@
+# Evolution API + HTTPS automático (Caddy) — para uma VM gratuita (Oracle Cloud / Google Cloud)
+# Uso: copie .env.example para .env, preencha e rode:  docker compose up -d
+services:
+  evolution:
+    image: evoapicloud/evolution-api:v2.2.3
+    restart: always
+    env_file: .env
+    environment:
+      SERVER_URL: https://${DOMAIN}
+      DATABASE_ENABLED: "true"
+      DATABASE_PROVIDER: postgresql
+      DATABASE_SAVE_DATA_INSTANCE: "true"
+      DATABASE_SAVE_DATA_NEW_MESSAGE: "true"
+      CACHE_REDIS_ENABLED: "false"
+      CACHE_LOCAL_ENABLED: "true"
+      DEL_INSTANCE: "false"
+      CONFIG_SESSION_PHONE_CLIENT: "CRM Carlos Amâncio"
+      CONFIG_SESSION_PHONE_NAME: Chrome
+    volumes:
+      - evolution_instances:/evolution/instances
+    expose:
+      - "8080"
+
+  caddy:
+    image: caddy:2
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on:
+      - evolution
+
+volumes:
+  evolution_instances:
+  caddy_data:

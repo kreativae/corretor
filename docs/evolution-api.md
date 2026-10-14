@@ -2,16 +2,69 @@
 
 O CRM conversa com o WhatsApp através da [Evolution API](https://doc.evolution-api.com)
 (gratuita, código aberto). Ela precisa ficar ligada 24 h, então roda num serviço
-separado da Vercel. Abaixo, o jeito mais simples: **Railway** (~US$ 5/mês).
+separado da Vercel. Duas opções:
 
-## 1. Banco de dados da Evolution
+- **Grátis: Oracle Cloud (Always Free)** — uma máquina virtual gratuita para sempre. Abaixo.
+- **Pago e mais simples: Railway** (~US$ 5/mês) — mais adiante.
+
+Planos grátis que "dormem" sem uso (Render, Koyeb, Hugging Face) **não servem**:
+a sessão do WhatsApp cai quando o servidor dorme.
+
+---
+
+## Opção grátis — Oracle Cloud (Always Free)
+
+### 1. Banco de dados (Neon, grátis)
+No Neon (onde o CRM já está), crie um **banco novo** chamado `evolution` e copie
+a connection string (`postgresql://…?sslmode=require`). Não use o banco do CRM.
+
+### 2. Criar a máquina
+1. Crie a conta em **cloud.oracle.com** (pede cartão só para verificação; o
+   plano Always Free não cobra).
+2. **Compute › Instances › Create instance**
+   - Imagem: **Ubuntu 22.04** (ou 24.04)
+   - Shape: **Ampere (VM.Standard.A1.Flex)** com 1 OCPU e 6 GB — dentro do grátis.
+     Se não houver capacidade na região, use **VM.Standard.E2.1.Micro** (também grátis).
+   - Baixe a chave SSH que a Oracle oferece.
+3. Na rede da instância (**Subnet › Security List › Add Ingress Rules**), libere
+   as portas **80** e **443** (origem `0.0.0.0/0`, TCP).
+4. Anote o **IP público** da máquina.
+
+### 3. Instalar (copiar e colar)
+Conecte por SSH (`ssh -i chave.key ubuntu@IP`) e rode:
+
+```bash
+git clone https://github.com/kreativae/corretor.git
+cd corretor/deploy/evolution
+bash setup.sh          # instala o Docker e cria o arquivo .env
+nano .env              # preencha DOMAIN, AUTHENTICATION_API_KEY e DATABASE_CONNECTION_URI
+bash setup.sh          # sobe a Evolution com HTTPS
+```
+
+Sem domínio próprio, use o IP com **sslip.io**: IP `129.146.10.20` →
+`DOMAIN=129-146-10-20.sslip.io`. O HTTPS é gerado sozinho (Caddy + Let's Encrypt).
+
+> O repositório é privado? Em vez do `git clone`, copie a pasta `deploy/evolution`
+> para a máquina (`scp -i chave.key -r deploy/evolution ubuntu@IP:~`).
+
+Teste: `https://SEU-DOMINIO/` mostra a mensagem de boas-vindas da Evolution.
+Depois, siga o passo **Conectar no CRM** abaixo (endereço = `https://SEU-DOMINIO`).
+
+**Alternativa grátis:** Google Cloud **e2-micro** (Always Free, regiões dos EUA) —
+mesmo processo, com o `setup.sh` (ele cria memória extra/swap para a máquina pequena).
+
+---
+
+## Opção paga — Railway (~US$ 5/mês)
+
+### 1. Banco de dados da Evolution
 
 A Evolution guarda a sessão do WhatsApp num Postgres. Use **um banco separado** do CRM:
 
 - No Railway: **New › Database › PostgreSQL** (mais simples), ou
 - No Neon: crie um novo banco `evolution` no mesmo projeto e copie a connection string.
 
-## 2. Subir a Evolution API
+### 2. Subir a Evolution API
 
 No Railway: **New › Docker Image** → `evoapicloud/evolution-api:v2.2.3`
 
@@ -36,7 +89,9 @@ Em **Settings › Networking**, gere um domínio público (porta **8080**).
 
 Teste: abrir `https://SEU-DOMINIO/` deve mostrar uma mensagem de boas-vindas da Evolution.
 
-## 3. Conectar no CRM
+---
+
+## Conectar no CRM
 
 1. **Admin › Configurações › WhatsApp** → aba **QR code (Evolution API)**
 2. Preencha **Endereço do servidor** (o domínio do passo 2) e **Chave da API**

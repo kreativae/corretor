@@ -1,0 +1,4 @@
+# HTTPS automático (Let's Encrypt) para o domínio do .env
+{$DOMAIN} {
+	reverse_proxy evolution:8080
+}
