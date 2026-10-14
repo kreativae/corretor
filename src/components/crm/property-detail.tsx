@@ -9,8 +9,7 @@ import {
   isRuralType,
   normalizeRural,
   pricePerAlq,
-  ruralAreas,
-} from "@/lib/rural";
+  ruralAreas, acceptsKmz } from "@/lib/rural";
 import { AdExporterModal } from "@/components/crm/ad-exporter-modal";
 import { DuplicatePropertyButton } from "@/components/crm/duplicate-property-button";
 import { MobileSection } from "@/components/crm/mobile-section";
@@ -157,7 +156,7 @@ export async function PropertyDetail({
               Ficha PDF
             </Button>
           </Link>
-          {rural && r.kmzUrl && (
+          {acceptsKmz(p.type) && r.kmzUrl && (
             <Link href={`/imoveis/${p.code}/mapa`} target="_blank">
               <Button variant="outline" size="sm">
                 <MapIcon className="size-3.5" />

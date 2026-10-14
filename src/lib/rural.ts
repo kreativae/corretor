@@ -13,6 +13,19 @@ export function isRuralType(type: string | null | undefined): type is RuralType 
   return !!type && (RURAL_TYPES as readonly string[]).includes(type);
 }
 
+/** Tipos que aceitam o KMZ do perímetro: propriedades rurais e terrenos. */
+export function acceptsKmz(type: string | null | undefined) {
+  return isRuralType(type) || type === "terreno";
+}
+
+/** Terreno urbano: guarda em `rural` só o arquivo KMZ (ou nada). */
+export function kmzOnly(input: unknown): { kmzUrl: string; kmzName: string } | null {
+  const v = (input ?? {}) as Record<string, unknown>;
+  const url = typeof v.kmzUrl === "string" ? v.kmzUrl.trim() : "";
+  if (!/^https?:\/\//.test(url)) return null;
+  return { kmzUrl: url.slice(0, 500), kmzName: typeof v.kmzName === "string" ? v.kmzName.trim().slice(0, 200) : "" };
+}
+
 export const APTIDAO_LABELS = {
   dupla: "Dupla aptidão",
   agricultura: "Agricultura",

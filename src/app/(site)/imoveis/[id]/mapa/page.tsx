@@ -1,7 +1,7 @@
 import { KmzMap } from "@/components/kmz-map";
 import { getMapOptions } from "@/lib/features";
 import { getPropertyByCode, getWhiteLabel } from "@/lib/queries";
-import { formatAlq, formatHa, isRuralType, normalizeRural } from "@/lib/rural";
+import { formatAlq, formatHa, isRuralType, normalizeRural, acceptsKmz } from "@/lib/rural";
 import { formatBRL } from "@/lib/utils";
 import { ArrowLeft, Download } from "lucide-react";
 import type { Metadata } from "next";
@@ -28,7 +28,7 @@ export default async function MapaPage({ params }: { params: Promise<{ id: strin
     getWhiteLabel(),
     getMapOptions(),
   ]);
-  if (!p || !isRuralType(p.type)) notFound();
+  if (!p || !acceptsKmz(p.type)) notFound();
   const r = normalizeRural(p.rural);
   if (!r.kmzUrl) notFound();
 

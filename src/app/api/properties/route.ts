@@ -4,7 +4,7 @@ import { activities, properties, propertyImages } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { sanitizePropertyPartnerFields } from "@/lib/partners";
 import { nextPropertyCode } from "@/lib/property-code";
-import { alqToM2, isRuralType, sanitizeRural } from "@/lib/rural";
+import { alqToM2, isRuralType, sanitizeRural, kmzOnly } from "@/lib/rural";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
@@ -27,6 +27,9 @@ export async function POST(req: Request) {
       const ruralData = sanitizeRural(data.rural);
       data.rural = ruralData;
       data.area = alqToM2(ruralData.totalAlq ?? 0);
+    } else if (data.type === "terreno") {
+      // Terreno: só o KMZ do perímetro
+      data.rural = kmzOnly(data.rural);
     } else {
       data.rural = null;
     }

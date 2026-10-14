@@ -210,7 +210,7 @@ export function RuralAreaSummary({ r, compact }: { r: RuralData; compact?: boole
   );
 }
 
-function KmzField({
+export function KmzField({
   url,
   name,
   onChange,

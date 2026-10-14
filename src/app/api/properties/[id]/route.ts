@@ -11,7 +11,7 @@ import {
 import { blobToken } from "@/lib/blob";
 import { del } from "@vercel/blob";
 import { eq } from "drizzle-orm";
-import { alqToM2, isRuralType, sanitizeRural } from "@/lib/rural";
+import { alqToM2, isRuralType, kmzOnly, sanitizeRural } from "@/lib/rural";
 import { sanitizePropertyPartnerFields } from "@/lib/partners";
 import { NextResponse } from "next/server";
 
@@ -46,6 +46,8 @@ export async function PATCH(req: Request, { params }: Params) {
       if (isRuralType(data.type)) {
         data.rural = sanitizeRural(data.rural);
         data.area = alqToM2(data.rural.totalAlq ?? 0);
+      } else if (data.type === "terreno") {
+        data.rural = kmzOnly(data.rural);
       } else {
         data.rural = null;
       }

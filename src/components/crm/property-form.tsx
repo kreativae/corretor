@@ -4,7 +4,7 @@ import { Button, Field, Input, Select, Switch, Textarea } from "@/components/ui"
 import { PURPOSE_LABELS, STATUS_LABELS, TYPE_LABELS } from "@/lib/labels";
 import type { PropertyWithImages } from "@/lib/queries";
 import { PhotoManager } from "./photo-manager";
-import { RuralFields } from "./rural-fields";
+import { KmzField, RuralFields } from "./rural-fields";
 import { crmPropertyPath, isRuralType, normalizeRural, pricePerAlq, RURAL_TYPES, type RuralData } from "@/lib/rural";
 import { commissionValues } from "@/lib/partners";
 import { PctInput, SharePicks } from "@/components/crm/share-picks";
@@ -185,6 +185,10 @@ export function PropertyForm({
               features: [],
             }
           : {}),
+        // Terreno: KMZ do perímetro
+        ...(!rural && form.type === "terreno"
+          ? { rural: { kmzUrl: ruralData.kmzUrl, kmzName: ruralData.kmzName } }
+          : {}),
       };
       const res = await fetch(
         isEdit ? `/api/properties/${initial.id}` : "/api/properties",
@@ -314,6 +318,18 @@ export function PropertyForm({
               custom={customFeatures}
             />
           </section>
+
+          {/* Terreno: perímetro em KMZ (mapa no site e QR code na ficha) */}
+          {form.type === "terreno" && (
+            <section className={sectionCls}>
+              <h2 className={h2Cls}>Perímetro do terreno (KMZ)</h2>
+              <KmzField
+                url={ruralData.kmzUrl}
+                name={ruralData.kmzName}
+                onChange={(url, name) => setRuralData((cur) => ({ ...cur, kmzUrl: url, kmzName: name }))}
+              />
+            </section>
+          )}
 
             </>
           )}

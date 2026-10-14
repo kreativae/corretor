@@ -3,7 +3,7 @@ import { FitSheet } from "./fit-sheet";
 import { PrintBar } from "./print-bar";
 import { getPropertyByCode, getWhiteLabel } from "@/lib/queries";
 import { getCurrentUser } from "@/lib/auth";
-import { crmPropertyPath, isRuralType, normalizeRural } from "@/lib/rural";
+import { crmPropertyPath, isRuralType, normalizeRural, acceptsKmz } from "@/lib/rural";
 import { headers } from "next/headers";
 import QRCode from "qrcode";
 import { getSiteContent } from "@/lib/site-content";
@@ -51,7 +51,7 @@ export default async function FichaPage({
   const rural = isRuralType(p.type);
   const ruralData = normalizeRural(p.rural);
   const qrKind: "mapa" | "contato" | null =
-    rural && ruralData.kmzUrl ? "mapa" : p.published ? "contato" : null;
+    acceptsKmz(p.type) && ruralData.kmzUrl ? "mapa" : p.published ? "contato" : null;
   const h = await headers();
   const host = h.get("x-forwarded-host") ?? h.get("host");
   const proto = host?.startsWith("localhost") ? "http" : "https";
@@ -79,7 +79,7 @@ export default async function FichaPage({
           url: `${proto}://${host}/imoveis/${p.code}`,
         }}
         kmz={
-          user && rural
+          user && acceptsKmz(p.type)
             ? { propertyId: p.id, type: p.type, rural: ruralData }
             : undefined
         }

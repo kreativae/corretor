@@ -1,5 +1,5 @@
 import { getPropertyByCode } from "@/lib/queries";
-import { isRuralType, normalizeRural } from "@/lib/rural";
+import { isRuralType, normalizeRural, acceptsKmz } from "@/lib/rural";
 import { NextResponse } from "next/server";
 
 /**
@@ -9,7 +9,7 @@ import { NextResponse } from "next/server";
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const p = await getPropertyByCode(id);
-  const r = p && isRuralType(p.type) ? normalizeRural(p.rural) : null;
+  const r = p && acceptsKmz(p.type) ? normalizeRural(p.rural) : null;
   if (!p || !r?.kmzUrl) {
     return new NextResponse("KMZ não encontrado para esta propriedade.", { status: 404 });
   }

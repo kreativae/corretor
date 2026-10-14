@@ -29,6 +29,7 @@ import {
   Car,
   Check,
   FileDown,
+  Map as MapIcon,
   MapPin,
   MessageCircle,
   Ruler,
@@ -162,6 +163,23 @@ export default async function ImovelPage({ params }: { params: Params }) {
                   {p.description}
                 </p>
               </>
+            )}
+
+            {/* Terreno com KMZ: atalho para o perímetro no mapa */}
+            {!rural && r.kmzUrl && (
+              <Link
+                href={`/imoveis/${p.code}/mapa`}
+                target="_blank"
+                className="mt-8 flex items-center gap-3 rounded-2xl border border-hairline bg-card p-4 transition-colors hover:bg-soft md:p-5"
+              >
+                <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600">
+                  <MapIcon className="size-5" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium">Ver perímetro do terreno no mapa</span>
+                  <span className="block text-xs text-subtle">Imagem de satélite e download do KMZ</span>
+                </span>
+              </Link>
             )}
 
             {rural && (
