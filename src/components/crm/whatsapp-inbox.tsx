@@ -290,9 +290,9 @@ export function WhatsAppInbox({
         </div>
       )}
 
-      <div className="mt-6 grid h-[calc(100dvh-230px)] min-h-[520px] overflow-hidden rounded-2xl border border-hairline bg-card md:grid-cols-[340px_1fr]">
+      <div className="mt-6 grid h-[calc(100dvh-230px)] min-h-[520px] overflow-hidden rounded-2xl border border-hairline bg-card grid-cols-1 md:grid-cols-[340px_1fr]">
         {/* Lista */}
-        <aside className={cn("flex min-h-0 flex-col border-hairline md:border-r", active && "max-md:hidden")}>
+        <aside className={cn("flex min-h-0 min-w-0 flex-col border-hairline md:border-r", active && "max-md:hidden")}>
           <div className="space-y-2 border-b border-hairline p-3">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-subtle" />
@@ -366,7 +366,7 @@ export function WhatsAppInbox({
         </aside>
 
         {/* Conversa */}
-        <section className={cn("flex min-h-0 flex-col", !active && "max-md:hidden")}>
+        <section className={cn("flex min-h-0 min-w-0 flex-col", !active && "max-md:hidden")}>
           {!thread ? (
             <div className="grid flex-1 place-items-center p-8 text-center text-sm text-subtle">
               <div>

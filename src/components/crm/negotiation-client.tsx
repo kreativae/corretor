@@ -341,8 +341,8 @@ export function NegotiationClient({
         </div>
       )}
 
-      <div className="mt-6 grid items-start gap-4 lg:grid-cols-[1fr_340px]">
-        <div className="space-y-4">
+      <div className="mt-6 grid grid-cols-1 items-start gap-4 lg:grid-cols-[1fr_340px]">
+        <div className="min-w-0 space-y-4">
           {/* 1 · Cliente */}
           <section className={card}>
             <h2 className={h2}>
@@ -551,7 +551,7 @@ export function NegotiationClient({
         </div>
 
         {/* Resumo e envio */}
-        <aside className={cn(card, "lg:sticky lg:top-24")}>
+        <aside className={cn(card, "min-w-0 lg:sticky lg:top-24")}>
           <h2 className={h2}>
             <Mail className="size-4" /> Resumo
           </h2>
