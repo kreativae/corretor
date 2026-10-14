@@ -96,7 +96,7 @@ export function AdminBar({
     <>
       {/* Empurra o header fixo e o conteúdo para baixo da barra */}
       {!hidden && (
-        <style>{`@media screen{:root{--adminbar:calc(${H}px + env(safe-area-inset-top));--header-safe:0px;--site-safe:0px}body{padding-top:calc(${H}px + env(safe-area-inset-top))}}`}</style>
+        <style>{`@media screen and (min-width:768px){:root{--adminbar:calc(${H}px + env(safe-area-inset-top));--header-safe:0px;--site-safe:0px}body{padding-top:calc(${H}px + env(safe-area-inset-top))}}`}</style>
       )}
       {hidden && (
         // Alça discreta: no celular (sem mouse) é por ela que a barra abre
@@ -105,15 +105,17 @@ export function AdminBar({
           onClick={() => setShown((v) => !v)}
           aria-label="Mostrar barra de edição"
           className={cn(
-            "fixed left-1/2 top-[env(safe-area-inset-top)] z-[46] h-2.5 w-14 -translate-x-1/2 rounded-b-lg bg-[#1d1d42]/70 shadow transition-opacity duration-300 hover:bg-[#1d1d42] print:hidden",
+            "fixed left-1/2 top-[env(safe-area-inset-top)] z-[46] max-md:hidden h-2.5 w-14 -translate-x-1/2 rounded-b-lg bg-[#1d1d42]/70 shadow transition-opacity duration-300 hover:bg-[#1d1d42] print:hidden",
             visible && "pointer-events-none opacity-0",
           )}
         />
       )}
       <div
         className={cn(
-          "fixed inset-x-0 top-0 z-[45] flex items-stretch bg-[#1d1d42] text-white shadow-[0_1px_0_rgba(255,255,255,0.06)] transition-transform duration-300 ease-out print:hidden",
-          hidden && "shadow-2xl shadow-black/40",
+          // Só no computador (no celular a barra fica desligada)
+          "fixed inset-x-0 top-0 z-[45] flex items-stretch max-md:hidden bg-[#1d1d42] text-white shadow-[0_1px_0_rgba(255,255,255,0.06)] transition-transform duration-300 ease-out print:hidden",
+          // Sombra só quando aparece: escondida, ela vazava como uma faixa cinza no topo
+          hidden && visible && "shadow-2xl shadow-black/40",
           !visible && "-translate-y-full",
         )}
         style={{ height: `calc(${H}px + env(safe-area-inset-top))`, paddingTop: "env(safe-area-inset-top)" }}
