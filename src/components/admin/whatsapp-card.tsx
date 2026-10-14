@@ -279,7 +279,7 @@ export function WhatsAppCard() {
                     )}
                   </div>
                   <p className="text-[11px] text-subtle">
-                    O webhook é configurado sozinho ao conectar ({" "}
+                    O webhook é configurado sozinho ao conectar (
                     <button type="button" onClick={() => copy(cfg.evolutionWebhookUrl)} className="underline underline-offset-2">
                       copiar URL
                     </button>
