@@ -40,9 +40,11 @@ import {
   Search,
   Sparkles,
   Tractor,
+  Trash2,
   UserPlus,
   Users,
   Wallet,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -201,6 +203,53 @@ export function ContactsClient({
     for (const m of Object.values(meta)) for (const p of m.properties) map.set(p.id, p);
     return [...map.values()].sort((a, b) => a.code.localeCompare(b.code));
   }, [meta]);
+
+  /* ── Seleção em massa ── */
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [alsoGoogle, setAlsoGoogle] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  // Só conta o que está visível (aba, busca e filtros), para não apagar o que não se vê
+  const selectedRows = useMemo(() => filtered.filter((c) => selected.has(c.id)), [filtered, selected]);
+  const allSelected = filtered.length > 0 && selectedRows.length === filtered.length;
+  const selectedGoogle = selectedRows.filter((c) => c.googleResourceName).length;
+
+  function toggleOne(id: string) {
+    setSelected((cur) => {
+      const next = new Set(cur);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+  function toggleAll() {
+    setSelected(allSelected ? new Set() : new Set(filtered.map((c) => c.id)));
+  }
+
+  async function deleteSelected() {
+    if (!selectedRows.length) return;
+    setDeleting(true);
+    try {
+      const res = await fetch("/api/contacts/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selectedRows.map((c) => c.id), google: alsoGoogle && selectedGoogle > 0 }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error);
+      const gone = new Set<string>(data.deleted ?? []);
+      setItems((arr) => arr.filter((c) => !gone.has(c.id)));
+      setSelected(new Set());
+      setConfirmDelete(false);
+      setAlsoGoogle(false);
+      toast.success(gone.size === 1 ? "1 contato excluído." : `${gone.size} contatos excluídos.`);
+      router.refresh();
+    } catch (e) {
+      toast.error(e instanceof Error && e.message ? e.message : "Não foi possível excluir.");
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   const chips = activeFilterChips(
     filters,
@@ -380,9 +429,21 @@ export function ContactsClient({
       </StatsGrid>
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-        <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-subtle">
-          {filtered.length} de {inTab.length} contatos
-        </p>
+        <div className="flex items-center gap-3">
+          <label className="inline-flex cursor-pointer items-center gap-2 md:hidden">
+            <input
+              type="checkbox"
+              className="size-4 accent-current"
+              checked={allSelected}
+              onChange={toggleAll}
+              disabled={!filtered.length}
+              aria-label="Selecionar todos"
+            />
+          </label>
+          <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-subtle">
+            {filtered.length} de {inTab.length} contatos
+          </p>
+        </div>
         <button
           onClick={exportCsv}
           disabled={!filtered.length}
@@ -399,11 +460,25 @@ export function ContactsClient({
           const digits = c.phone.replace(/\D/g, "");
           const wa = digits.length >= 10 ? (digits.startsWith("55") ? digits : `55${digits}`) : null;
           return (
-            <div key={c.id} className="rounded-2xl border border-hairline bg-card p-3.5">
+            <div
+              key={c.id}
+              className={cn(
+                "rounded-2xl border bg-card p-3.5 transition-colors",
+                selected.has(c.id) ? "border-accent" : "border-hairline",
+              )}
+            >
+              <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                className="size-4 shrink-0 accent-current"
+                checked={selected.has(c.id)}
+                onChange={() => toggleOne(c.id)}
+                aria-label={`Selecionar ${c.name}`}
+              />
               <button
                 type="button"
                 onClick={() => setPreviewId(c.id)}
-                className="flex w-full items-center gap-3 text-left"
+                className="flex min-w-0 flex-1 items-center gap-3 text-left"
               >
                 <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-soft font-mono text-[11px] font-semibold text-subtle">
                   {initials(c.name)}
@@ -424,6 +499,7 @@ export function ContactsClient({
                   </span>
                 </span>
               </button>
+              </div>
               <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-subtle">
                 <Badge className={cn("border", SOURCE_STYLES[c.source])}>{SOURCE_LABELS[c.source]}</Badge>
                 <span>{CONTACT_TYPE_LABELS[c.type]}</span>
@@ -487,7 +563,17 @@ export function ContactsClient({
         <table className="w-full min-w-[860px] text-left text-sm">
           <thead>
             <tr className="border-b border-hairline font-mono text-[10px] uppercase tracking-[0.16em] text-subtle">
-              <th className="px-5 py-3.5 font-medium">Nome</th>
+              <th className="w-10 py-3.5 pl-5 pr-0">
+                <input
+                  type="checkbox"
+                  className="size-4 align-middle accent-current"
+                  checked={allSelected}
+                  onChange={toggleAll}
+                  disabled={!filtered.length}
+                  aria-label="Selecionar todos"
+                />
+              </th>
+              <th className="px-4 py-3.5 font-medium">Nome</th>
               <th className="px-4 py-3.5 font-medium">Tipo</th>
               <th className="px-4 py-3.5 font-medium">Origem</th>
               <th className="px-4 py-3.5 font-medium">Interesse</th>
@@ -499,9 +585,21 @@ export function ContactsClient({
             {filtered.map((c) => (
               <tr
                 key={c.id}
-                className="group border-b border-hairline/60 transition-colors last:border-0 hover:bg-soft/50"
+                className={cn(
+                  "group border-b border-hairline/60 transition-colors last:border-0 hover:bg-soft/50",
+                  selected.has(c.id) && "bg-soft/60",
+                )}
               >
-                <td className="px-5 py-3">
+                <td className="w-10 py-3 pl-5 pr-0">
+                  <input
+                    type="checkbox"
+                    className="size-4 align-middle accent-current"
+                    checked={selected.has(c.id)}
+                    onChange={() => toggleOne(c.id)}
+                    aria-label={`Selecionar ${c.name}`}
+                  />
+                </td>
+                <td className="px-4 py-3">
                   <div className="flex items-center gap-3.5">
                     <button
                       onClick={() => setPreviewId(c.id)}
@@ -577,6 +675,68 @@ export function ContactsClient({
       </div>
 
       <LeadDrawer contactId={previewId} onClose={() => setPreviewId(null)} />
+
+      {/* Barra de ações da seleção */}
+      {selectedRows.length > 0 && (
+        <div className="pointer-events-none sticky bottom-4 z-30 mt-4 flex justify-center">
+          <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-hairline bg-card py-1.5 pl-4 pr-1.5 shadow-lg">
+            <span className="whitespace-nowrap text-sm font-medium">
+              {selectedRows.length} {selectedRows.length === 1 ? "selecionado" : "selecionados"}
+            </span>
+            {!allSelected && (
+              <button type="button" onClick={toggleAll} className="whitespace-nowrap text-xs text-subtle underline-offset-2 hover:text-ink hover:underline">
+                Selecionar todos ({filtered.length})
+              </button>
+            )}
+            <Button variant="ghost" size="icon" onClick={() => setSelected(new Set())} aria-label="Limpar seleção" title="Limpar seleção">
+              <X className="size-4" />
+            </Button>
+            <Button variant="danger" size="sm" onClick={() => setConfirmDelete(true)}>
+              <Trash2 className="size-4" />
+              Excluir
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <Modal open={confirmDelete} onClose={() => !deleting && setConfirmDelete(false)} title="Excluir contatos">
+        <div className="space-y-4 text-sm">
+          <p>
+            Excluir <strong>{selectedRows.length} {selectedRows.length === 1 ? "contato" : "contatos"}</strong>? As
+            negociações e visitas deles também serão apagadas. Não dá para desfazer.
+          </p>
+          {selectedRows.length <= 8 && (
+            <p className="text-xs text-subtle">{selectedRows.map((c) => c.name).join(", ")}</p>
+          )}
+          {selectedGoogle > 0 && (
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-hairline p-3">
+              <input
+                type="checkbox"
+                className="mt-0.5 size-4 accent-current"
+                checked={alsoGoogle}
+                onChange={(e) => setAlsoGoogle(e.target.checked)}
+              />
+              <span>
+                <span className="font-medium">
+                  Apagar também no Google Contacts ({selectedGoogle})
+                </span>
+                <span className="mt-0.5 block text-xs text-subtle">
+                  Se desmarcar, eles continuam no Google e podem voltar ao CRM na próxima sincronização.
+                </span>
+              </span>
+            </label>
+          )}
+        </div>
+        <div className="mt-6 flex justify-end gap-2">
+          <Button variant="outline" onClick={() => setConfirmDelete(false)} disabled={deleting}>
+            Cancelar
+          </Button>
+          <Button variant="danger" loading={deleting} onClick={deleteSelected}>
+            <Trash2 className="size-4" />
+            Excluir {selectedRows.length}
+          </Button>
+        </div>
+      </Modal>
 
       {/* Novo contato */}
       <Modal open={open} onClose={() => setOpen(false)} title="Novo contato" wide>
