@@ -30,6 +30,15 @@ export function Gallery({ images, title }: { images: string[]; title: string }) 
     return unlock;
   }, [open]);
 
+  // Mantém a miniatura da foto atual visível na faixa
+  const strip = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const el = strip.current?.querySelector<HTMLElement>(`[data-i="${index}"]`);
+    const box = strip.current;
+    if (el && box) box.scrollTo({ left: el.offsetLeft - box.clientWidth / 2 + el.clientWidth / 2, behavior: "smooth" });
+  }, [open, index]);
+
   useEffect(() => {
     if (!open) return;
     const fn = (e: KeyboardEvent) => {
@@ -196,8 +205,39 @@ export function Gallery({ images, title }: { images: string[]; title: string }) 
           src={images[index]}
           alt={`${title} — foto ${index + 1}`}
           onClick={(e) => e.stopPropagation()}
-          className="animate-fade-in max-h-[86vh] max-w-[92vw] rounded-xl object-contain"
+          className={cn(
+            "animate-fade-in max-w-[92vw] rounded-xl object-contain",
+            images.length > 1 ? "max-h-[calc(100dvh-190px)] -translate-y-8 md:-translate-y-10" : "max-h-[86vh]",
+          )}
         />
+        {/* Miniaturas de todas as fotos */}
+        {images.length > 1 && (
+          <div
+            ref={strip}
+            onClick={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
+            className="absolute inset-x-0 bottom-4 mx-auto flex max-w-[min(92vw,1100px)] gap-2 overflow-x-auto px-2 py-1 [scrollbar-width:none] md:bottom-6"
+          >
+            {images.map((src, i) => (
+              <button
+                key={src + i}
+                type="button"
+                data-i={i}
+                onClick={() => show(i)}
+                aria-label={`Foto ${i + 1}`}
+                aria-current={i === index}
+                className={cn(
+                  "relative h-12 w-16 shrink-0 overflow-hidden rounded-lg transition-all duration-300 first:ml-auto last:mr-auto md:h-16 md:w-24",
+                  i === index ? "opacity-100 ring-2 ring-white ring-offset-2 ring-offset-black" : "opacity-45 hover:opacity-80",
+                )}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={src} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
+              </button>
+            ))}
+          </div>
+        )}
       </div>,
           document.body,
         )}
