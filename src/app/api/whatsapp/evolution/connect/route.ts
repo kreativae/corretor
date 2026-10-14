@@ -3,6 +3,8 @@ import { requestPublicOrigin } from "@/lib/google";
 import { evolutionConnect, getWhatsAppConfig } from "@/lib/whatsapp";
 import { NextResponse } from "next/server";
 
+export const maxDuration = 30;
+
 /** Gera o QR code (cria a instância e aponta o webhook para o CRM) */
 export async function POST(req: Request) {
   const u = await getCurrentUser();

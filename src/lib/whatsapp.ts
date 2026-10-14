@@ -566,8 +566,9 @@ export async function evolutionState(cfg: WhatsAppConfig) {
 export async function evolutionConnect(cfg: WhatsAppConfig, baseUrl: string) {
   const webhook = { enabled: true, url: evolutionWebhookUrl(baseUrl, cfg), byEvents: false, base64: false, events: EVO_EVENTS };
   const { state } = await evolutionState(cfg);
+  type QrResp = { base64?: string; code?: string; pairingCode?: string; qrcode?: { base64?: string; pairingCode?: string } };
   if (state === "missing") {
-    await evo(cfg, "/instance/create", {
+    const created = await evo<QrResp>(cfg, "/instance/create", {
       method: "POST",
       body: JSON.stringify({
         instanceName: cfg.evolutionInstance || "corretor",
@@ -579,12 +580,21 @@ export async function evolutionConnect(cfg: WhatsAppConfig, baseUrl: string) {
         webhook,
       }),
     });
+    if (created.qrcode?.base64) return { state: "connecting", qr: created.qrcode.base64, pairingCode: created.qrcode.pairingCode ?? null };
   } else {
     await evo(cfg, `/webhook/set/${inst(cfg)}`, { method: "POST", body: JSON.stringify({ webhook }) }).catch(() => undefined);
     if (state === "open") return { state: "open", qr: null, pairingCode: null };
   }
-  const qr = await evo<{ base64?: string; code?: string; pairingCode?: string }>(cfg, `/instance/connect/${inst(cfg)}`);
-  return { state: "connecting", qr: qr.base64 ?? null, pairingCode: qr.pairingCode ?? null };
+  // O QR leva alguns segundos para ser gerado: tenta por até ~12 s
+  for (let i = 0; i < 6; i++) {
+    const qr = await evo<QrResp>(cfg, `/instance/connect/${inst(cfg)}`);
+    const base64 = qr.base64 ?? qr.qrcode?.base64;
+    if (base64) return { state: "connecting", qr: base64, pairingCode: qr.pairingCode ?? null };
+    const now = await evolutionState(cfg).catch(() => null);
+    if (now?.state === "open") return { state: "open", qr: null, pairingCode: null };
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+  return { state: "connecting", qr: null, pairingCode: null };
 }
 
 export async function evolutionLogout(cfg: WhatsAppConfig) {
