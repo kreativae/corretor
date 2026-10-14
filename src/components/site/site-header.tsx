@@ -61,7 +61,7 @@ export function SiteHeader({
     <>
       <header
         className={cn(
-          "fixed inset-x-0 top-[var(--adminbar,0px)] z-40 text-ink transition-all duration-500 ease-expo",
+          "fixed inset-x-0 top-[var(--adminbar,0px)] z-40 pt-[var(--header-safe,env(safe-area-inset-top))] text-ink transition-all duration-500 ease-expo",
           overHero && !scrolled && "dark",
           scrolled
             ? "border-b border-hairline bg-canvas/80 backdrop-blur-xl"
@@ -120,7 +120,7 @@ export function SiteHeader({
         data-lenis-prevent
         aria-hidden={!open}
         className={cn(
-          "fixed inset-0 z-50 flex flex-col overflow-y-auto overscroll-contain bg-canvas transition-all duration-500 ease-expo lg:hidden",
+          "fixed inset-0 z-50 flex flex-col overflow-y-auto overscroll-contain bg-canvas pt-[env(safe-area-inset-top)] transition-all duration-500 ease-expo lg:hidden",
           open ? "visible opacity-100" : "invisible opacity-0",
         )}
       >

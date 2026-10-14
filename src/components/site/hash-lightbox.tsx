@@ -67,7 +67,7 @@ export function HashLightbox({
       className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center sm:p-6"
     >
       <div className="animate-fade-in absolute inset-0 bg-black/60 backdrop-blur-md" onClick={close} />
-      <div className="animate-slide-in relative grid max-h-[92dvh] w-full max-w-4xl grid-cols-[minmax(0,1fr)] overflow-y-auto overflow-x-hidden overscroll-contain rounded-t-3xl border border-hairline bg-canvas shadow-2xl sm:rounded-3xl md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+      <div className="animate-slide-in relative grid max-h-[calc(100dvh-max(2rem,env(safe-area-inset-top)))] w-full max-w-4xl grid-cols-[minmax(0,1fr)] overflow-y-auto overflow-x-hidden overscroll-contain rounded-t-3xl border border-hairline bg-canvas shadow-2xl sm:rounded-3xl md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
         <button
           type="button"
           onClick={close}

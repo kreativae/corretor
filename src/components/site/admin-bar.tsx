@@ -96,7 +96,7 @@ export function AdminBar({
     <>
       {/* Empurra o header fixo e o conteúdo para baixo da barra */}
       {!hidden && (
-        <style>{`@media screen{:root{--adminbar:${H}px}body{padding-top:${H}px}}`}</style>
+        <style>{`@media screen{:root{--adminbar:calc(${H}px + env(safe-area-inset-top));--header-safe:0px;--site-safe:0px}body{padding-top:calc(${H}px + env(safe-area-inset-top))}}`}</style>
       )}
       {hidden && (
         // Alça discreta: no celular (sem mouse) é por ela que a barra abre
@@ -105,7 +105,7 @@ export function AdminBar({
           onClick={() => setShown((v) => !v)}
           aria-label="Mostrar barra de edição"
           className={cn(
-            "fixed left-1/2 top-0 z-[46] h-2.5 w-14 -translate-x-1/2 rounded-b-lg bg-[#1d1d42]/70 shadow transition-opacity duration-300 hover:bg-[#1d1d42] print:hidden",
+            "fixed left-1/2 top-[env(safe-area-inset-top)] z-[46] h-2.5 w-14 -translate-x-1/2 rounded-b-lg bg-[#1d1d42]/70 shadow transition-opacity duration-300 hover:bg-[#1d1d42] print:hidden",
             visible && "pointer-events-none opacity-0",
           )}
         />
@@ -116,7 +116,7 @@ export function AdminBar({
           hidden && "shadow-2xl shadow-black/40",
           !visible && "-translate-y-full",
         )}
-        style={{ height: H }}
+        style={{ height: `calc(${H}px + env(safe-area-inset-top))`, paddingTop: "env(safe-area-inset-top)" }}
         onMouseEnter={() => hidden && setShown(true)}
         inert={!visible || undefined}
         ref={bar}

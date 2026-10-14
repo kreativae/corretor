@@ -33,8 +33,8 @@ export default async function MapaPage({ params }: { params: Promise<{ id: strin
   if (!r.kmzUrl) notFound();
 
   return (
-    <div className="flex h-dvh flex-col bg-neutral-950 text-white">
-      <header className="flex shrink-0 items-center gap-3 border-b border-white/10 px-3 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-4">
+    <div className="flex h-[calc(100dvh-var(--site-safe,env(safe-area-inset-top)))] flex-col bg-neutral-950 text-white">
+      <header className="flex shrink-0 items-center gap-3 border-b border-white/10 px-3 pb-3 pt-3 sm:px-4">
         <Link
           href={`/imoveis/${p.code}`}
           aria-label="Ver anúncio"

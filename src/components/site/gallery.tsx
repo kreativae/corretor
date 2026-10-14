@@ -212,11 +212,11 @@ export function Gallery({
           if (Math.abs(dx) > 50) show(index + (dx < 0 ? 1 : -1));
         }}
       >
-        <p className="absolute left-6 top-6 font-mono text-sm tabular text-white/70">
+        <p className="absolute left-6 top-[max(1.5rem,env(safe-area-inset-top))] font-mono text-sm tabular text-white/70">
           {String(index + 1).padStart(2, "0")} / {String(images.length).padStart(2, "0")}
         </p>
         <button
-          className="absolute right-6 top-6 rounded-full border border-white/20 p-2.5 text-white transition-colors hover:bg-white/10"
+          className="absolute right-6 top-[max(1.5rem,env(safe-area-inset-top))] rounded-full border border-white/20 p-2.5 text-white transition-colors hover:bg-white/10"
           aria-label="Fechar"
         >
           <X className="size-5" />
@@ -302,7 +302,7 @@ export function Gallery({
             onClick={() => setVideo(false)}
           >
             <button
-              className="absolute right-6 top-6 rounded-full border border-white/20 p-2.5 text-white transition-colors hover:bg-white/10"
+              className="absolute right-6 top-[max(1.5rem,env(safe-area-inset-top))] rounded-full border border-white/20 p-2.5 text-white transition-colors hover:bg-white/10"
               aria-label="Fechar"
             >
               <X className="size-5" />
