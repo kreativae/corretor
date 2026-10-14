@@ -48,13 +48,18 @@ export function WhatsAppCard() {
   const [conn, setConn] = useState<{ state: string; number?: string | null; name?: string | null; error?: string } | null>(null);
   const [qr, setQr] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
+  const [pairNumber, setPairNumber] = useState("");
+  const [pairCode, setPairCode] = useState<string | null>(null);
 
   const refreshState = useCallback(async () => {
     const r = await fetch("/api/whatsapp/evolution/status", { cache: "no-store" }).catch(() => null);
     if (!r?.ok) return null;
     const d = await r.json();
     setConn(d);
-    if (d.state === "open") setQr(null);
+    if (d.state === "open") {
+      setQr(null);
+      setPairCode(null);
+    }
     return d.state as string;
   }, []);
 
@@ -62,24 +67,38 @@ export function WhatsAppCard() {
     if (!open || cfg?.provider !== "evolution" || !cfg.ready) return;
     const first = window.setTimeout(refreshState, 0);
     // Enquanto o QR está na tela, confere a cada 3 s se o celular já leu
-    const t = window.setInterval(refreshState, qr ? 3000 : 15000);
+    const t = window.setInterval(refreshState, qr || pairCode ? 3000 : 15000);
     return () => {
       window.clearTimeout(first);
       window.clearInterval(t);
     };
-  }, [open, cfg?.provider, cfg?.ready, qr, refreshState]);
+  }, [open, cfg?.provider, cfg?.ready, qr, pairCode, refreshState]);
 
-  async function connect() {
+  async function connect(byNumber = false) {
+    if (byNumber && pairNumber.replace(/\D/g, "").length < 10) {
+      toast.error("Informe o número com DDD.");
+      return;
+    }
     setConnecting(true);
     try {
       await save();
-      const res = await fetch("/api/whatsapp/evolution/connect", { method: "POST" });
+      const res = await fetch("/api/whatsapp/evolution/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(byNumber ? { number: pairNumber } : {}),
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       if (data.state === "open") {
         toast.success("WhatsApp já está conectado.");
         refreshState();
+      } else if (byNumber) {
+        if (!data.pairingCode) throw new Error("O servidor não devolveu o código. Tente de novo em alguns segundos.");
+        setPairCode(data.pairingCode);
+        setQr(null);
+        setConn({ state: "connecting" });
       } else if (data.qr) {
+        setPairCode(null);
         setQr(data.qr);
         setConn({ state: "connecting" });
       } else {
@@ -98,6 +117,7 @@ export function WhatsAppCard() {
     if (!res.ok) return toast.error("Não foi possível desconectar.");
     toast.success("WhatsApp desconectado.");
     setQr(null);
+    setPairCode(null);
     refreshState();
   }
 
@@ -240,6 +260,28 @@ export function WhatsAppCard() {
                           Desconectar
                         </Button>
                       </div>
+                    ) : pairCode ? (
+                      <div className="space-y-3 text-center sm:text-left">
+                        <p className="text-sm font-semibold">Digite este código no celular</p>
+                        <p className="font-mono text-3xl font-semibold tracking-[0.25em]">
+                          {pairCode.length === 8 ? `${pairCode.slice(0, 4)}-${pairCode.slice(4)}` : pairCode}
+                        </p>
+                        <p className="text-xs text-subtle">
+                          WhatsApp › ⋮ (ou Configurações) › Dispositivos conectados › Conectar um dispositivo › Conectar com número de telefone
+                        </p>
+                        <p className="flex items-center justify-center gap-1.5 text-xs text-subtle sm:justify-start">
+                          <Loader2 className="size-3.5 animate-spin" /> Aguardando a confirmação…
+                        </p>
+                        <div className="flex flex-wrap justify-center gap-2 sm:justify-start">
+                          <Button variant="outline" size="sm" onClick={() => connect(true)} disabled={connecting}>
+                            <RefreshCw className={cn("size-4", connecting && "animate-spin")} />
+                            Gerar outro código
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => setPairCode(null)}>
+                            Voltar
+                          </Button>
+                        </div>
+                      </div>
                     ) : qr ? (
                       <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -254,7 +296,7 @@ export function WhatsAppCard() {
                           <p className="flex items-center gap-1.5 text-xs text-subtle">
                             <Loader2 className="size-3.5 animate-spin" /> Aguardando a leitura…
                           </p>
-                          <Button variant="outline" size="sm" onClick={connect} disabled={connecting}>
+                          <Button variant="outline" size="sm" onClick={() => connect()} disabled={connecting}>
                             <RefreshCw className={cn("size-4", connecting && "animate-spin")} />
                             Gerar outro QR
                           </Button>
@@ -271,10 +313,28 @@ export function WhatsAppCard() {
                             {conn?.state === "error" ? conn.error : "Salve os dados do servidor e gere o QR code."}
                           </p>
                         </div>
-                        <Button variant="accent" size="sm" onClick={connect} disabled={connecting || !cfg.evolutionUrl}>
+                        <Button variant="accent" size="sm" onClick={() => connect()} disabled={connecting || !cfg.evolutionUrl}>
                           {connecting ? <Loader2 className="size-4 animate-spin" /> : <QrCode className="size-4" />}
                           Conectar com QR code
                         </Button>
+                      </div>
+                    )}
+                    {conn?.state !== "open" && !pairCode && (
+                      <div className="mt-4 border-t border-hairline pt-4">
+                        <p className="text-xs text-subtle">Ou conecte sem QR: número do WhatsApp da imobiliária</p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <Input
+                            value={pairNumber}
+                            onChange={(e) => setPairNumber(e.target.value)}
+                            inputMode="tel"
+                            placeholder="(62) 99999-9999"
+                            className="max-w-[14rem]"
+                          />
+                          <Button variant="outline" size="sm" onClick={() => connect(true)} disabled={connecting || !cfg.evolutionUrl}>
+                            {connecting ? <Loader2 className="size-4 animate-spin" /> : <PlugZap className="size-4" />}
+                            Gerar código
+                          </Button>
+                        </div>
                       </div>
                     )}
                   </div>
