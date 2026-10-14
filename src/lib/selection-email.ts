@@ -1,5 +1,6 @@
 import "server-only";
 import { esc } from "@/lib/notify";
+import { fillMessage, MESSAGE_DEFAULTS, type Messages } from "@/lib/messages";
 import { TYPE_LABELS } from "@/lib/labels";
 import type { PropertyWithImages, WhiteLabel } from "@/lib/queries";
 import { formatAlq, isRuralType, normalizeRural } from "@/lib/rural";
@@ -30,7 +31,9 @@ export function selectionEmailHtml(opts: {
   properties: PropertyWithImages[];
   broker: { name: string; phone?: string | null; email?: string | null };
   attached: boolean;
+  msgs?: Messages;
 }) {
+  const m = opts.msgs ?? MESSAGE_DEFAULTS;
   const { wl, baseUrl, properties, broker } = opts;
   const accent = wl.accent || "#F47525";
   const onAccent = onAccentColor(accent, wl.onAccent);
@@ -38,6 +41,7 @@ export function selectionEmailHtml(opts: {
   const digits = (broker.phone || wl.phone || "").replace(/\D/g, "");
   const wa = digits ? `https://wa.me/${digits.startsWith("55") ? digits : `55${digits}`}` : "";
   const first = opts.toName.trim().split(/\s+/)[0] || "";
+  const greeting = first ? fillMessage(m.selGreeting, { nome: opts.toName.trim(), primeiro_nome: first }) : "";
 
   const cards = properties
     .map((p) => {
@@ -54,8 +58,8 @@ export function selectionEmailHtml(opts: {
       ${place ? `<p style="margin:0;font-size:13px;color:#5b5b70">${esc(place)}</p>` : ""}
       ${specs(p) ? `<p style="margin:8px 0 0;font-size:13px;color:#5b5b70">${esc(specs(p))}</p>` : ""}
       <p style="margin:12px 0 14px;font-size:20px;font-weight:700;color:#2B2B5D">${esc(formatBRL(p.price))}${p.purpose === "aluguel" ? '<span style="font-size:13px;font-weight:400;color:#7a7a90"> /mês</span>' : ""}</p>
-      ${p.published ? `<a href="${page}" style="display:inline-block;background:${accent};color:${onAccent};text-decoration:none;font-weight:600;font-size:13px;padding:10px 16px;border-radius:999px;margin:0 6px 6px 0">Ver fotos e detalhes</a>` : ""}
-      <a href="${ficha}" style="display:inline-block;background:#2B2B5D;color:#fff;text-decoration:none;font-weight:600;font-size:13px;padding:10px 16px;border-radius:999px;margin:0 6px 6px 0">Ficha completa</a>
+      ${p.published ? `<a href="${page}" style="display:inline-block;background:${accent};color:${onAccent};text-decoration:none;font-weight:600;font-size:13px;padding:10px 16px;border-radius:999px;margin:0 6px 6px 0">${esc(m.selBtnDetails)}</a>` : ""}
+      <a href="${ficha}" style="display:inline-block;background:#2B2B5D;color:#fff;text-decoration:none;font-weight:600;font-size:13px;padding:10px 16px;border-radius:999px;margin:0 6px 6px 0">${esc(m.selBtnFicha)}</a>
     </td></tr>
   </table>
 </td></tr>`;
@@ -69,10 +73,10 @@ export function selectionEmailHtml(opts: {
     ${wl.logoUrl ? `<img src="${esc(abs(wl.logoUrl))}" alt="${esc(wl.orgName)}" height="40" style="display:block;height:40px;width:auto;border:0">` : `<p style="margin:0;font-size:18px;font-weight:700;color:#2B2B5D">${esc(wl.orgName)}</p>`}
   </td></tr>
   <tr><td style="background:#fff;border-radius:16px;padding:24px 22px 8px">
-    ${first ? `<p style="margin:0 0 12px;font-size:16px;font-weight:600">Olá, ${esc(first)}!</p>` : ""}
+    ${greeting ? `<p style="margin:0 0 12px;font-size:16px;font-weight:600">${esc(greeting)}</p>` : ""}
     ${opts.message ? `<p style="margin:0 0 20px;font-size:15px;line-height:1.6;white-space:pre-wrap">${esc(opts.message)}</p>` : ""}
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${cards}</table>
-    ${opts.attached ? `<p style="margin:0 0 16px;font-size:13px;color:#5b5b70">📎 As fichas completas em PDF seguem anexas a este e-mail.</p>` : ""}
+    ${opts.attached && m.selAttachNote ? `<p style="margin:0 0 16px;font-size:13px;color:#5b5b70">${esc(m.selAttachNote)}</p>` : ""}
   </td></tr>
   <tr><td style="padding:18px 6px;font-size:13px;line-height:1.6;color:#5b5b70">
     <strong style="color:#2B2B5D">${esc(broker.name)}</strong><br>

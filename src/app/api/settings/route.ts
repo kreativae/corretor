@@ -7,6 +7,7 @@ import { sanitizeMapOptions } from "@/lib/map-options";
 import { sanitizeWatermark } from "@/lib/watermark-settings";
 import { sanitizeStatCards } from "@/lib/stat-cards";
 import { getWhiteLabel, WL_DEFAULTS, type WhiteLabel, cleanCodePrefix } from "@/lib/queries";
+import { mergeMessages } from "@/lib/messages";
 import { NextResponse } from "next/server";
 
 export async function GET() {
@@ -52,6 +53,7 @@ export async function POST(req: Request) {
     if (key === "statCards") value = sanitizeStatCards(value ?? {});
     if (key === "mapOptions") value = sanitizeMapOptions(value ?? {});
     if (key === "watermark") value = sanitizeWatermark(value ?? {});
+    if (key === "messages") value = mergeMessages(value ?? {});
     if (key === "notifications") {
       value = { leadEmails: String(value?.leadEmails ?? "").slice(0, 500) };
     }

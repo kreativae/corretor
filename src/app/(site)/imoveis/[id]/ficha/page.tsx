@@ -1,4 +1,6 @@
 import { FichaSheet } from "./ficha-sheet";
+import { getMessages } from "@/lib/features";
+import { fillMessage } from "@/lib/messages";
 import { FitSheet } from "./fit-sheet";
 import { PrintBar } from "./print-bar";
 import { getPropertyByCode, getWhiteLabel } from "@/lib/queries";
@@ -7,7 +9,7 @@ import { crmPropertyPath, isRuralType, normalizeRural, acceptsKmz } from "@/lib/
 import { headers } from "next/headers";
 import QRCode from "qrcode";
 import { getSiteContent } from "@/lib/site-content";
-import { TIME_ZONE } from "@/lib/utils";
+import { formatBRL, TIME_ZONE } from "@/lib/utils";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -21,10 +23,11 @@ export default async function FichaPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [wl, p, content] = await Promise.all([
+  const [wl, p, content, msgs] = await Promise.all([
     getWhiteLabel(),
     getPropertyByCode(id),
     getSiteContent(),
+    getMessages(),
   ]);
   if (!p) notFound();
 
@@ -101,7 +104,7 @@ export default async function FichaPage({
         qrSvg={qrSvg}
         qrKind={qrKind ?? undefined}
         qrUrl={qrUrl}
-        whatsappUrl={digits ? `https://wa.me/${digits}?text=${encodeURIComponent(`Olá! Tenho interesse no imóvel ${p.code} — ${p.title}.`)}` : undefined}
+        whatsappUrl={digits ? `https://wa.me/${digits}?text=${encodeURIComponent(fillMessage(msgs.waFichaInterest, { codigo: p.code, titulo: p.title, preco: formatBRL(p.price) }))}` : undefined}
       />
       </FitSheet>
     </div>

@@ -1,4 +1,6 @@
 import { RuralDetails } from "@/components/rural-details";
+import { getMessages } from "@/lib/features";
+import { fillMessage } from "@/lib/messages";
 import {
   APTIDAO_LABELS,
   formatAlq,
@@ -58,11 +60,12 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 
 export default async function ImovelPage({ params }: { params: Params }) {
   const { id } = await params;
-  const [wl, p, published, content] = await Promise.all([
+  const [wl, p, published, content, msgs] = await Promise.all([
     getWhiteLabel(),
     getPropertyByCode(id),
     listPublishedProperties(),
     getSiteContent(),
+    getMessages(),
   ]);
 
   if (!p || !p.published) notFound();
@@ -91,7 +94,7 @@ export default async function ImovelPage({ params }: { params: Params }) {
       ];
 
   const waText = encodeURIComponent(
-    `Olá! Tenho interesse no imóvel ${p.code} — ${p.title} (${formatBRL(p.price)}). Podemos conversar?`,
+    fillMessage(msgs.waSiteInterest, { codigo: p.code, titulo: p.title, preco: formatBRL(p.price) }),
   );
 
   return (

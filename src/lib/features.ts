@@ -83,3 +83,14 @@ export async function saveCustomFeatures(list: string[]) {
     await db.insert(settings).values({ key: "customFeatures", value: list });
   }
 }
+
+/** Mensagens automáticas (WhatsApp, e-mails) com os padrões preenchidos. */
+export async function getMessages() {
+  const { mergeMessages } = await import("@/lib/messages");
+  try {
+    const [row] = await db.select().from(settings).where(eq(settings.key, "messages"));
+    return mergeMessages(row?.value);
+  } catch {
+    return mergeMessages({});
+  }
+}

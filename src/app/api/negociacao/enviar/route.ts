@@ -5,6 +5,7 @@ import { blobToken } from "@/lib/blob";
 import { requestPublicOrigin } from "@/lib/google";
 import { emailConfigured, sendEmail, type EmailAttachment } from "@/lib/notify";
 import { getWhiteLabel, listProperties } from "@/lib/queries";
+import { getMessages } from "@/lib/features";
 import { selectionEmailHtml } from "@/lib/selection-email";
 import { get } from "@vercel/blob";
 import { eq } from "drizzle-orm";
@@ -66,7 +67,7 @@ export async function POST(req: Request) {
     if (!c) contactId = null;
   }
 
-  const wl = await getWhiteLabel();
+  const [wl, msgs] = await Promise.all([getWhiteLabel(), getMessages()]);
   const token = blobToken();
   const files = token ? (await Promise.all(attachments.map((a) => readAttachment(a, token)))).filter((f) => !!f) : [];
 
@@ -94,6 +95,7 @@ export async function POST(req: Request) {
         properties: props,
         broker: { name: user.name, phone: user.phone, email: user.email || wl.email },
         attached: files.length > 0,
+        msgs,
       }),
       {
         replyTo: user.email || wl.email || undefined,

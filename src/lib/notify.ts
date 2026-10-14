@@ -5,6 +5,8 @@ import { TYPE_LABELS } from "@/lib/labels";
 import { getWhiteLabel } from "@/lib/queries";
 import { onAccentColor } from "@/lib/utils";
 import { eq } from "drizzle-orm";
+import { getMessages } from "@/lib/features";
+import { fillMessage, MESSAGE_DEFAULTS } from "@/lib/messages";
 
 /**
  * Avisos por e-mail de novos leads, via Resend (https://resend.com).
@@ -94,7 +96,7 @@ export type LeadNotice = {
   returning?: boolean;
 };
 
-function leadHtml(n: LeadNotice, orgName: string, accent: string, onAccent: string) {
+function leadHtml(n: LeadNotice, orgName: string, accent: string, onAccent: string, footer = MESSAGE_DEFAULTS.leadFooter) {
   const digits = n.phone.replace(/\D/g, "");
   const wa = `https://wa.me/${digits.startsWith("55") ? digits : `55${digits}`}`;
   const rows: [string, string][] = [
@@ -124,7 +126,7 @@ function leadHtml(n: LeadNotice, orgName: string, accent: string, onAccent: stri
     <a href="${wa}" style="display:inline-block;background:#18181b;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:999px">Responder no WhatsApp</a>
   </div>
 </div>
-<p style="text-align:center;font-size:11px;color:#a1a1aa">Aviso automático do CRM — altere os destinatários em Admin → Configurações.</p>
+${footer ? `<p style="text-align:center;font-size:11px;color:#a1a1aa">${esc(footer)}</p>` : ""}
 </body></html>`;
 }
 
@@ -132,11 +134,15 @@ function leadHtml(n: LeadNotice, orgName: string, accent: string, onAccent: stri
 export async function notifyNewLead(n: LeadNotice) {
   try {
     if (!emailConfigured()) return;
-    const [cfg, wl] = await Promise.all([getNotifySettings(), getWhiteLabel()]);
+    const [cfg, wl, msgs] = await Promise.all([getNotifySettings(), getWhiteLabel(), getMessages()]);
     const to = parseEmails(cfg.leadEmails || wl.email);
     if (!to.length) return;
-    const subject = `${n.returning ? "Lead retornou" : "Novo lead"}: ${n.name}${n.interest && TYPE_LABELS[n.interest] ? ` · ${TYPE_LABELS[n.interest]}` : ""}`;
-    await sendEmail(to, subject, leadHtml(n, wl.orgName, wl.accent, onAccentColor(wl.accent, wl.onAccent)));
+    const subject = fillMessage(n.returning ? msgs.leadReturnSubject : msgs.leadSubject, {
+      nome: n.name,
+      interesse: n.interest ? (TYPE_LABELS[n.interest] ?? n.interest) : "",
+      origem: n.origin,
+    });
+    await sendEmail(to, subject, leadHtml(n, wl.orgName, wl.accent, onAccentColor(wl.accent, wl.onAccent), msgs.leadFooter));
   } catch (e) {
     console.error("[aviso de lead]", e);
   }

@@ -4,7 +4,8 @@ import { StatCardsCard } from "@/components/admin/stat-cards-card";
 import { MapOptionsCard } from "@/components/admin/map-options-card";
 import { WatermarkCard } from "@/components/admin/watermark-card";
 import { NotificationsCard } from "@/components/admin/notifications-card";
-import { getFeatures, getMapOptions, getStatCards, getWatermarkSettings } from "@/lib/features";
+import { getFeatures, getMapOptions, getMessages, getStatCards, getWatermarkSettings } from "@/lib/features";
+import { MessagesCard } from "@/components/admin/messages-card";
 import { WhiteLabelCard } from "@/components/admin/white-label-card";
 import { emailConfigured, getNotifySettings } from "@/lib/notify";
 import { db } from "@/db";
@@ -23,13 +24,14 @@ export default async function ConfiguracoesPage() {
     db.select().from(apiKeys).orderBy(apiKeys.createdAt),
     getWhiteLabel(),
   ]);
-  const [notify, features, statCards, mapOptions, watermark, audit] = await Promise.all([
+  const [notify, features, statCards, mapOptions, watermark, audit, messages] = await Promise.all([
     getNotifySettings(),
     getFeatures(),
     getStatCards(),
     getMapOptions(),
     getWatermarkSettings(true),
     listActivities(40),
+    getMessages(),
   ]);
 
   return (
@@ -58,6 +60,7 @@ export default async function ConfiguracoesPage() {
         fallbackEmail={wl.email}
         configured={emailConfigured()}
       />
+      <MessagesCard initial={messages} />
       <IntegrationsClient
         integrations={ints.map((item) => ({
           id: item.id,

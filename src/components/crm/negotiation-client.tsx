@@ -23,6 +23,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { fillMessage, MESSAGE_DEFAULTS, type Messages } from "@/lib/messages";
 import { toast } from "sonner";
 
 export type NegContact = {
@@ -116,6 +117,7 @@ export function NegotiationClient({
   sends,
   emailReady,
   userName,
+  msgs = MESSAGE_DEFAULTS,
   initialContactId,
   initialIds = [],
 }: {
@@ -124,6 +126,8 @@ export function NegotiationClient({
   sends: PropertySend[];
   emailReady: boolean;
   userName: string;
+  /** Textos padrão (Configurações › Mensagens e e-mails) */
+  msgs?: Messages;
   initialContactId?: string;
   initialIds?: string[];
 }) {
@@ -150,8 +154,12 @@ export function NegotiationClient({
   /* ── mensagem ── */
   const firstName = (n: string) => n.trim().split(/\s+/)[0] ?? "";
   const [subject, setSubject] = useState("");
-  const [message, setMessage] = useState(
-    "Separei algumas opções que combinam com o que você procura. Dê uma olhada e me diga quais gostaria de visitar — fico à disposição para tirar qualquer dúvida.",
+  const [message, setMessage] = useState(() =>
+    fillMessage(msgs.selMessage, {
+      nome: initialContact?.name ?? "",
+      primeiro_nome: firstName(initialContact?.name ?? ""),
+      corretor: userName,
+    }),
   );
   const [attach, setAttach] = useState(true);
 
@@ -220,8 +228,17 @@ export function NegotiationClient({
   const chosen = selected.map((id) => byId.get(id)).filter((p): p is NegProperty => !!p);
   const autoSubject =
     chosen.length === 1
-      ? `${chosen[0].title} — ${chosen[0].code}`
-      : `${chosen.length} imóveis selecionados para você${toName ? `, ${firstName(toName)}` : ""}`;
+      ? fillMessage(msgs.selSubjectOne, {
+          codigo: chosen[0].code,
+          titulo: chosen[0].title,
+          nome: toName,
+          primeiro_nome: firstName(toName),
+        })
+      : fillMessage(msgs.selSubjectMany, {
+          quantidade: chosen.length,
+          nome: toName,
+          primeiro_nome: firstName(toName),
+        });
   const finalSubject = subject.trim() || autoSubject;
   const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toEmail.trim());
   const canSend = emailReady && validEmail && chosen.length > 0 && !sending;
@@ -517,7 +534,7 @@ export function NegotiationClient({
               </label>
               <label className="block">
                 <span className="mb-1.5 block text-xs font-medium text-subtle">
-                  Texto {toName && <span className="font-normal">(começa com &quot;Olá, {firstName(toName)}!&quot;)</span>}
+                  Texto {toName && <span className="font-normal">(começa com &quot;{fillMessage(msgs.selGreeting, { nome: toName, primeiro_nome: firstName(toName) })}&quot;)</span>}
                 </span>
                 <Textarea rows={4} value={message} onChange={(e) => setMessage(e.target.value)} />
               </label>

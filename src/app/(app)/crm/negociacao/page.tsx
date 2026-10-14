@@ -1,6 +1,7 @@
 import { NegotiationClient, type NegProperty } from "@/components/crm/negotiation-client";
 import { getCurrentUser } from "@/lib/auth";
 import { emailConfigured } from "@/lib/notify";
+import { getMessages } from "@/lib/features";
 import { listContacts, listProperties, listPropertySends } from "@/lib/queries";
 import { formatAlq, isRuralType, normalizeRural } from "@/lib/rural";
 import { formatNumber } from "@/lib/utils";
@@ -14,12 +15,13 @@ export default async function NegociacaoPage({
 }: {
   searchParams: Promise<{ contato?: string; imoveis?: string }>;
 }) {
-  const [sp, user, contacts, properties, sends] = await Promise.all([
+  const [sp, user, contacts, properties, sends, msgs] = await Promise.all([
     searchParams,
     getCurrentUser(),
     listContacts(),
     listProperties(),
     listPropertySends(),
+    getMessages(),
   ]);
 
   const props: NegProperty[] = properties.map((p) => {
@@ -60,6 +62,7 @@ export default async function NegociacaoPage({
         sends={sends}
         emailReady={emailConfigured()}
         userName={user?.name ?? ""}
+        msgs={msgs}
         initialContactId={sp.contato}
         initialIds={sp.imoveis?.split(",").filter(Boolean)}
       />

@@ -1,5 +1,7 @@
 import { RuralDetails } from "@/components/rural-details";
 import { commissionValues } from "@/lib/partners";
+import { getMessages } from "@/lib/features";
+import { fillMessage } from "@/lib/messages";
 import {
   APTIDAO_LABELS,
   crmPropertyPath,
@@ -72,11 +74,12 @@ export async function PropertyDetail({
   // Rurais vivem em /crm/propriedades; urbanos em /crm/imoveis
   if (isRuralType(p.type) !== (section === "propriedades")) redirect(crmPropertyPath(p));
 
-  const [activities, views, documents, partner] = await Promise.all([
+  const [activities, views, documents, partner, msgs] = await Promise.all([
     listActivitiesFor("imovel", p.id, 15),
     getPropertyViewStats(p.id),
     listPropertyDocuments(p.id),
     p.partnerId ? getPartner(p.partnerId) : null,
+    getMessages(),
   ]);
   const commission = commissionValues(p.price, p.commissionPct, p.partnerSharePct);
   const propertyVisits = allVisits.filter((v) => v.property?.id === p.id);
@@ -165,7 +168,7 @@ export async function PropertyDetail({
             </Link>
           )}
           <a
-            href={`https://wa.me/?text=${encodeURIComponent(`Confira este imóvel: ${p.title} (${p.code}) — ${formatBRL(p.price)}`)}`}
+            href={`https://wa.me/?text=${encodeURIComponent(fillMessage(msgs.waShare, { codigo: p.code, titulo: p.title, preco: formatBRL(p.price) }))}`}
             target="_blank"
             rel="noreferrer"
           >

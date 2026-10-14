@@ -1,6 +1,8 @@
 import { LeadForm } from "@/components/site/lead-form";
 import { Wordmark } from "@/components/brand";
 import { TYPE_LABELS } from "@/lib/labels";
+import { getMessages } from "@/lib/features";
+import { fillMessage } from "@/lib/messages";
 import { getPropertyByCode, getWhiteLabel } from "@/lib/queries";
 import { formatAlq, isRuralType, normalizeRural } from "@/lib/rural";
 import { formatBRL, formatNumber, siteImage } from "@/lib/utils";
@@ -36,7 +38,7 @@ export default async function ContatoImovelPage({
   searchParams: Promise<{ origem?: string }>;
 }) {
   const [{ id }, { origem }] = await Promise.all([params, searchParams]);
-  const [p, wl] = await Promise.all([getPropertyByCode(id), getWhiteLabel()]);
+  const [p, wl, msgs] = await Promise.all([getPropertyByCode(id), getWhiteLabel(), getMessages()]);
   if (!p || !p.published) notFound();
 
   const rural = isRuralType(p.type);
@@ -44,7 +46,7 @@ export default async function ContatoImovelPage({
     ? `${formatAlq(normalizeRural(p.rural).totalAlq ?? 0)} alq`
     : `${formatNumber(p.area)} m²${p.bedrooms ? ` · ${p.bedrooms} ${p.bedrooms === 1 ? "quarto" : "quartos"}` : ""}`;
   const wa = wl.phone
-    ? `https://wa.me/${wl.phone}?text=${encodeURIComponent(`Olá! Tenho interesse no imóvel ${p.code} — ${p.title}.`)}`
+    ? `https://wa.me/${wl.phone}?text=${encodeURIComponent(fillMessage(msgs.waFichaInterest, { codigo: p.code, titulo: p.title, preco: formatBRL(p.price) }))}`
     : null;
 
   return (
