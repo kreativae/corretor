@@ -12,12 +12,12 @@ export function siteImage<T extends string | null | undefined>(
   return `${url}?wm=${mode === "logo" || mode === "linhas" ? mode : "padrao"}` as T;
 }
 
-/** Telefone para exibição: "43. 99664 7565" (sem o 55 do país). */
+/** Telefone para exibição: "43. 99664. 7565" (sem o 55 do país). */
 export function formatPhone(raw: string | null | undefined) {
   let d = (raw ?? "").replace(/\D/g, "");
   if ((d.length === 12 || d.length === 13) && d.startsWith("55")) d = d.slice(2);
-  if (d.length === 11) return `${d.slice(0, 2)}. ${d.slice(2, 7)} ${d.slice(7)}`;
-  if (d.length === 10) return `${d.slice(0, 2)}. ${d.slice(2, 6)} ${d.slice(6)}`;
+  // DDD + meio + 4 últimos; números fora do padrão (dígito a mais) seguem o mesmo formato
+  if (d.length >= 10 && d.length <= 12) return `${d.slice(0, 2)}. ${d.slice(2, -4)}. ${d.slice(-4)}`;
   return raw ?? "";
 }
 

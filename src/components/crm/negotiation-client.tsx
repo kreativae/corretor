@@ -4,7 +4,7 @@ import { Button, Input, Select, Switch, Textarea } from "@/components/ui";
 import type { PropertySend, SentAttachment } from "@/db/schema";
 import { PURPOSE_LABELS, STATUS_LABELS, TYPE_LABELS } from "@/lib/labels";
 import { isRuralType } from "@/lib/rural";
-import { cn, formatBRL, formatDateTime, plural } from "@/lib/utils";
+import { cn, formatBRL, formatDateTime, formatPhone, plural } from "@/lib/utils";
 import {
   AlertTriangle,
   Check,
@@ -339,7 +339,7 @@ export function NegotiationClient({
                     <Link href={`/crm/contatos/${contact.id}`} className="truncate font-medium hover:underline">
                       {contact.name}
                     </Link>
-                    <p className="truncate text-xs text-subtle">{contact.email || "Sem e-mail no cadastro"} · {contact.phone}</p>
+                    <p className="truncate text-xs text-subtle">{contact.email || "Sem e-mail no cadastro"} · {formatPhone(contact.phone)}</p>
                   </div>
                   <button type="button" onClick={() => pickContact(null)} className="grid size-8 place-items-center rounded-full text-subtle hover:bg-card hover:text-ink" aria-label="Trocar contato">
                     <X className="size-4" />
@@ -372,7 +372,7 @@ export function NegotiationClient({
                           <User className="size-4 shrink-0 text-subtle" />
                           <span className="min-w-0">
                             <span className="block truncate text-sm font-medium">{c.name}</span>
-                            <span className="block truncate text-xs text-subtle">{c.email || "sem e-mail"} · {c.phone}</span>
+                            <span className="block truncate text-xs text-subtle">{c.email || "sem e-mail"} · {formatPhone(c.phone)}</span>
                           </span>
                         </button>
                       ))}
