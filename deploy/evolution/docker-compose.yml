@@ -2,7 +2,7 @@
 # Uso: copie .env.example para .env, preencha e rode:  docker compose up -d
 services:
   evolution:
-    image: evoapicloud/evolution-api:v2.2.3
+    image: evoapicloud/evolution-api:v2.3.7
     restart: always
     env_file: .env
     environment:

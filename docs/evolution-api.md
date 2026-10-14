@@ -66,7 +66,7 @@ A Evolution guarda a sessão do WhatsApp num Postgres. Use **um banco separado**
 
 ### 2. Subir a Evolution API
 
-No Railway: **New › Docker Image** → `evoapicloud/evolution-api:v2.2.3`
+No Railway: **New › Docker Image** → `evoapicloud/evolution-api:v2.3.7`
 
 Em **Variables**, cadastre:
 
