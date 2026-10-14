@@ -36,6 +36,8 @@ export function SiteHeader({
   );
   const ext = (h: string) => (isExternal(h) ? { target: "_blank", rel: "noreferrer" } : {});
   const [scrolled, setScrolled] = useState(false);
+  // Qualquer rolagem: a faixa do relógio (celular) já fica desfocada
+  const [moved, setMoved] = useState(false);
   const [open, setOpen] = useState(false);
 
   // Menu aberto: trava a rolagem do site por trás (inclusive o Lenis)
@@ -51,7 +53,10 @@ export function SiteHeader({
   }, [open]);
 
   useEffect(() => {
-    const fn = () => setScrolled(window.scrollY > 24);
+    const fn = () => {
+      setScrolled(window.scrollY > 24);
+      setMoved(window.scrollY > 2);
+    };
     fn();
     window.addEventListener("scroll", fn, { passive: true });
     return () => window.removeEventListener("scroll", fn);
@@ -59,6 +64,14 @@ export function SiteHeader({
 
   return (
     <>
+      {/* Faixa do relógio/bateria (só existe no celular): desfoca o que passa por trás */}
+      <div
+        aria-hidden
+        className={cn(
+          "pointer-events-none fixed inset-x-0 top-0 z-[41] h-[var(--header-safe,env(safe-area-inset-top))] transition-all duration-300",
+          moved ? "bg-canvas/70 backdrop-blur-xl" : "bg-transparent",
+        )}
+      />
       <header
         className={cn(
           "fixed inset-x-0 top-[var(--adminbar,0px)] z-40 pt-[var(--header-safe,env(safe-area-inset-top))] text-ink transition-all duration-500 ease-expo",
