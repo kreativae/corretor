@@ -10,23 +10,34 @@ export const STAT_CARD_PAGES = [
 ] as const;
 
 export type StatCardKey = (typeof STAT_CARD_PAGES)[number]["key"];
-export type StatCards = Record<StatCardKey, boolean>;
+/** aberto = cards visíveis · minimizado = recolhidos, abre com um clique · oculto = não aparecem */
+export type StatCardMode = "aberto" | "minimizado" | "oculto";
+export type StatCards = Record<StatCardKey, StatCardMode>;
+
+export const STAT_CARD_MODES: { id: StatCardMode; label: string }[] = [
+  { id: "aberto", label: "Aberto" },
+  { id: "minimizado", label: "Minimizado" },
+  { id: "oculto", label: "Oculto" },
+];
 
 export const STAT_CARDS_DEFAULTS: StatCards = {
-  overview: true,
-  imoveis: true,
-  rurais: true,
-  pipeline: true,
-  contatos: true,
-  agenda: true,
-  fechados: true,
+  overview: "minimizado",
+  imoveis: "minimizado",
+  rurais: "minimizado",
+  pipeline: "minimizado",
+  contatos: "minimizado",
+  agenda: "minimizado",
+  fechados: "minimizado",
 };
 
-/** Mantém só páginas conhecidas, como booleano. */
+/** Mantém só páginas conhecidas. Formato antigo: ligado vira minimizado, desligado vira oculto. */
 export function sanitizeStatCards(input: Record<string, unknown>): StatCards {
   const out = { ...STAT_CARDS_DEFAULTS };
   for (const k of Object.keys(out) as StatCardKey[]) {
-    if (typeof input?.[k] === "boolean") out[k] = input[k] as boolean;
+    const v = input?.[k];
+    if (v === true) out[k] = "minimizado";
+    else if (v === false) out[k] = "oculto";
+    else if (v === "aberto" || v === "minimizado" || v === "oculto") out[k] = v;
   }
   return out;
 }

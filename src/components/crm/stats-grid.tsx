@@ -23,8 +23,9 @@ export function StatCardsProvider({ value, children }: { value?: StatCards; chil
 }
 
 /**
- * Grade de indicadores. No celular fica recolhida (sanfona) para não ocupar
- * a tela; do tablet para cima aparece sempre aberta. A escolha fica salva.
+ * Grade de indicadores. Modo "aberto": no celular fica recolhida (sanfona) e do
+ * tablet para cima aparece aberta. Modo "minimizado" (Configurações): recolhida
+ * em todas as telas, abre com um clique. A escolha de cada página fica salva.
  */
 export function StatsGrid({
   className,
@@ -40,26 +41,29 @@ export function StatsGrid({
   const [open, setOpen] = useState(false);
   const cards = useContext(StatCardsContext);
   const page = statCardKeyFor(usePathname());
+  const mode = (cards && page && cards[page]) || "aberto";
+  const minimized = mode === "minimizado";
+  const storeKey = minimized ? `${KEY}:${page}` : KEY;
   const count = Children.toArray(children).filter(Boolean).length;
 
   useEffect(() => {
     try {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (localStorage.getItem(KEY) === "1") setOpen(true);
+      setOpen(localStorage.getItem(storeKey) === "1");
     } catch {}
-  }, []);
+  }, [storeKey]);
 
   function toggle() {
     setOpen((v) => {
       try {
-        localStorage.setItem(KEY, v ? "0" : "1");
+        localStorage.setItem(storeKey, v ? "0" : "1");
       } catch {}
       return !v;
     });
   }
 
-  // Desligado em Configurações para esta página
-  if (cards && page && !cards[page]) return null;
+  // Oculto em Configurações para esta página
+  if (mode === "oculto") return null;
 
   return (
     <div className={className}>
@@ -67,14 +71,20 @@ export function StatsGrid({
         type="button"
         onClick={toggle}
         aria-expanded={open}
-        className="flex w-full items-center gap-2.5 rounded-2xl border border-hairline bg-card px-4 py-3 text-left text-sm font-medium md:hidden"
+        className={cn(
+          "flex w-full items-center gap-2.5 rounded-2xl border border-hairline bg-card px-4 py-3 text-left text-sm font-medium transition-colors hover:bg-soft/60",
+          !minimized && "md:hidden",
+        )}
       >
         <BarChart3 className="size-4 text-subtle" />
         Indicadores
         <span className="font-mono text-[11px] text-subtle">{count}</span>
+        <span className="ml-auto hidden text-xs font-normal text-subtle sm:inline">
+          {open ? "Minimizar" : "Ver indicadores"}
+        </span>
         <ChevronDown
           className={cn(
-            "ml-auto size-4 text-subtle transition-transform duration-300",
+            "size-4 text-subtle transition-transform duration-300 max-sm:ml-auto",
             open && "rotate-180",
           )}
         />
@@ -82,7 +92,8 @@ export function StatsGrid({
       <div
         className={cn(
           open ? "mt-3 grid" : "hidden",
-          "grid-cols-2 md:mt-0 md:grid",
+          "grid-cols-2",
+          !minimized && "md:mt-0 md:grid",
           gridClassName,
         )}
       >
