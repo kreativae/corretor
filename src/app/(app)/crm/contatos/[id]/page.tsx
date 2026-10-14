@@ -260,6 +260,31 @@ export default async function ContatoPage({
               ))}
             </div>
           </div>
+          {/* Imóveis enviados por e-mail (Negociação) */}
+          <MobileSection
+            className="order-6 rounded-2xl border border-hairline bg-card p-4 md:p-6 lg:order-none"
+            title="Imóveis enviados"
+            meta={sends[0] ? timeAgo(sends[0].createdAt) : undefined}
+          >
+            {sends.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-hairline-strong py-6 text-center text-sm text-subtle">
+                Nenhum imóvel enviado por e-mail ainda.
+              </p>
+            ) : (
+              <ul className="divide-y divide-hairline">
+                {sends.map((s) => (
+                  <SendRow key={s.id} s={s} hideContact />
+                ))}
+              </ul>
+            )}
+            <Link
+              href={`/crm/negociacao?contato=${c.id}`}
+              className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-accent hover:underline"
+            >
+              <Send className="size-3.5" /> Enviar imóveis para {c.name.split(" ")[0]}
+            </Link>
+          </MobileSection>
+
         </div>
 
         {/* Coluna lateral */}
@@ -350,34 +375,9 @@ export default async function ContatoPage({
             )}
           </div>
 
-          {/* Imóveis enviados por e-mail (Negociação) */}
-          <MobileSection
-            className="order-6 rounded-2xl border border-hairline bg-card p-4 md:p-5 lg:order-none"
-            title="Imóveis enviados"
-            meta={sends[0] ? timeAgo(sends[0].createdAt) : undefined}
-          >
-            {sends.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-hairline-strong py-6 text-center text-sm text-subtle">
-                Nenhum imóvel enviado por e-mail ainda.
-              </p>
-            ) : (
-              <ul className="divide-y divide-hairline">
-                {sends.map((s) => (
-                  <SendRow key={s.id} s={s} hideContact />
-                ))}
-              </ul>
-            )}
-            <Link
-              href={`/crm/negociacao?contato=${c.id}`}
-              className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-accent hover:underline"
-            >
-              <Send className="size-3.5" /> Enviar imóveis para {c.name.split(" ")[0]}
-            </Link>
-          </MobileSection>
-
           {/* Linha do tempo — sanfona no celular */}
           <MobileSection
-            className="order-6 rounded-2xl border border-hairline bg-card p-4 md:p-5 lg:order-none"
+            className="order-7 rounded-2xl border border-hairline bg-card p-4 md:p-5 lg:order-none"
             title="Linha do tempo"
             meta={activities[0] ? timeAgo(activities[0].createdAt) : undefined}
           >
