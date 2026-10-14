@@ -22,6 +22,8 @@ import {
   MessageCircle,
   Pencil,
   Phone,
+  Paperclip,
+  Send,
   Sparkles,
   Tractor,
   X,
@@ -60,6 +62,9 @@ type LeadData = {
     cover: string | null;
     score: number;
   }[];
+  /** Imóveis enviados por e-mail (Negociação) */
+  sends?: { id: string; createdAt: string; subject: string; status: string; codes: string[]; attachments: number }[];
+  allMatchIds?: string[];
 };
 
 function waLink(phone: string) {
@@ -341,7 +346,7 @@ export function LeadDrawer({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <a href={waLink(c.phone)} target="_blank" rel="noreferrer">
                   <Button variant="accent" size="sm" className="h-10 w-full">
                     <MessageCircle className="size-4" />
@@ -354,6 +359,12 @@ export function LeadDrawer({
                     Ligar
                   </Button>
                 </a>
+                <Link href={`/crm/negociacao?contato=${c.id}`} onClick={onClose}>
+                  <Button variant="outline" size="sm" className="h-10 w-full">
+                    <Send className="size-4" />
+                    Enviar
+                  </Button>
+                </Link>
               </div>
 
               <div className="space-y-1 rounded-2xl border border-hairline p-4">
@@ -362,10 +373,10 @@ export function LeadDrawer({
                   {formatPhone(c.phone)}
                 </p>
                 {c.email && (
-                  <p className="flex items-center gap-2.5 truncate text-[13px]">
+                  <a href={`mailto:${c.email}`} className="flex items-center gap-2.5 truncate text-[13px] hover:underline">
                     <Mail className="size-3.5 shrink-0 text-subtle" />
                     {c.email}
-                  </p>
+                  </a>
                 )}
               </div>
 
@@ -461,17 +472,82 @@ export function LeadDrawer({
                 </div>
               )}
 
+              {/* Imóveis enviados por e-mail */}
+              <div>
+                <div className="flex items-center justify-between">
+                  <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-subtle">
+                    Imóveis enviados · {data.sends?.length ?? 0}
+                  </p>
+                  <Link
+                    href={`/crm/negociacao?contato=${c.id}`}
+                    onClick={onClose}
+                    className="inline-flex items-center gap-1 text-[11px] font-medium text-accent hover:underline"
+                  >
+                    <Send className="size-3" /> Enviar imóveis
+                  </Link>
+                </div>
+                {data.sends?.length ? (
+                  <div className="mt-2 space-y-1.5">
+                    {data.sends.map((s) => (
+                      <div key={s.id} className="rounded-xl border border-hairline px-3.5 py-2.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-mono text-[10px] uppercase tracking-wider text-subtle">
+                            {formatDateTime(s.createdAt)}
+                          </p>
+                          <span
+                            className={cn(
+                              "inline-flex items-center gap-1 text-[10px] font-medium",
+                              s.status === "enviado" ? "text-emerald-600" : "text-red-500",
+                            )}
+                          >
+                            {s.status === "enviado" ? <Check className="size-3" /> : <X className="size-3" />}
+                            {s.status === "enviado" ? "Enviado" : "Falhou"}
+                          </span>
+                        </div>
+                        <p className="mt-0.5 truncate text-[13px] font-medium">{s.subject}</p>
+                        <p className="mt-1 flex flex-wrap items-center gap-1">
+                          {s.codes.map((code) => (
+                            <span key={code} className="rounded-full border border-hairline px-1.5 py-px font-mono text-[10px] text-subtle">
+                              {code}
+                            </span>
+                          ))}
+                          {s.attachments > 0 && (
+                            <span className="ml-1 inline-flex items-center gap-0.5 text-[10px] text-subtle">
+                              <Paperclip className="size-3" />
+                              {s.attachments} PDF
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-2 rounded-xl border border-dashed border-hairline-strong px-3 py-3 text-center text-xs text-subtle">
+                    Nenhum imóvel enviado por e-mail ainda.
+                  </p>
+                )}
+              </div>
+
               {data.matches.length > 0 && (
                 <div>
-                  <p className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-subtle">
-                    <Sparkles className="size-3.5 text-accent" />
-                    Smart match
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <p className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-subtle">
+                      <Sparkles className="size-3.5 text-accent" />
+                      Smart match
+                    </p>
+                    <Link
+                      href={`/crm/negociacao?contato=${c.id}&imoveis=${(data.allMatchIds ?? data.matches.map((m) => m.id)).join(",")}`}
+                      onClick={onClose}
+                      className="inline-flex items-center gap-1 text-[11px] font-medium text-accent hover:underline"
+                    >
+                      <Send className="size-3" /> Enviar por e-mail
+                    </Link>
+                  </div>
                   <div className="mt-2 space-y-1.5">
                     {data.matches.map((m) => (
                       <Link
                         key={m.id}
-                        href={`/crm/imoveis/${m.id}`}
+                        href={`/crm/abrir/${m.code}`}
                         onClick={onClose}
                         className="group flex items-center gap-3 rounded-xl border border-hairline p-2.5 transition-colors hover:border-hairline-strong hover:bg-soft/50"
                       >

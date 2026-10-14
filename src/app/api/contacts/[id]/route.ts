@@ -2,7 +2,7 @@ import { apiUser, unauthorized } from "@/lib/api-auth";
 import { db } from "@/db";
 import { activities, contacts, integrations } from "@/db/schema";
 import { GoogleApiError, googleApi } from "@/lib/google";
-import { getContact, getMatchesFor, listDeals, listLeadDates, listVisits } from "@/lib/queries";
+import { getContact, getMatchesFor, listDeals, listLeadDates, listVisits, listPropertySends } from "@/lib/queries";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
@@ -17,11 +17,12 @@ export async function GET(
     return NextResponse.json({ error: "Contato não encontrado" }, { status: 404 });
   }
 
-  const [allVisits, allDeals, matches, leadDates] = await Promise.all([
+  const [allVisits, allDeals, matches, leadDates, sends] = await Promise.all([
     listVisits(),
     listDeals(),
     getMatchesFor(contact),
     listLeadDates(contact.id),
+    listPropertySends(contact.id, 5),
   ]);
 
   const myVisits = allVisits
@@ -64,6 +65,15 @@ export async function GET(
     deals: myDeals,
     matches: topMatches,
     leadDates,
+    sends: sends.map((s) => ({
+      id: s.id,
+      createdAt: s.createdAt,
+      subject: s.subject,
+      status: s.status,
+      codes: s.properties.map((p) => p.code),
+      attachments: s.attachments.length,
+    })),
+    allMatchIds: matches.slice(0, 12).map((m) => m.property.id),
   });
 }
 
