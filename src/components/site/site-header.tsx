@@ -88,13 +88,13 @@ export function SiteHeader({
             <Wordmark />
           </Link>
 
-          <nav className="hidden items-center gap-1 lg:flex">
+          <nav className="hidden min-w-0 items-center gap-0.5 lg:flex xl:gap-1">
             {links.map((l, i) => (
               <Link
                 key={i}
                 href={l.href}
                 {...ext(l.href)}
-                className="rounded-full px-4 py-2 text-sm text-subtle transition-colors duration-300 hover:bg-soft hover:text-ink"
+                className="whitespace-nowrap rounded-full px-3 py-2 text-sm text-subtle transition-colors xl:px-4 duration-300 hover:bg-soft hover:text-ink"
               >
                 {l.label}
               </Link>
@@ -104,16 +104,17 @@ export function SiteHeader({
           <div className="flex items-center gap-2.5">
             <ThemeToggle className="hidden sm:inline-flex" />
             {menu.loginLabel && (
-              <Link href="/login" className="hidden sm:block">
-                <Button variant="outline" size="sm" className="h-9 px-4">
-                  {menu.loginLabel}
+              <Link href="/login" className="hidden sm:block" aria-label={menu.loginLabel}>
+                <Button variant="outline" size="sm" className="h-9 whitespace-nowrap px-4 lg:max-xl:px-3">
+                  {/* Entre lg e xl fica só o ícone para o menu caber em uma linha */}
+                  <span className="lg:max-xl:hidden">{menu.loginLabel}</span>
                   <LogIn className="size-3.5" />
                 </Button>
               </Link>
             )}
             {menu.ctaLabel && safeHref(menu.ctaHref) && (
               <Link href={menu.ctaHref} {...ext(menu.ctaHref)} className="hidden sm:block">
-                <Button variant="accent" size="sm" className="h-9 px-4">
+                <Button variant="accent" size="sm" className="h-9 whitespace-nowrap px-4">
                   {menu.ctaLabel}
                   <ArrowUpRight className="size-3.5" />
                 </Button>
