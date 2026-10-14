@@ -23,7 +23,7 @@ import {
   listPublishedProperties,
 } from "@/lib/queries";
 import { getSiteContent } from "@/lib/site-content";
-import { cn, formatBRL, initials, formatNumber, siteImage } from "@/lib/utils";
+import { cn, formatBRL, initials, formatNumber, parseYouTubeUrl, siteImage } from "@/lib/utils";
 import {
   BedDouble,
   Car,
@@ -136,6 +136,7 @@ export default async function ImovelPage({ params }: { params: Params }) {
           <Gallery
             images={p.images.map((i) => siteImage(i.url, p.wm))}
             title={p.title}
+            videoId={parseYouTubeUrl(p.videoUrl)}
           />
         </div>
 

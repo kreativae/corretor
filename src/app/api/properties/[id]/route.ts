@@ -13,6 +13,7 @@ import { del } from "@vercel/blob";
 import { eq } from "drizzle-orm";
 import { alqToM2, isRuralType, kmzOnly, sanitizeRural } from "@/lib/rural";
 import { sanitizePropertyPartnerFields } from "@/lib/partners";
+import { parseYouTubeUrl } from "@/lib/utils";
 import { NextResponse } from "next/server";
 
 type Params = { params: Promise<{ id: string }> };
@@ -58,6 +59,11 @@ export async function PATCH(req: Request, { params }: Params) {
     delete data.commissionPct;
     delete data.partnerSharePct;
     Object.assign(data, sanitizePropertyPartnerFields(body));
+    // Vídeo: só link válido do YouTube
+    if ("videoUrl" in data) {
+      const v = String(data.videoUrl ?? "").trim();
+      data.videoUrl = parseYouTubeUrl(v) ? v.slice(0, 300) : null;
+    }
 
     const [updated] = await db
       .update(properties)

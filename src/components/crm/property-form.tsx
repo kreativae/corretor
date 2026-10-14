@@ -9,7 +9,7 @@ import { crmPropertyPath, isRuralType, normalizeRural, pricePerAlq, RURAL_TYPES,
 import { commissionValues } from "@/lib/partners";
 import { PctInput, SharePicks } from "@/components/crm/share-picks";
 import { AmenityPicker } from "@/components/crm/amenity-picker";
-import { cn, formatBRL } from "@/lib/utils";
+import { cn, formatBRL, parseYouTubeUrl } from "@/lib/utils";
 import { ArrowLeft, Check, Handshake, ImageIcon, Save, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { generateDescription } from "@/lib/description";
@@ -68,6 +68,7 @@ export function PropertyForm({
     city: initial?.city ?? (rural ? "" : "São Paulo"),
     state: initial?.state ?? (rural ? "PR" : "SP"),
     description: initial?.description ?? "",
+    videoUrl: initial?.videoUrl ?? "",
     features: initial?.features ?? ([] as string[]),
     images: (initial?.images ?? []).map((i) => i.url),
     published: initial?.published ?? true,
@@ -166,6 +167,7 @@ export function PropertyForm({
         city: form.city,
         state: form.state,
         description: form.description,
+        videoUrl: form.videoUrl.trim() || null,
         features: form.features,
         images: imageUrls,
         published: form.published,
@@ -353,6 +355,30 @@ export function PropertyForm({
                   : "Conte a história do imóvel: luz, planta, reforma, vista…"
               }
             />
+            <div className="mt-5 border-t border-hairline pt-5">
+              <Field label="Vídeo (link do YouTube)">
+                <Input
+                  value={form.videoUrl}
+                  onChange={(e) => set("videoUrl", e.target.value)}
+                  placeholder="https://www.youtube.com/watch?v=… ou youtu.be/…"
+                  className={cn(inputCls, form.videoUrl.trim() && !parseYouTubeUrl(form.videoUrl) && "border-red-500/60")}
+                />
+              </Field>
+              {form.videoUrl.trim() &&
+                (parseYouTubeUrl(form.videoUrl) ? (
+                  <div className="mt-3 flex items-center gap-3">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={`https://i.ytimg.com/vi/${parseYouTubeUrl(form.videoUrl)}/mqdefault.jpg`}
+                      alt=""
+                      className="h-14 w-24 shrink-0 rounded-lg object-cover"
+                    />
+                    <p className="text-xs text-subtle">Aparece no site como o botão &quot;Ver vídeo&quot;, ao lado das fotos.</p>
+                  </div>
+                ) : (
+                  <p className="mt-2 text-xs text-red-500">Link do YouTube não reconhecido — confira o endereço.</p>
+                ))}
+            </div>
           </section>
         </div>
 

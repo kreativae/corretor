@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { sanitizePropertyPartnerFields } from "@/lib/partners";
 import { nextPropertyCode } from "@/lib/property-code";
 import { alqToM2, isRuralType, sanitizeRural, kmzOnly } from "@/lib/rural";
+import { parseYouTubeUrl } from "@/lib/utils";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
@@ -20,6 +21,11 @@ export async function POST(req: Request) {
     delete data.commissionPct;
     delete data.partnerSharePct;
     Object.assign(data, sanitizePropertyPartnerFields(body));
+    // Vídeo: só link válido do YouTube
+    if ("videoUrl" in data) {
+      const v = String(data.videoUrl ?? "").trim();
+      data.videoUrl = parseYouTubeUrl(v) ? v.slice(0, 300) : null;
+    }
 
     const rural = isRuralType(data.type as string);
     if (rural) {

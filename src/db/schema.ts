@@ -158,6 +158,7 @@ export const properties = pgTable("properties", {
   /** Dados de propriedade rural (fazenda, sítio, chácara) — ver src/lib/rural.ts */
   rural: jsonb("rural").$type<RuralData>(),
   /** Imóvel de parceiro (captado por outro corretor/imobiliária) */
+  videoUrl: text("video_url"),
   partnerId: uuid("partner_id").references(() => partners.id, { onDelete: "set null" }),
   /** Comissão total combinada na venda/locação (%) */
   commissionPct: real("commission_pct"),

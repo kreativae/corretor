@@ -1,13 +1,23 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, Expand, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Expand, Play, X } from "lucide-react";
 import { lockScroll } from "@/lib/scroll-lock";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-export function Gallery({ images, title }: { images: string[]; title: string }) {
+export function Gallery({
+  images,
+  title,
+  videoId,
+}: {
+  images: string[];
+  title: string;
+  /** Id do vídeo do YouTube (botão "Ver vídeo") */
+  videoId?: string | null;
+}) {
   const [open, setOpen] = useState(false);
+  const [video, setVideo] = useState(false);
   const [index, setIndex] = useState(0);
   // Carrossel do celular: foto visível e início do toque (para deslizar no lightbox)
   const [slide, setSlide] = useState(0);
@@ -29,6 +39,32 @@ export function Gallery({ images, title }: { images: string[]; title: string }) 
     const unlock = lockScroll();
     return unlock;
   }, [open]);
+
+  useEffect(() => {
+    if (!video) return;
+    const unlock = lockScroll();
+    const fn = (e: KeyboardEvent) => e.key === "Escape" && setVideo(false);
+    window.addEventListener("keydown", fn);
+    return () => {
+      unlock();
+      window.removeEventListener("keydown", fn);
+    };
+  }, [video]);
+
+  const videoButton = (className: string) =>
+    videoId ? (
+      <button
+        type="button"
+        onClick={() => setVideo(true)}
+        className={cn(
+          "flex items-center gap-2 rounded-full bg-black/45 px-3.5 py-2 text-xs font-medium text-white backdrop-blur-md transition-colors hover:bg-black/65",
+          className,
+        )}
+      >
+        <Play className="size-3.5 fill-current" />
+        Ver vídeo
+      </button>
+    ) : null;
 
   // Mantém a miniatura da foto atual visível na faixa
   const strip = useRef<HTMLDivElement>(null);
@@ -94,6 +130,7 @@ export function Gallery({ images, title }: { images: string[]; title: string }) 
           <Expand className="size-3" />
           {slide + 1} / {images.length}
         </span>
+        {videoButton("absolute bottom-3 left-3 z-10")}
         {images.length > 1 && (
           <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center gap-1.5">
             {images.slice(0, 8).map((_, i) => (
@@ -110,9 +147,10 @@ export function Gallery({ images, title }: { images: string[]; title: string }) 
       </div>
 
       <div className="hidden gap-3 lg:grid lg:grid-cols-3">
+        <div className="relative lg:col-span-2 lg:row-span-2">
         <button
           onClick={() => openAt(0)}
-          className="group relative aspect-[16/11] overflow-hidden rounded-2xl bg-soft lg:col-span-2 lg:row-span-2 lg:aspect-auto"
+          className="group relative block h-full min-h-full w-full overflow-hidden rounded-2xl bg-soft"
           aria-label="Ampliar galeria"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -121,11 +159,19 @@ export function Gallery({ images, title }: { images: string[]; title: string }) 
             alt={title}
             className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-expo group-hover:scale-[1.03]"
           />
-          <span className="absolute bottom-4 right-4 flex items-center gap-2 rounded-full bg-black/45 px-3.5 py-2 text-xs font-medium text-white backdrop-blur-md">
+        </button>
+        <div className="absolute bottom-4 right-4 flex items-center gap-2">
+          {videoButton("")}
+          <button
+            type="button"
+            onClick={() => openAt(0)}
+            className="flex items-center gap-2 rounded-full bg-black/45 px-3.5 py-2 text-xs font-medium text-white backdrop-blur-md transition-colors hover:bg-black/65"
+          >
             <Expand className="size-3.5" />
             {images.length} fotos
-          </span>
-        </button>
+          </button>
+        </div>
+        </div>
         {images.slice(1, 3).map((src, i) => (
           <button
             key={src + i}
@@ -239,6 +285,41 @@ export function Gallery({ images, title }: { images: string[]; title: string }) 
           </div>
         )}
       </div>,
+          document.body,
+        )}
+
+      {/* Lightbox do vídeo */}
+      {mounted &&
+        video &&
+        videoId &&
+        createPortal(
+          <div
+            data-lenis-prevent
+            role="dialog"
+            aria-modal
+            aria-label="Vídeo do imóvel"
+            className="fixed inset-0 z-[70] flex animate-fade-in items-center justify-center bg-black/95 p-4"
+            onClick={() => setVideo(false)}
+          >
+            <button
+              className="absolute right-6 top-6 rounded-full border border-white/20 p-2.5 text-white transition-colors hover:bg-white/10"
+              aria-label="Fechar"
+            >
+              <X className="size-5" />
+            </button>
+            <div
+              className="aspect-video w-full max-w-[min(92vw,calc((100dvh-120px)*16/9))] overflow-hidden rounded-xl bg-black"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <iframe
+                src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1&playsinline=1`}
+                title={`Vídeo — ${title}`}
+                allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                allowFullScreen
+                className="h-full w-full"
+              />
+            </div>
+          </div>,
           document.body,
         )}
     </>

@@ -69,4 +69,6 @@ export const RUNTIME_MIGRATIONS = [
      created_at timestamptz NOT NULL DEFAULT now()
    );`,
   `CREATE INDEX IF NOT EXISTS property_sends_contact_idx ON property_sends (contact_id, created_at DESC);`,
+  // Vídeo do anúncio (link do YouTube)
+  `ALTER TABLE properties ADD COLUMN IF NOT EXISTS video_url text;`,
 ];
