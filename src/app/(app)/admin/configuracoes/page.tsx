@@ -58,8 +58,9 @@ export default async function ConfiguracoesPage() {
       <WatermarkCard initial={watermark} />
       <NotificationsCard
         initialEmails={notify.leadEmails}
+        initialEnabled={notify.enabled}
         fallbackEmail={wl.email}
-        configured={emailConfigured()}
+        configured={await emailConfigured()}
       />
       <WhatsAppCard />
       <MessagesCard initial={messages} />

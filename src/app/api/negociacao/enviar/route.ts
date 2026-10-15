@@ -27,9 +27,9 @@ async function readAttachment(a: SentAttachment, token: string): Promise<EmailAt
 export async function POST(req: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Faça login." }, { status: 401 });
-  if (!emailConfigured()) {
+  if (!(await emailConfigured())) {
     return NextResponse.json(
-      { error: "Envio de e-mail não configurado (RESEND_API_KEY na Vercel)." },
+      { error: "Envio de e-mail não configurado (Configurações › Avisos de novos leads)." },
       { status: 400 },
     );
   }

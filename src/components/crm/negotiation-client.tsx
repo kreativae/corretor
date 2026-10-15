@@ -335,8 +335,8 @@ export function NegotiationClient({
         <div className="mt-6 flex items-start gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm">
           <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
           <p>
-            O envio de e-mails ainda não está configurado. Adicione a chave <code className="font-mono">RESEND_API_KEY</code>{" "}
-            e o remetente <code className="font-mono">LEADS_FROM_EMAIL</code> (domínio verificado no Resend) na Vercel.
+            O envio de e-mails ainda não está configurado. Um administrador informa a chave do Resend e o remetente em{" "}
+            <strong>Configurações › Avisos de novos leads</strong>.
           </p>
         </div>
       )}

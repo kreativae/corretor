@@ -9,13 +9,51 @@ import { getMessages } from "@/lib/features";
 import { fillMessage, MESSAGE_DEFAULTS } from "@/lib/messages";
 
 /**
- * Avisos por e-mail de novos leads, via Resend (https://resend.com).
- * Requer RESEND_API_KEY na Vercel. Remetente: LEADS_FROM_EMAIL
- * (domínio verificado no Resend) ou o remetente de testes do Resend.
+ * E-mails via Resend (https://resend.com): avisos de novos leads e envios da Negociação.
+ * Chave e remetente ficam em Configurações › Avisos de novos leads; as variáveis
+ * RESEND_API_KEY / LEADS_FROM_EMAIL da Vercel valem como reserva.
  */
 
-export type NotifySettings = { leadEmails: string };
-const DEFAULTS: NotifySettings = { leadEmails: "" };
+export type NotifySettings = { leadEmails: string; enabled: boolean };
+const DEFAULTS: NotifySettings = { leadEmails: "", enabled: true };
+
+/** Conta do Resend */
+export type EmailConfig = { resendApiKey: string; fromEmail: string; fromName: string };
+
+export async function getEmailConfig(): Promise<EmailConfig> {
+  let saved: Partial<EmailConfig> = {};
+  try {
+    const [row] = await db.select().from(settings).where(eq(settings.key, "email"));
+    saved = (row?.value ?? {}) as Partial<EmailConfig>;
+  } catch {
+    /* sem banco: só variáveis */
+  }
+  const envFrom = process.env.LEADS_FROM_EMAIL ?? "";
+  return {
+    resendApiKey: saved.resendApiKey || process.env.RESEND_API_KEY || "",
+    fromEmail: saved.fromEmail || envFrom.match(/<([^>]+)>/)?.[1] || envFrom,
+    fromName: saved.fromName || envFrom.match(/^([^<]+)</)?.[1]?.trim() || "",
+  };
+}
+
+export async function saveEmailConfig(input: Partial<EmailConfig>) {
+  const cur = await getEmailConfig();
+  const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
+  const key = str(input.resendApiKey, 200);
+  const fromEmail = str(input.fromEmail, 200).toLowerCase();
+  const next: EmailConfig = {
+    // Vazio ou mascarado mantém a atual; "-" apaga
+    resendApiKey: key === "-" ? "" : !key || key.includes("•") ? cur.resendApiKey : key,
+    fromEmail: /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(fromEmail) ? fromEmail : "",
+    fromName: str(input.fromName, 80).replace(/[<>"]/g, ""),
+  };
+  const [row] = await db.select().from(settings).where(eq(settings.key, "email"));
+  if (row) await db.update(settings).set({ value: next }).where(eq(settings.key, "email"));
+  else await db.insert(settings).values({ key: "email", value: next });
+  return next;
+}
+
+export const maskKey = (s: string) => (s ? `${s.slice(0, 3)}${"•".repeat(8)}${s.slice(-4)}` : "");
 
 export async function getNotifySettings(): Promise<NotifySettings> {
   try {
@@ -38,8 +76,8 @@ export function parseEmails(raw: string) {
   ].slice(0, 10);
 }
 
-export function emailConfigured() {
-  return !!process.env.RESEND_API_KEY;
+export async function emailConfigured() {
+  return !!(await getEmailConfig()).resendApiKey;
 }
 
 export type EmailAttachment = { filename: string; content: string /* base64 */ };
@@ -51,10 +89,10 @@ export async function sendEmail(
   html: string,
   extra: { replyTo?: string; attachments?: EmailAttachment[]; fromName?: string } = {},
 ) {
-  const key = process.env.RESEND_API_KEY;
-  if (!key) throw new Error("RESEND_API_KEY não configurada na Vercel.");
-  const wl = await getWhiteLabel();
-  let from = process.env.LEADS_FROM_EMAIL || `${wl.orgName} <onboarding@resend.dev>`;
+  const [cfg, wl] = await Promise.all([getEmailConfig(), getWhiteLabel()]);
+  const key = cfg.resendApiKey;
+  if (!key) throw new Error("Chave do Resend não configurada (Configurações › Avisos de novos leads).");
+  let from = `${(cfg.fromName || wl.orgName).replace(/[<>"]/g, "")} <${cfg.fromEmail || "onboarding@resend.dev"}>`;
   // Nome de exibição do remetente (ex.: corretor), mantendo o endereço verificado
   if (extra.fromName) {
     const addr = from.match(/<([^>]+)>/)?.[1] ?? from;
@@ -133,8 +171,8 @@ ${footer ? `<p style="text-align:center;font-size:11px;color:#a1a1aa">${esc(foot
 /** Envia o aviso; nunca lança erro (não pode derrubar a captura do lead). */
 export async function notifyNewLead(n: LeadNotice) {
   try {
-    if (!emailConfigured()) return;
     const [cfg, wl, msgs] = await Promise.all([getNotifySettings(), getWhiteLabel(), getMessages()]);
+    if (!cfg.enabled || !(await emailConfigured())) return;
     const to = parseEmails(cfg.leadEmails || wl.email);
     if (!to.length) return;
     const subject = fillMessage(n.returning ? msgs.leadReturnSubject : msgs.leadSubject, {

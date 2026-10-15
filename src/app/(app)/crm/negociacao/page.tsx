@@ -60,7 +60,7 @@ export default async function NegociacaoPage({
         }))}
         properties={props}
         sends={sends}
-        emailReady={emailConfigured()}
+        emailReady={await emailConfigured()}
         userName={user?.name ?? ""}
         msgs={msgs}
         initialContactId={sp.contato}

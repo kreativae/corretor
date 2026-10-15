@@ -45,6 +45,10 @@ export async function POST(req: Request) {
     const body = await req.json();
     const key = body.key;
     let value = body.value;
+    // Chaves com segredos têm rota própria (não passam por aqui)
+    if (["email", "whatsapp", "mapProvider"].includes(key)) {
+      return NextResponse.json({ error: "Use a tela de configuração específica." }, { status: 400 });
+    }
     if (!key || value === undefined) {
       return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
     }
@@ -55,7 +59,7 @@ export async function POST(req: Request) {
     if (key === "watermark") value = sanitizeWatermark(value ?? {});
     if (key === "messages") value = mergeMessages(value ?? {});
     if (key === "notifications") {
-      value = { leadEmails: String(value?.leadEmails ?? "").slice(0, 500) };
+      value = { leadEmails: String(value?.leadEmails ?? "").slice(0, 500), enabled: value?.enabled !== false };
     }
 
     const existing = await db
