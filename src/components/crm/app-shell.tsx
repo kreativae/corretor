@@ -28,6 +28,7 @@ import {
   Handshake,
   Briefcase,
   Send,
+  MapPinned,
   MessageCircle,
 } from "lucide-react";
 import Link from "next/link";
@@ -44,6 +45,7 @@ const CRM_NAV = [
   { href: "/crm/whatsapp", label: "WhatsApp", icon: MessageCircle },
   { href: "/crm/negociacao", label: "Negociação", icon: Send },
   { href: "/crm/agenda", label: "Agenda", icon: CalendarDays },
+  { href: "/crm/valor-m2", label: "Valor do m²", icon: MapPinned },
   { href: "/crm/parceiros", label: "Parceiros", icon: Briefcase },
 ];
 

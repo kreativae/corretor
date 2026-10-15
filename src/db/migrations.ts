@@ -101,4 +101,26 @@ export const RUNTIME_MIGRATIONS = [
    );`,
   `CREATE INDEX IF NOT EXISTS wa_messages_phone_idx ON wa_messages (phone, created_at);`,
   `CREATE INDEX IF NOT EXISTS wa_messages_contact_idx ON wa_messages (contact_id, created_at);`,
+  // Mapa do m²: amostras de mercado e cache de localização das regiões
+  `CREATE TABLE IF NOT EXISTS market_samples (
+     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+     type text NOT NULL,
+     purpose text NOT NULL DEFAULT 'venda',
+     price integer NOT NULL,
+     area integer NOT NULL,
+     neighborhood text NOT NULL DEFAULT '',
+     city text NOT NULL,
+     state text NOT NULL DEFAULT '',
+     source text,
+     notes text,
+     sampled_at timestamptz NOT NULL DEFAULT now(),
+     created_by text,
+     created_at timestamptz NOT NULL DEFAULT now()
+   );`,
+  `CREATE TABLE IF NOT EXISTS region_geo (
+     key text PRIMARY KEY,
+     lat real,
+     lng real,
+     updated_at timestamptz NOT NULL DEFAULT now()
+   );`,
 ];

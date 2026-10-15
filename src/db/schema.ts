@@ -363,6 +363,32 @@ export const propertySends = pgTable("property_sends", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/** Mapa do m²: amostras de mercado registradas à mão (anúncios, vendas de colegas, avaliações) */
+export const marketSamples = pgTable("market_samples", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  type: text("type").notNull(),
+  purpose: text("purpose", { enum: ["venda", "aluguel"] }).notNull().default("venda"),
+  price: integer("price").notNull(),
+  /** m² (rurais: alqueires convertidos) */
+  area: integer("area").notNull(),
+  neighborhood: text("neighborhood").notNull().default(""),
+  city: text("city").notNull(),
+  state: text("state").notNull().default(""),
+  source: text("source"),
+  notes: text("notes"),
+  sampledAt: timestamp("sampled_at", { withTimezone: true }).notNull().defaultNow(),
+  createdBy: text("created_by"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Centro de bairros/cidades já localizados no mapa (cache da busca) */
+export const regionGeo = pgTable("region_geo", {
+  key: text("key").primaryKey(),
+  lat: real("lat"),
+  lng: real("lng"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 /** WhatsApp: uma conversa por número (dígitos com DDI) */
 export const waThreads = pgTable("wa_threads", {
   phone: text("phone").primaryKey(),
@@ -413,3 +439,4 @@ export type ApiKey = typeof apiKeys.$inferSelect;
 export type PropertySend = typeof propertySends.$inferSelect;
 export type WaThread = typeof waThreads.$inferSelect;
 export type WaMessage = typeof waMessages.$inferSelect;
+export type MarketSampleRow = typeof marketSamples.$inferSelect;

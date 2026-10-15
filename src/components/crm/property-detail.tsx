@@ -20,6 +20,8 @@ import { PropertyDocuments } from "@/components/crm/property-documents";
 import { Timeline } from "@/components/crm/timeline";
 import { Badge, Button } from "@/components/ui";
 import { getPropertyViewStats, getWhiteLabel, getPartner } from "@/lib/queries";
+import { compareToRegion } from "@/lib/market-data";
+import { MIN_SAMPLES } from "@/lib/market";
 import {
   PURPOSE_LABELS,
   STATUS_LABELS,
@@ -74,12 +76,13 @@ export async function PropertyDetail({
   // Rurais vivem em /crm/propriedades; urbanos em /crm/imoveis
   if (isRuralType(p.type) !== (section === "propriedades")) redirect(crmPropertyPath(p));
 
-  const [activities, views, documents, partner, msgs] = await Promise.all([
+  const [activities, views, documents, partner, msgs, market] = await Promise.all([
     listActivitiesFor("imovel", p.id, 15),
     getPropertyViewStats(p.id),
     listPropertyDocuments(p.id),
     p.partnerId ? getPartner(p.partnerId) : null,
     getMessages(),
+    compareToRegion(p).catch(() => null),
   ]);
   const commission = commissionValues(p.price, p.commissionPct, p.partnerSharePct);
   const propertyVisits = allVisits.filter((v) => v.property?.id === p.id);
@@ -395,6 +398,28 @@ export async function PropertyDetail({
                   </div>
                 ))}
             </div>
+            {market && (
+              <Link
+                href="/crm/valor-m2"
+                className="mt-4 block rounded-xl border border-hairline p-3.5 text-xs leading-relaxed transition-colors hover:bg-soft"
+                title="Comparado com anúncios, negócios fechados e amostras dos últimos 24 meses"
+              >
+                <p className="text-subtle">
+                  {formatBRL(Math.round(market.own))}
+                  {market.unit === "alq" ? "/alq" : "/m²"} · mediana {rural ? "do município" : "do bairro"}{" "}
+                  {formatBRL(Math.round(market.median))}
+                </p>
+                <p className="mt-1 font-medium text-ink">
+                  {Math.abs(market.diffPct) < 1
+                    ? `Na mediana de ${market.region}`
+                    : `${Math.abs(market.diffPct).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}% ${market.diffPct > 0 ? "acima" : "abaixo"} da mediana de ${market.region}`}
+                </p>
+                <p className="mt-0.5 text-[11px] text-subtle">
+                  {market.n} {market.n === 1 ? "amostra" : "amostras"}
+                  {market.n < MIN_SAMPLES ? " · poucas amostras, use só como indício" : ""}
+                </p>
+              </Link>
+            )}
             <div className="mt-4 rounded-xl bg-soft p-3.5 text-xs leading-relaxed text-subtle">
               <p className="font-medium text-ink">{rural ? "Localização" : "Endereço"}</p>
               <p className="mt-1">
