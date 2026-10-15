@@ -22,7 +22,7 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
 type Thread = {
@@ -41,6 +41,40 @@ type Thread = {
 const DAY = 24 * 3600_000;
 
 const national = (p: string) => (p.startsWith("55") && p.length >= 12 ? p.slice(2) : p);
+/** "às 14:32" hoje, "ontem às 14:32" ou "12/10 às 14:32" */
+function stamp(d: string | Date) {
+  const date = new Date(d);
+  const hm = date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  const today = new Date();
+  const yesterday = new Date(today.getTime() - 86_400_000);
+  if (date.toDateString() === today.toDateString()) return `às ${hm}`;
+  if (date.toDateString() === yesterday.toDateString()) return `ontem às ${hm}`;
+  return `${date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} às ${hm}`;
+}
+
+/** Dados da mensagem, como no app: enviada, entregue e lida */
+function MessageInfo({ m }: { m: WaMessage }) {
+  const rows: [string, string | Date | null, ReactNode][] = [
+    ["Lida", m.readAt ?? null, <CheckCheck key="r" className="size-3.5 text-sky-500" />],
+    ["Entregue", m.deliveredAt ?? null, <CheckCheck key="d" className="size-3.5" />],
+    ["Enviada", m.createdAt, <Check key="s" className="size-3.5" />],
+  ];
+  return (
+    <div className="ml-auto mt-1.5 w-fit min-w-52 rounded-xl border border-hairline bg-card px-3 py-2 text-[11px] shadow-sm">
+      {rows.map(([label, at, icon]) => (
+        <p key={label} className="flex items-center gap-2 py-0.5">
+          <span className="text-subtle">{icon}</span>
+          <span className="font-medium">{label}</span>
+          <span className="ml-auto pl-4 font-mono text-subtle">
+            {at ? stamp(at) : label === "Lida" && m.status === "read" ? "—" : "aguardando"}
+          </span>
+        </p>
+      ))}
+      {m.sentBy && <p className="mt-1 border-t border-hairline pt-1 text-subtle">Enviada por {m.sentBy}</p>}
+    </div>
+  );
+}
+
 const nameOf = (t: Thread) => t.contactName || t.profileName || formatPhone(national(t.phone));
 
 function when(d: string) {
@@ -75,7 +109,10 @@ export function WhatsAppInbox({
   const [threads, setThreads] = useState<Thread[] | null>(null);
   const [archived, setArchived] = useState(false);
   const [active, setActive] = useState<string | null>(initialPhone ?? null);
+  // Mensagem enviada com os dados abertos (enviada / entregue / lida)
+  const [infoId, setInfoId] = useState<string | null>(null);
   const [messages, setMessages] = useState<WaMessage[]>([]);
+  const lastOutId = useMemo(() => [...messages].reverse().find((m) => m.direction === "out")?.id ?? null, [messages]);
   const [loadingMsgs, setLoadingMsgs] = useState(false);
   const [q, setQ] = useState("");
   const [text, setText] = useState("");
@@ -93,7 +130,9 @@ export function WhatsAppInbox({
     const res = await fetch(`/api/whatsapp/threads/${phone}`, { cache: "no-store" }).catch(() => null);
     if (res?.ok) {
       const data: WaMessage[] = await res.json();
-      setMessages((cur) => (cur.length === data.length && cur.at(-1)?.status === data.at(-1)?.status ? cur : data));
+      // Só troca a lista se algo mudou (inclui status de mensagens antigas: entregue, lida)
+      const sig = (list: WaMessage[]) => list.map((m) => `${m.id}:${m.status}`).join("|");
+      setMessages((cur) => (sig(cur) === sig(data) ? cur : data));
     }
     if (!quiet) setLoadingMsgs(false);
   }, []);
@@ -419,6 +458,7 @@ export function WhatsAppInbox({
                 )}
                 {messages.map((m, i) => {
                   const out = m.direction === "out";
+                  const isLastOut = out && m.id === lastOutId;
                   const day = new Date(m.createdAt).toDateString();
                   const showDay = i === 0 || new Date(messages[i - 1].createdAt).toDateString() !== day;
                   return (
@@ -430,9 +470,11 @@ export function WhatsAppInbox({
                       )}
                       <div className={cn("flex", out ? "justify-end" : "justify-start")}>
                         <div
+                          onClick={out ? () => setInfoId((v) => (v === m.id ? null : m.id)) : undefined}
+                          title={out ? "Ver dados da mensagem" : undefined}
                           className={cn(
                             "max-w-[80%] rounded-2xl px-3.5 py-2 text-sm shadow-sm",
-                            out ? "rounded-br-md bg-emerald-600 text-white" : "rounded-bl-md bg-card",
+                            out ? "cursor-pointer rounded-br-md bg-emerald-600 text-white" : "rounded-bl-md bg-card",
                           )}
                         >
                           {m.mediaId && m.type === "image" && (
@@ -455,18 +497,34 @@ export function WhatsAppInbox({
                             {new Date(m.createdAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
                             {out &&
                               (m.status === "read" ? (
-                                <CheckCheck className="size-3.5 text-sky-200" />
+                                <CheckCheck className="size-3.5 text-sky-300" aria-label="Lida" />
                               ) : m.status === "delivered" ? (
-                                <CheckCheck className="size-3.5" />
+                                <CheckCheck className="size-3.5" aria-label="Entregue" />
                               ) : m.status === "failed" ? (
                                 <X className="size-3.5 text-red-200" />
                               ) : (
-                                <Check className="size-3.5" />
+                                <Check className="size-3.5" aria-label="Enviada" />
                               ))}
                           </p>
                           {m.status === "failed" && m.error && <p className="mt-1 text-[11px] text-red-100">{m.error}</p>}
                         </div>
                       </div>
+                      {out && infoId === m.id ? (
+                        <MessageInfo m={m} />
+                      ) : (
+                        isLastOut &&
+                        m.status !== "failed" && (
+                          <p className="mt-1 text-right text-[10.5px] text-subtle">
+                            {m.status === "read" && m.readAt
+                              ? `Lida ${stamp(m.readAt)}`
+                              : m.status === "read"
+                                ? "Lida"
+                                : m.status === "delivered"
+                                  ? `Entregue${m.deliveredAt ? ` ${stamp(m.deliveredAt)}` : ""}`
+                                  : "Enviada"}
+                          </p>
+                        )
+                      )}
                     </div>
                   );
                 })}

@@ -101,6 +101,9 @@ export const RUNTIME_MIGRATIONS = [
    );`,
   `CREATE INDEX IF NOT EXISTS wa_messages_phone_idx ON wa_messages (phone, created_at);`,
   `CREATE INDEX IF NOT EXISTS wa_messages_contact_idx ON wa_messages (contact_id, created_at);`,
+  // WhatsApp: horário de entrega e de leitura
+  `ALTER TABLE wa_messages ADD COLUMN IF NOT EXISTS delivered_at timestamptz;`,
+  `ALTER TABLE wa_messages ADD COLUMN IF NOT EXISTS read_at timestamptz;`,
   // Mapa do m²: amostras de mercado e cache de localização das regiões
   `CREATE TABLE IF NOT EXISTS market_samples (
      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

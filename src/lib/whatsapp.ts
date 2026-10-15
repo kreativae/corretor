@@ -323,17 +323,15 @@ export async function handleWebhook(payload: unknown, baseUrl: string) {
   type Value = {
     contacts?: { wa_id: string; profile?: { name?: string } }[];
     messages?: Incoming[];
-    statuses?: { id: string; status: string; errors?: { title?: string; message?: string }[] }[];
+    statuses?: { id: string; status: string; timestamp?: string; errors?: { title?: string; message?: string }[] }[];
   };
   const entries = (payload as { entry?: { changes?: { value?: Value }[] }[] })?.entry ?? [];
   for (const entry of entries) {
     for (const change of entry.changes ?? []) {
       const v = change.value ?? {};
       for (const st of v.statuses ?? []) {
-        await db
-          .update(waMessages)
-          .set({ status: st.status, error: st.errors?.[0]?.message || st.errors?.[0]?.title || null })
-          .where(eq(waMessages.waMessageId, st.id));
+        const ts = Number(st.timestamp);
+        await setMessageStatus(st.id, st.status, ts ? new Date(ts * 1000) : new Date(), st.errors?.[0]?.message || st.errors?.[0]?.title);
       }
       for (const m of v.messages ?? []) {
         const profile = v.contacts?.find((c) => c.wa_id === m.from)?.profile?.name;
@@ -662,6 +660,32 @@ function describeEvo(m: EvoMessage): { type: string; body: string; media: boolea
   return { type: "other", body: "Mensagem não suportada", media: false };
 }
 
+const STATUS_RANK: Record<string, number> = { sent: 1, delivered: 2, read: 3 };
+
+/**
+ * Atualiza o status de uma mensagem enviada sem voltar atrás (um "entregue" atrasado
+ * não desfaz o "lida") e guarda o horário de entrega e de leitura.
+ */
+async function setMessageStatus(waMessageId: string, status: string, at: Date, error?: string) {
+  if (status === "failed") {
+    await db.update(waMessages).set({ status, error: error || null }).where(eq(waMessages.waMessageId, waMessageId));
+    return;
+  }
+  const rank = STATUS_RANK[status];
+  if (!rank) return;
+  const ranks = Object.entries(STATUS_RANK)
+    .filter(([, r]) => r < rank)
+    .map(([s]) => s);
+  await db
+    .update(waMessages)
+    .set({
+      status: sql`case when ${waMessages.status} = any(${sql.raw(`array[${ranks.map((r) => `'${r}'`).join(",") || "''"}]`)}) then ${status} else ${waMessages.status} end`,
+      ...(rank >= 2 ? { deliveredAt: sql`coalesce(${waMessages.deliveredAt}, ${at.toISOString()}::timestamptz)` } : {}),
+      ...(rank >= 3 ? { readAt: sql`coalesce(${waMessages.readAt}, ${at.toISOString()}::timestamptz)` } : {}),
+    })
+    .where(eq(waMessages.waMessageId, waMessageId));
+}
+
 const EVO_STATUS: Record<string, string> = {
   SERVER_ACK: "sent",
   DELIVERY_ACK: "delivered",
@@ -701,7 +725,7 @@ export async function handleEvolutionWebhook(payload: unknown, baseUrl: string) 
     for (const raw of items as Record<string, unknown>[]) {
       const id = (raw.keyId as string) ?? ((raw.key as EvoKey | undefined)?.id) ?? (raw.messageId as string);
       const status = EVO_STATUS[String(raw.status ?? "").toUpperCase()];
-      if (id && status) await db.update(waMessages).set({ status }).where(eq(waMessages.waMessageId, id));
+      if (id && status) await setMessageStatus(id, status, new Date());
     }
   }
 }

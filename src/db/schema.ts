@@ -417,6 +417,9 @@ export const waMessages = pgTable("wa_messages", {
   status: text("status").notNull().default("received"),
   error: text("error"),
   sentBy: text("sent_by"),
+  /** Quando o contato recebeu e quando leu (mensagens enviadas) */
+  deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+  readAt: timestamp("read_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
