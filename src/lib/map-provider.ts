@@ -11,6 +11,8 @@ export type MapProviderConfig = {
   /** URL de blocos própria ({z}/{x}/{y}), ex.: estilo personalizado da CARTO */
   customTiles: string;
   customAttribution: string;
+  /** Chave dos mapas base da CARTO (carto.com/basemaps/apikey) — vai na URL dos blocos, não é secreta */
+  basemapKey: string;
   /** Endereço da API da CARTO (região da conta), ex.: https://gcp-us-east1.api.carto.com */
   cartoApiUrl: string;
   /** Token de acesso da API (CARTO Workspace › Developers › Credentials) */
@@ -21,6 +23,7 @@ const DEFAULTS: MapProviderConfig = {
   style: "auto",
   customTiles: "",
   customAttribution: "",
+  basemapKey: "",
   cartoApiUrl: "https://gcp-us-east1.api.carto.com",
   cartoToken: "",
 };
@@ -35,6 +38,7 @@ export async function getMapProvider(): Promise<MapProviderConfig> {
     return {
       ...DEFAULTS,
       ...v,
+      basemapKey: v.basemapKey || process.env.NEXT_PUBLIC_CARTO_BASEMAP_KEY || "",
       cartoToken: v.cartoToken || process.env.CARTO_API_TOKEN || "",
     };
   } catch {
@@ -51,6 +55,7 @@ export async function saveMapProvider(input: Partial<MapProviderConfig>) {
     style: STYLES.includes(input.style as MapStyle) ? (input.style as MapStyle) : "auto",
     customTiles: /^https:\/\/.+\{z\}.+\{x\}.+\{y\}/.test(tiles) ? tiles : "",
     customAttribution: str(input.customAttribution, 200),
+    basemapKey: str(input.basemapKey, 200).replace(/[^\w.-]/g, ""),
     cartoApiUrl: /^https:\/\/[\w.-]+(:\d+)?$/.test(str(input.cartoApiUrl, 200).replace(/\/+$/, ""))
       ? str(input.cartoApiUrl, 200).replace(/\/+$/, "")
       : DEFAULTS.cartoApiUrl,
@@ -69,8 +74,20 @@ export const maskToken = (s: string) => (s ? `${"•".repeat(8)}${s.slice(-4)}` 
 /** O que o navegador precisa para desenhar o mapa (sem segredos) */
 export type MapTiles = { light: string; dark: string; attribution: string };
 
+const OSM: MapTiles = {
+  light: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+  dark: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+  attribution: "© OpenStreetMap",
+};
+
 export function tilesFor(cfg: MapProviderConfig): MapTiles {
-  const carto = (path: string) => `https://{s}.basemaps.cartocdn.com/${path}/{z}/{x}/{y}{r}.png`;
+  if (cfg.style === "custom" && cfg.customTiles) {
+    return { light: cfg.customTiles, dark: cfg.customTiles, attribution: cfg.customAttribution || CARTO_ATTR };
+  }
+  // Desde set/2026 a CARTO só serve os mapas base com chave; sem ela, OpenStreetMap
+  if (!cfg.basemapKey) return OSM;
+  const key = encodeURIComponent(cfg.basemapKey);
+  const carto = (path: string) => `https://basemaps.cartocdn.com/${path}/{z}/{x}/{y}{r}.png?key=${key}`;
   switch (cfg.style) {
     case "voyager":
       return { light: carto("rastertiles/voyager"), dark: carto("rastertiles/voyager"), attribution: CARTO_ATTR };
@@ -78,8 +95,6 @@ export function tilesFor(cfg: MapProviderConfig): MapTiles {
       return { light: carto("light_all"), dark: carto("light_all"), attribution: CARTO_ATTR };
     case "dark-matter":
       return { light: carto("dark_all"), dark: carto("dark_all"), attribution: CARTO_ATTR };
-    case "custom":
-      return { light: cfg.customTiles, dark: cfg.customTiles, attribution: cfg.customAttribution || CARTO_ATTR };
     default:
       return { light: carto("rastertiles/voyager"), dark: carto("dark_all"), attribution: CARTO_ATTR };
   }

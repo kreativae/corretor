@@ -115,6 +115,7 @@ type ProviderCfg = {
   style: "auto" | "voyager" | "positron" | "dark-matter" | "custom";
   customTiles: string;
   customAttribution: string;
+  basemapKey: string;
   cartoApiUrl: string;
   cartoToken: string;
   hasToken: boolean;
@@ -215,6 +216,20 @@ function MapProviderSection() {
           </Field>
         </div>
       )}
+      {cfg.style !== "custom" && (
+        <Field
+          label="Chave dos mapas base da CARTO"
+          hint="Gratuita em carto.com/basemaps/apikey. Sem ela, o mapa usa o OpenStreetMap (a CARTO mostra “API KEY REQUIRED”)."
+        >
+          <Input
+            value={cfg.basemapKey}
+            onChange={(e) => set("basemapKey", e.target.value)}
+            placeholder="Cole aqui a chave dos basemaps"
+            className="font-mono text-xs"
+            autoComplete="off"
+          />
+        </Field>
+      )}
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Endereço da API da CARTO" hint="Região da conta, em Developers › API Base URL.">
           <Input
@@ -243,7 +258,7 @@ function MapProviderSection() {
         ) : (
           <>
             <MapIcon className="mt-0.5 size-3.5 shrink-0" />
-            Sem token, os bairros são localizados pelo OpenStreetMap (gratuito). O mapa base da CARTO funciona sem token.
+            Sem token, os bairros são localizados pelo OpenStreetMap (gratuito).
           </>
         )}
       </p>
