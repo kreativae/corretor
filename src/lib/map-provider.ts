@@ -113,6 +113,10 @@ export async function cartoGeocode(cfg: MapProviderConfig, address: string): Pro
       const j = JSON.parse(body) as { error?: string; message?: string };
       if (j.error || j.message) msg += `: ${j.error || j.message}`;
     } catch {}
+    if (res.status === 401) msg = "Token da CARTO inválido ou expirado. Gere outro em Developers › Credentials.";
+    if (res.status === 403)
+      msg =
+        "O token da CARTO não tem acesso à localização de endereços. Crie um API Access Token com a opção \"LDS API\" marcada (e confira se o seu plano inclui LDS).";
     throw new GeocodeError(msg);
   }
   return findLatLng(await res.json());
