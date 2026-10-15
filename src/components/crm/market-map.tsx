@@ -22,6 +22,7 @@ import { cn, formatBRL, formatDate, formatNumber } from "@/lib/utils";
 import { AlertTriangle, ArrowDownRight, ArrowUpRight, Building2, Loader2, MapPin, Plus, Tractor, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -71,7 +72,10 @@ export function MarketMap({
   samples,
   geo: initialGeo,
   now,
+  tiles,
 }: {
+  /** Mapa base (Configurações › Mapa) */
+  tiles: { light: string; dark: string; attribution: string };
   samples: MarketSample[];
   geo: Record<string, [number, number] | null>;
   now: number;
@@ -134,7 +138,11 @@ export function MarketMap({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ key: r.geo, q: regionQuery(r.samples[0], rural) }),
         }).catch(() => null);
-        if (!res?.ok) break;
+        if (!res?.ok) {
+          const err = await res?.json().catch(() => null);
+          if (!cancelled) toast.error(`Não foi possível localizar as regiões no mapa${err?.error ? `: ${err.error}` : "."}`);
+          break;
+        }
         const d = (await res.json()) as { lat: number | null; lng: number | null };
         if (cancelled) return;
         setGeo((g) => ({ ...g, [r.geo]: d.lat != null && d.lng != null ? [d.lat, d.lng] : null }));
@@ -161,10 +169,6 @@ export function MarketMap({
       const L = (await import("leaflet")).default;
       if (disposed || !el.current) return;
       map = L.map(el.current, { zoomControl: true, scrollWheelZoom: false }).setView([-15.8, -47.9], 4);
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-        maxZoom: 19,
-        attribution: "© OpenStreetMap © CARTO",
-      }).addTo(map);
       const layer = L.layerGroup().addTo(map);
       mapRef.current = { map, L, layer };
       setMapReady(true);
@@ -208,6 +212,19 @@ export function MarketMap({
       map.fitBounds(b.pad(0.25), { maxZoom: rural ? 9 : 14 });
     }
   }, [regions, selected, mapReady, suffix, mode, purpose, type, period, rural]);
+
+  // Mapa base: troca entre claro e escuro junto com o tema
+  const { resolvedTheme } = useTheme();
+  const tileUrl = resolvedTheme === "dark" ? tiles.dark : tiles.light;
+  useEffect(() => {
+    const m = mapRef.current;
+    if (!m || !mapReady) return;
+    const base = m.L.tileLayer(tileUrl, { maxZoom: 19, attribution: tiles.attribution }).addTo(m.map);
+    base.bringToBack();
+    return () => {
+      base.remove();
+    };
+  }, [tileUrl, tiles.attribution, mapReady]);
 
   function focus(r: Placed) {
     setSelected(r.key);

@@ -1,11 +1,11 @@
 "use client";
 
-import { Switch } from "@/components/ui";
+import { Button, Field, Input, Select, Switch } from "@/components/ui";
 import type { MapOptions } from "@/lib/map-options";
 import { cn } from "@/lib/utils";
-import { ChevronDown, LocateFixed, Map as MapIcon, Navigation } from "lucide-react";
+import { CheckCircle2, ChevronDown, Loader2, LocateFixed, Map as MapIcon, Navigation, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 const OPTIONS: { key: keyof MapOptions; label: string; description: string; icon: typeof MapIcon }[] = [
@@ -70,7 +70,7 @@ export function MapOptionsCard({ initial }: { initial: MapOptions }) {
           <span className="block font-display text-base font-semibold tracking-tight">Mapa</span>
           <span className="mt-1 block max-w-xl text-xs text-subtle">
             {open
-              ? "Botões sobre o mapa de satélite das propriedades rurais (página aberta pelo QR code da ficha)."
+              ? "Estilo do mapa, API da CARTO e botões do mapa das propriedades rurais."
               : `${active.length ? `Visíveis: ${active.join(", ")}` : "Botões ocultos"} — clique para gerenciar`}
           </span>
         </span>
@@ -85,7 +85,9 @@ export function MapOptionsCard({ initial }: { initial: MapOptions }) {
         )}
       >
         <div className="min-h-0 overflow-hidden" inert={!open}>
-          <div className="border-t border-hairline p-6">
+          <div className="space-y-6 border-t border-hairline p-6">
+            {open && <MapProviderSection />}
+            <p className="font-mono text-[10.5px] uppercase tracking-[0.2em] text-subtle">Mapa das propriedades rurais (QR code)</p>
             <div className="divide-y divide-hairline rounded-xl border border-hairline">
               {OPTIONS.map((o) => (
                 <div key={o.key} className="flex items-center gap-4 p-4">
@@ -106,5 +108,155 @@ export function MapOptionsCard({ initial }: { initial: MapOptions }) {
         </div>
       </div>
     </section>
+  );
+}
+
+type ProviderCfg = {
+  style: "auto" | "voyager" | "positron" | "dark-matter" | "custom";
+  customTiles: string;
+  customAttribution: string;
+  cartoApiUrl: string;
+  cartoToken: string;
+  hasToken: boolean;
+};
+
+const STYLE_OPTIONS: { id: ProviderCfg["style"]; label: string }[] = [
+  { id: "auto", label: "Automático (Voyager no claro, Dark Matter no escuro)" },
+  { id: "voyager", label: "CARTO Voyager (colorido)" },
+  { id: "positron", label: "CARTO Positron (claro)" },
+  { id: "dark-matter", label: "CARTO Dark Matter (escuro)" },
+  { id: "custom", label: "Personalizado (URL de blocos)" },
+];
+
+/** Mapa base e API da CARTO — usados no Valor do m² */
+function MapProviderSection() {
+  const [cfg, setCfg] = useState<ProviderCfg | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/map-config")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setCfg(d))
+      .catch(() => undefined);
+  }, []);
+
+  const set = <K extends keyof ProviderCfg>(k: K, v: ProviderCfg[K]) => setCfg((c) => (c ? { ...c, [k]: v } : c));
+
+  async function save(silent = false) {
+    if (!cfg) return false;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/map-config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(cfg),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error);
+      setCfg(d);
+      if (!silent) toast.success("Configurações do mapa salvas.");
+      return true;
+    } catch (e) {
+      toast.error(e instanceof Error && e.message ? e.message : "Não foi possível salvar.");
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function test() {
+    setTesting(true);
+    try {
+      if (!(await save(true))) return;
+      const res = await fetch("/api/map-config/test", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error);
+      toast.success(`CARTO funcionando: Goiânia em ${d.lat.toFixed(3)}, ${d.lng.toFixed(3)}.`);
+    } catch (e) {
+      toast.error(e instanceof Error && e.message ? e.message : "Falha no teste.");
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  if (!cfg) {
+    return (
+      <div className="flex justify-center py-6 text-subtle">
+        <Loader2 className="size-5 animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <p className="font-mono text-[10.5px] uppercase tracking-[0.2em] text-subtle">Mapa base e CARTO (Valor do m²)</p>
+      <Field label="Estilo do mapa">
+        <Select value={cfg.style} onChange={(e) => set("style", e.target.value as ProviderCfg["style"])}>
+          {STYLE_OPTIONS.map((o) => (
+            <option key={o.id} value={o.id}>
+              {o.label}
+            </option>
+          ))}
+        </Select>
+      </Field>
+      {cfg.style === "custom" && (
+        <div className="grid gap-4 sm:grid-cols-[1fr_220px]">
+          <Field label="URL de blocos" hint="Com {z}, {x} e {y}. Ex.: estilo personalizado da CARTO ou de outro provedor.">
+            <Input
+              value={cfg.customTiles}
+              onChange={(e) => set("customTiles", e.target.value)}
+              placeholder="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+              className="font-mono text-xs"
+            />
+          </Field>
+          <Field label="Créditos do mapa">
+            <Input value={cfg.customAttribution} onChange={(e) => set("customAttribution", e.target.value)} placeholder="© OpenStreetMap © CARTO" />
+          </Field>
+        </div>
+      )}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Endereço da API da CARTO" hint="Região da conta, em Developers › API Base URL.">
+          <Input
+            value={cfg.cartoApiUrl}
+            onChange={(e) => set("cartoApiUrl", e.target.value)}
+            placeholder="https://gcp-us-east1.api.carto.com"
+            className="font-mono text-xs"
+          />
+        </Field>
+        <Field label="Token de acesso (API Access Token)" hint="Usado para localizar bairros e municípios no mapa.">
+          <Input
+            value={cfg.cartoToken}
+            onChange={(e) => set("cartoToken", e.target.value)}
+            placeholder="eyJhbGciOi…"
+            className="font-mono text-xs"
+            autoComplete="off"
+          />
+        </Field>
+      </div>
+      <p className="flex items-start gap-2 rounded-xl bg-soft px-3 py-2.5 text-xs text-subtle">
+        {cfg.hasToken ? (
+          <>
+            <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-emerald-600" />
+            Localização pela CARTO, com o OpenStreetMap como reserva. Para remover o token, digite um hífen (-) e salve.
+          </>
+        ) : (
+          <>
+            <MapIcon className="mt-0.5 size-3.5 shrink-0" />
+            Sem token, os bairros são localizados pelo OpenStreetMap (gratuito). O mapa base da CARTO funciona sem token.
+          </>
+        )}
+      </p>
+      <div className="flex flex-wrap justify-end gap-2">
+        <Button variant="outline" size="sm" onClick={test} disabled={testing || saving || (!cfg.hasToken && !cfg.cartoToken)}>
+          {testing ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
+          Testar CARTO
+        </Button>
+        <Button variant="accent" size="sm" onClick={() => save()} loading={saving}>
+          <Save className="size-4" />
+          Salvar mapa
+        </Button>
+      </div>
+    </div>
   );
 }

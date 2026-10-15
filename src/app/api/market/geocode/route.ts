@@ -1,11 +1,12 @@
 import { db } from "@/db";
 import { regionGeo } from "@/db/schema";
 import { apiUser, unauthorized } from "@/lib/api-auth";
+import { cartoGeocode, getMapProvider, osmGeocode } from "@/lib/map-provider";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 /**
- * Localiza o centro de um bairro/cidade (OpenStreetMap) e guarda no cache.
+ * Localiza o centro de um bairro/cidade (CARTO ou OpenStreetMap) e guarda no cache.
  * O cliente chama uma região por vez, com intervalo de ~1 s (regra de uso do serviço).
  */
 export async function POST(req: Request) {
@@ -18,23 +19,26 @@ export async function POST(req: Request) {
   const [cached] = await db.select().from(regionGeo).where(eq(regionGeo.key, key));
   if (cached) return NextResponse.json({ lat: cached.lat, lng: cached.lng });
 
-  let lat: number | null = null;
-  let lng: number | null = null;
-  try {
-    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&q=${encodeURIComponent(q)}`;
-    const res = await fetch(url, {
-      headers: { "User-Agent": "corretor-crm/1.0 (mapa do m2)", "Accept-Language": "pt-BR" },
-      cache: "no-store",
-    });
-    if (!res.ok) return NextResponse.json({ error: "Serviço de mapas indisponível." }, { status: 502 });
-    const [hit] = (await res.json()) as { lat?: string; lon?: string }[];
-    if (hit?.lat && hit?.lon) {
-      lat = Number(hit.lat);
-      lng = Number(hit.lon);
+  // CARTO quando há token; OpenStreetMap como alternativa gratuita
+  const cfg = await getMapProvider();
+  let hit: [number, number] | null = null;
+  let error = "";
+  if (cfg.cartoToken) {
+    try {
+      hit = await cartoGeocode(cfg, q);
+    } catch (e) {
+      error = e instanceof Error ? e.message : "Falha na CARTO.";
     }
-  } catch {
-    return NextResponse.json({ error: "Serviço de mapas indisponível." }, { status: 502 });
   }
+  if (!hit) {
+    try {
+      hit = await osmGeocode(q);
+    } catch (e) {
+      // Nenhum serviço respondeu: não grava no cache para tentar de novo depois
+      return NextResponse.json({ error: error || (e instanceof Error ? e.message : "Serviço de mapas indisponível.") }, { status: 502 });
+    }
+  }
+  const [lat, lng] = hit ?? [null, null];
   await db.insert(regionGeo).values({ key, lat, lng }).onConflictDoNothing();
   return NextResponse.json({ lat, lng });
 }

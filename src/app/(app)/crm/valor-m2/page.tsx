@@ -1,6 +1,7 @@
 import { MarketMap } from "@/components/crm/market-map";
 import { geoKey } from "@/lib/market";
 import { loadMarketSamples, loadRegionGeo } from "@/lib/market-data";
+import { getMapProvider, tilesFor } from "@/lib/map-provider";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +11,7 @@ export default async function ValorM2Page() {
   const samples = await loadMarketSamples();
   const now = new Date().getTime();
   const keys = [...new Set(samples.map((s) => geoKey(s, s.rural)))];
-  const geo = await loadRegionGeo(keys);
+  const [geo, mapCfg] = await Promise.all([loadRegionGeo(keys), getMapProvider()]);
   return (
     <div className="mx-auto max-w-7xl">
       <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-subtle">Análise de mercado</p>
@@ -19,7 +20,7 @@ export default async function ValorM2Page() {
         Mediana do valor por região, a partir dos imóveis da carteira, dos negócios fechados e das amostras de mercado
         que você registra.
       </p>
-      <MarketMap samples={samples} geo={geo} now={now} />
+      <MarketMap samples={samples} geo={geo} now={now} tiles={tilesFor(mapCfg)} />
     </div>
   );
 }
