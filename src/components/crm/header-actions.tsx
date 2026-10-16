@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import type { Modules } from "@/lib/modules";
 
 type SyncResult = {
   provider: string;
@@ -22,7 +23,7 @@ const NAMES: Record<string, string> = {
 };
 
 /** Atalhos do topo do CRM: novos cadastros e sincronizar com o Google. */
-export function HeaderActions() {
+export function HeaderActions({ modules }: { modules?: Modules }) {
   const router = useRouter();
   const [syncing, setSyncing] = useState(false);
   const [menu, setMenu] = useState(false);
@@ -56,18 +57,20 @@ export function HeaderActions() {
 
   const items = [
     { href: "/crm/imoveis/novo", label: "Novo imóvel", icon: Building2 },
-    { href: "/crm/propriedades/nova", label: "Nova propriedade", icon: Tractor },
+    ...(modules?.rurais === false ? [] : [{ href: "/crm/propriedades/nova", label: "Nova propriedade", icon: Tractor }]),
     { href: "/crm/contatos?novo=1", label: "Novo contato", icon: UserPlus },
     { href: "/crm/agenda?nova=1", label: "Novo agendamento", icon: CalendarPlus },
   ];
 
   return (
     <div className="flex items-center gap-2">
-      <Link href="/crm/calculadora" aria-label="Calculadora" title="Calculadora e conversões">
-        <Button variant="outline" size="icon" className="size-9">
-          <Calculator className="size-4" />
-        </Button>
-      </Link>
+      {modules?.calculadora !== false && (
+        <Link href="/crm/calculadora" aria-label="Calculadora" title="Calculadora e conversões">
+          <Button variant="outline" size="icon" className="size-9">
+            <Calculator className="size-4" />
+          </Button>
+        </Link>
+      )}
 
       {/* Computador: botões lado a lado */}
       <div className="hidden items-center gap-2 xl:flex">

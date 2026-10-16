@@ -5,6 +5,7 @@ import { codePrefixes } from "@/lib/property-code";
 import { isRuralType } from "@/lib/rural";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
+import { isAdmin } from "@/lib/roles";
 
 /**
  * Troca o prefixo dos códigos já cadastrados pelos do White Label
@@ -14,7 +15,7 @@ import { NextResponse } from "next/server";
 export async function POST() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Faça login." }, { status: 401 });
-  if (user.role !== "admin") return NextResponse.json({ error: "Apenas administradores." }, { status: 403 });
+  if (!isAdmin(user)) return NextResponse.json({ error: "Apenas administradores." }, { status: 403 });
   try {
     const prefixes = await codePrefixes();
     const rows = await db.select({ id: properties.id, code: properties.code, type: properties.type }).from(properties);

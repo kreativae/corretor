@@ -2,6 +2,7 @@ import { WhatsAppInbox } from "@/components/crm/whatsapp-inbox";
 import { getCurrentUser } from "@/lib/auth";
 import { getWhatsAppConfig, waPhone, whatsappReady } from "@/lib/whatsapp";
 import type { Metadata } from "next";
+import { isAdmin } from "@/lib/roles";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "WhatsApp" };
@@ -12,7 +13,7 @@ export default async function WhatsAppPage({ searchParams }: { searchParams: Pro
     <div className="mx-auto max-w-6xl">
       <WhatsAppInbox
         ready={whatsappReady(cfg)}
-        isAdmin={user?.role === "admin"}
+        isAdmin={isAdmin(user)}
         initialPhone={tel ? waPhone(tel) : undefined}
         hasTemplate={!!cfg.templateName}
         provider={cfg.provider}

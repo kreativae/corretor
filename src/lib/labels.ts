@@ -67,6 +67,7 @@ export const SOURCE_LABELS: Record<string, string> = {
 };
 
 export const ROLE_LABELS: Record<string, string> = {
+  superadmin: "Gerência",
   admin: "Administrador",
   corretor: "Corretor",
 };

@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { nextPropertyCode } from "@/lib/property-code";
 import { isRuralType } from "@/lib/rural";
 import { asc, eq } from "drizzle-orm";
+import { propertyLimitError } from "@/lib/account";
 import { NextResponse } from "next/server";
 
 type Params = { params: Promise<{ id: string }> };
@@ -15,6 +16,8 @@ type Params = { params: Promise<{ id: string }> };
  */
 export async function POST(_req: Request, { params }: Params) {
   if (!(await apiUser())) return unauthorized();
+  const limit = await propertyLimitError();
+  if (limit) return NextResponse.json({ error: limit }, { status: 403 });
   try {
     const { id } = await params;
     const [src] = await db.select().from(properties).where(eq(properties.id, id));

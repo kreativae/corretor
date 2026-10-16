@@ -1,11 +1,12 @@
 import { getCurrentUser } from "@/lib/auth";
 import { getWhatsAppConfig, testConnection, whatsappReady } from "@/lib/whatsapp";
 import { NextResponse } from "next/server";
+import { isAdmin } from "@/lib/roles";
 
 /** Confere o token e o número na Meta */
 export async function POST() {
   const u = await getCurrentUser();
-  if (u?.role !== "admin") return NextResponse.json({ error: "Apenas administradores." }, { status: 403 });
+  if (!isAdmin(u)) return NextResponse.json({ error: "Apenas administradores." }, { status: 403 });
   const cfg = await getWhatsAppConfig();
   if (!whatsappReady(cfg)) return NextResponse.json({ error: "Informe o ID do número e o token." }, { status: 400 });
   try {

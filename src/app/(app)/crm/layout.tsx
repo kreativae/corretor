@@ -1,5 +1,8 @@
 import { AppShell } from "@/components/crm/app-shell";
 import { requireUser } from "@/lib/auth";
+import { getAccount } from "@/lib/account";
+import { isSuperadmin } from "@/lib/roles";
+import { SuspendedScreen } from "@/components/suspended-screen";
 import { getFeatures, getStatCards } from "@/lib/features";
 import { brandShortName, getWhiteLabel } from "@/lib/queries";
 import type { Metadata } from "next";
@@ -14,13 +17,15 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function CrmLayout({ children }: { children: ReactNode }) {
-  const [user, features, statCards] = await Promise.all([
+  const [user, features, statCards, account] = await Promise.all([
     requireUser("/crm"),
     getFeatures(),
     getStatCards(),
+    getAccount(),
   ]);
+  if (account.status === "suspenso" && !isSuperadmin(user)) return <SuspendedScreen message={account.suspendedMessage} />;
   return (
-    <AppShell mode="crm" user={user} features={features} statCards={statCards}>
+    <AppShell mode="crm" user={user} features={features} modules={account.modules} statCards={statCards}>
       {children}
     </AppShell>
   );

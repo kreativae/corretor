@@ -17,7 +17,7 @@ export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
-  role: text("role", { enum: ["admin", "corretor"] })
+  role: text("role", { enum: ["superadmin", "admin", "corretor"] })
     .notNull()
     .default("corretor"),
   phone: text("phone"),

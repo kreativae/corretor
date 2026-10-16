@@ -2,13 +2,14 @@ import { getCurrentUser } from "@/lib/auth";
 import { requestPublicOrigin } from "@/lib/google";
 import { evolutionConnect, getWhatsAppConfig } from "@/lib/whatsapp";
 import { NextResponse } from "next/server";
+import { isAdmin } from "@/lib/roles";
 
 export const maxDuration = 30;
 
 /** Gera o QR code (cria a instância e aponta o webhook para o CRM) */
 export async function POST(req: Request) {
   const u = await getCurrentUser();
-  if (u?.role !== "admin") return NextResponse.json({ error: "Apenas administradores." }, { status: 403 });
+  if (!isAdmin(u)) return NextResponse.json({ error: "Apenas administradores." }, { status: 403 });
   try {
     const body = (await req.json().catch(() => ({}))) as { number?: unknown };
     const digits = typeof body.number === "string" ? body.number.replace(/\D/g, "") : "";

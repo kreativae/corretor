@@ -46,7 +46,7 @@ export async function POST(req: Request) {
     const key = body.key;
     let value = body.value;
     // Chaves com segredos têm rota própria (não passam por aqui)
-    if (["email", "whatsapp", "mapProvider"].includes(key)) {
+    if (["email", "whatsapp", "mapProvider", "account"].includes(key)) {
       return NextResponse.json({ error: "Use a tela de configuração específica." }, { status: 400 });
     }
     if (!key || value === undefined) {

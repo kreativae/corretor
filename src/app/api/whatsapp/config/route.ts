@@ -2,10 +2,11 @@ import { getCurrentUser } from "@/lib/auth";
 import { requestPublicOrigin } from "@/lib/google";
 import { evolutionWebhookUrl, getWhatsAppConfig, mask, saveWhatsAppConfig, whatsappReady } from "@/lib/whatsapp";
 import { NextResponse } from "next/server";
+import { isAdmin } from "@/lib/roles";
 
 async function admin() {
   const u = await getCurrentUser();
-  return u?.role === "admin" ? u : null;
+  return isAdmin(u) ? u : null;
 }
 
 function view(c: Awaited<ReturnType<typeof getWhatsAppConfig>>, req: Request) {

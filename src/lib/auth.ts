@@ -4,6 +4,7 @@ import { sessions, users, type User } from "@/db/schema";
 import { and, eq, gt } from "drizzle-orm";
 import { randomBytes } from "node:crypto";
 import { hashPassword, verifyPassword } from "./password";
+import { isAdmin, isSuperadmin } from "./roles";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -54,38 +55,8 @@ export type SessionUser = Pick<
   "id" | "name" | "email" | "role" | "creci" | "phone" | "lastLoginAt"
 >;
 
-/** Usuário logado (ou null). Seguro para usar em layouts/páginas. */
-export async function getCurrentUser(): Promise<SessionUser | null> {
-  // Acesso liberado: opera como o primeiro administrador da base
-  if (AUTH_TEMP_DISABLED) {
-    try {
-      const [admin] = await db
-        .select({
-          id: users.id,
-          name: users.name,
-          email: users.email,
-          role: users.role,
-          creci: users.creci,
-          phone: users.phone,
-        })
-        .from(users)
-        .where(eq(users.role, "admin"))
-        .limit(1);
-      if (admin) return { ...admin, lastLoginAt: null };
-    } catch {
-      /* segue para o fallback */
-    }
-    return {
-      id: "temp-admin",
-      name: "Administrador",
-      email: "",
-      role: "admin",
-      creci: null,
-      phone: null,
-      lastLoginAt: null,
-    };
-  }
-
+/** Usuário da sessão (cookie), se houver */
+async function sessionUser(): Promise<SessionUser | null> {
   try {
     const jar = await cookies();
     const token = jar.get(SESSION_COOKIE)?.value;
@@ -125,6 +96,43 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
   }
 }
 
+/** Usuário logado (ou null). Seguro para usar em layouts/páginas. */
+export async function getCurrentUser(): Promise<SessionUser | null> {
+  // Acesso liberado: quem fez login continua sendo quem é (ex.: gerência);
+  // sem sessão, opera como o primeiro administrador da base
+  if (AUTH_TEMP_DISABLED) {
+    const logged = await sessionUser();
+    if (logged) return logged;
+    try {
+      const [admin] = await db
+        .select({
+          id: users.id,
+          name: users.name,
+          email: users.email,
+          role: users.role,
+          creci: users.creci,
+          phone: users.phone,
+        })
+        .from(users)
+        .where(eq(users.role, "admin"))
+        .limit(1);
+      if (admin) return { ...admin, lastLoginAt: null };
+    } catch {
+      /* segue para o fallback */
+    }
+    return {
+      id: "temp-admin",
+      name: "Administrador",
+      email: "",
+      role: "admin",
+      creci: null,
+      phone: null,
+      lastLoginAt: null,
+    };
+  }
+  return sessionUser();
+}
+
 /** Exige login — redireciona para /login mantendo o destino. */
 export async function requireUser(from?: string): Promise<SessionUser> {
   const user = await getCurrentUser();
@@ -137,8 +145,21 @@ export async function requireUser(from?: string): Promise<SessionUser> {
 /** Exige papel de administrador. */
 export async function requireAdmin(from?: string): Promise<SessionUser> {
   const user = await requireUser(from);
-  if (user.role !== "admin") redirect("/crm?forbidden=1");
+  if (!isAdmin(user)) redirect("/crm?forbidden=1");
   return user;
+}
+
+/** Exige gerência (sempre com login real, mesmo com o acesso liberado). */
+export async function requireSuperadmin(): Promise<SessionUser> {
+  const user = await sessionUser();
+  if (!isSuperadmin(user)) redirect("/gerencia/entrar");
+  return user as SessionUser;
+}
+
+/** Gerência logada (para APIs) ou null */
+export async function getSuperadmin(): Promise<SessionUser | null> {
+  const user = await sessionUser();
+  return isSuperadmin(user) ? user : null;
 }
 
 /** Cookie que marca o navegador de quem usa o painel (modo de acesso liberado). */

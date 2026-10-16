@@ -26,7 +26,7 @@ import {
   type User,
   type Visit,
 } from "@/db/schema";
-import { and, asc, count, countDistinct, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, asc, count, countDistinct, desc, eq, gte, inArray, lte, ne, sql } from "drizzle-orm";
 
 /* ─────────────────────── White label ─────────────────────── */
 
@@ -325,8 +325,9 @@ export async function listPortals(): Promise<Portal[]> {
   return db.select().from(portals).orderBy(portals.name);
 }
 
+/** Equipe do cliente — a gerência não aparece aqui */
 export async function listUsers(): Promise<User[]> {
-  return db.select().from(users).orderBy(users.createdAt);
+  return db.select().from(users).where(ne(users.role, "superadmin")).orderBy(users.createdAt);
 }
 
 /* ─────────────────── Analytics de imóveis ─────────────────── */

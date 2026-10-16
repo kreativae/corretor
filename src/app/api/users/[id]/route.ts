@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { activities, sessions, users } from "@/db/schema";
 import { hashPassword, requireAdmin } from "@/lib/auth";
 import { ROLE_LABELS } from "@/lib/labels";
+import { isAdmin, isSuperadmin } from "@/lib/roles";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
@@ -14,12 +15,18 @@ export async function PATCH(
     const { id } = await params;
     const body = await req.json();
 
+    // Contas da gerência só são alteradas pela própria gerência
+    const [target] = await db.select({ role: users.role }).from(users).where(eq(users.id, id));
+    if (target?.role === "superadmin" && !isSuperadmin(me)) {
+      return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
+    }
+
     const patch: Partial<typeof users.$inferInsert> = {};
     if (body.name?.trim()) patch.name = body.name.trim();
     if (body.creci !== undefined) patch.creci = String(body.creci ?? "").trim() || null;
     if (body.phone !== undefined) patch.phone = String(body.phone ?? "").replace(/\D/g, "") || null;
-    if (body.role && ["admin", "corretor"].includes(body.role)) {
-      if (id === me.id && body.role !== "admin") {
+    if (body.role && ["admin", "corretor"].includes(body.role) && target?.role !== "superadmin") {
+      if (id === me.id && !isAdmin({ role: body.role })) {
         return NextResponse.json(
           { error: "Você não pode remover o próprio acesso de administrador." },
           { status: 400 },

@@ -1,5 +1,8 @@
 import { AppShell } from "@/components/crm/app-shell";
 import { requireAdmin } from "@/lib/auth";
+import { getAccount } from "@/lib/account";
+import { isSuperadmin } from "@/lib/roles";
+import { SuspendedScreen } from "@/components/suspended-screen";
 import { brandShortName, getWhiteLabel } from "@/lib/queries";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
@@ -16,7 +19,8 @@ export default async function AdminLayout({
 }: {
   children: ReactNode;
 }) {
-  const user = await requireAdmin("/admin");
+  const [user, account] = await Promise.all([requireAdmin("/admin"), getAccount()]);
+  if (account.status === "suspenso" && !isSuperadmin(user)) return <SuspendedScreen message={account.suspendedMessage} />;
   return (
     <AppShell mode="admin" user={user}>
       {children}

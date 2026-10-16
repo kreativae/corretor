@@ -7,12 +7,13 @@ import { KeyRound, Pencil, Plus, ShieldCheck, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import type { Role } from "@/lib/roles";
 
 export type TeamMember = {
   id: string;
   name: string;
   email: string;
-  role: "admin" | "corretor";
+  role: Role;
   creci: string | null;
   phone: string | null;
   active: boolean;

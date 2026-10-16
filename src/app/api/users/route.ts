@@ -2,7 +2,8 @@ import { db } from "@/db";
 import { activities, users } from "@/db/schema";
 import { hashPassword, requireAdmin } from "@/lib/auth";
 import { ROLE_LABELS } from "@/lib/labels";
-import { eq } from "drizzle-orm";
+import { getAccount } from "@/lib/account";
+import { and, count, eq, ne } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
@@ -17,6 +18,21 @@ export async function POST(req: Request) {
         { error: "A senha deve ter ao menos 6 caracteres." },
         { status: 400 },
       );
+    }
+
+    // Limite de usuários do plano (definido pela gerência)
+    const acct = await getAccount();
+    if (acct.maxUsers) {
+      const [{ n }] = await db
+        .select({ n: count() })
+        .from(users)
+        .where(and(eq(users.active, true), ne(users.role, "superadmin")));
+      if (n >= acct.maxUsers) {
+        return NextResponse.json(
+          { error: `Seu plano permite até ${acct.maxUsers} usuários ativos. Desative alguém ou fale com o suporte para ampliar.` },
+          { status: 403 },
+        );
+      }
     }
 
     const email = body.email.trim().toLowerCase();

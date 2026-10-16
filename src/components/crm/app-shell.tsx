@@ -12,6 +12,7 @@ import { cn, initials } from "@/lib/utils";
 import {
   Building2,
   CalendarDays,
+  Crown,
   Columns3,
   Globe,
   LayoutDashboard,
@@ -34,6 +35,8 @@ import {
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
+import { isAdmin, isSuperadmin, roleLabel, type Role } from "@/lib/roles";
+import { moduleOfPath, type Modules } from "@/lib/modules";
 
 const CRM_NAV = [
   { href: "/crm", label: "Visão geral", icon: LayoutDashboard, exact: true },
@@ -60,7 +63,7 @@ export type ShellUser = {
   id: string;
   name: string;
   email: string;
-  role: "admin" | "corretor";
+  role: Role;
   creci: string | null;
 };
 
@@ -69,6 +72,7 @@ export function AppShell({
   mode = "crm",
   user,
   features,
+  modules,
   statCards,
 }: {
   children: ReactNode;
@@ -76,6 +80,8 @@ export function AppShell({
   user: ShellUser;
   /** Módulos opcionais ligados em Configurações */
   features?: { closedDeals: boolean };
+  /** Módulos liberados pela gerência */
+  modules?: Modules;
   /** Cards de indicadores ligados por página */
   statCards?: StatCards;
 }) {
@@ -105,7 +111,10 @@ export function AppShell({
 
   const nav =
     mode === "crm"
-      ? CRM_NAV.filter((i) => !("feature" in i && i.feature) || features?.[i.feature])
+      ? CRM_NAV.filter((i) => !("feature" in i && i.feature) || features?.[i.feature]).filter((i) => {
+          const mod = moduleOfPath(i.href);
+          return !mod || modules?.[mod] !== false;
+        })
       : ADMIN_NAV;
 
   const sidebar = (
@@ -156,7 +165,7 @@ export function AppShell({
       </nav>
 
       <div className="space-y-0.5 border-t border-hairline px-3 py-3">
-        {user.role === "admin" && (
+        {isAdmin(user) && (
           <Link
             href={mode === "crm" ? "/admin" : "/crm"}
             className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-subtle transition-colors hover:bg-soft/60 hover:text-ink"
@@ -167,6 +176,15 @@ export function AppShell({
               <LayoutDashboard className="size-4.5" />
             )}
             {mode === "crm" ? "Administração" : "Voltar ao CRM"}
+          </Link>
+        )}
+        {isSuperadmin(user) && (
+          <Link
+            href="/gerencia"
+            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-subtle transition-colors hover:bg-soft/60 hover:text-ink"
+          >
+            <Crown className="size-4.5" />
+            Gerência
           </Link>
         )}
         <Link
@@ -188,7 +206,7 @@ export function AppShell({
             <div className="min-w-0">
               <p className="truncate text-[13px] font-medium">{user.name}</p>
               <p className="truncate text-[11px] text-subtle">
-                {user.role === "admin" ? "Administrador" : "Corretor"}
+                {roleLabel(user.role)}
               </p>
             </div>
           </div>
@@ -271,7 +289,7 @@ export function AppShell({
             </button>
           </div>
           <div className="flex shrink-0 items-center gap-2.5">
-            {mode === "crm" && <HeaderActions />}
+            {mode === "crm" && <HeaderActions modules={modules} />}
           </div>
         </header>
         <main className="flex-1 px-4 py-8 md:px-8">

@@ -1,11 +1,12 @@
 import { getCurrentUser } from "@/lib/auth";
 import { cartoGeocode, getMapProvider } from "@/lib/map-provider";
 import { NextResponse } from "next/server";
+import { isAdmin } from "@/lib/roles";
 
 /** Testa o token da CARTO localizando um endereço */
 export async function POST(req: Request) {
   const u = await getCurrentUser();
-  if (u?.role !== "admin") return NextResponse.json({ error: "Apenas administradores." }, { status: 403 });
+  if (!isAdmin(u)) return NextResponse.json({ error: "Apenas administradores." }, { status: 403 });
   const { q } = (await req.json().catch(() => ({}))) as { q?: string };
   try {
     const hit = await cartoGeocode(await getMapProvider(), (q || "Goiânia, GO, Brasil").slice(0, 200));

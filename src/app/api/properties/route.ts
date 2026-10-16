@@ -6,10 +6,13 @@ import { sanitizePropertyPartnerFields } from "@/lib/partners";
 import { nextPropertyCode } from "@/lib/property-code";
 import { alqToM2, isRuralType, sanitizeRural, kmzOnly } from "@/lib/rural";
 import { parseYouTubeUrl } from "@/lib/utils";
+import { propertyLimitError } from "@/lib/account";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   if (!(await apiUser())) return unauthorized();
+  const limit = await propertyLimitError();
+  if (limit) return NextResponse.json({ error: limit }, { status: 403 });
   try {
     const body = await req.json();
     const { images = [], ...data } = body as Record<string, unknown> & {
