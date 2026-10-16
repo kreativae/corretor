@@ -28,7 +28,9 @@ export default async function LoginPage({
       <div className="dark relative hidden w-1/2 flex-col justify-between overflow-hidden bg-[#2B2B5D] p-12 text-ink lg:flex">
         <div className="grid-bg pointer-events-none absolute inset-0 opacity-[0.07]" />
         {/* Monograma grande como marca d'água */}
-        <Monogram className="pointer-events-none absolute -bottom-24 -right-20 size-[520px] text-white opacity-[0.05]" tip="#F47525" />
+        {wl.showMark && (
+          <Monogram className="pointer-events-none absolute -bottom-24 -right-20 size-[520px] text-white opacity-[0.05]" tip="#F47525" />
+        )}
         <Wordmark className="relative [&_svg]:size-10" sub={wl.tagline} />
 
         <div className="relative">

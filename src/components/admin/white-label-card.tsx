@@ -462,6 +462,15 @@ export function WhiteLabelCard({ initial }: { initial: WhiteLabel }) {
           />
         </div>
 
+        <div className="lg:col-span-2">
+          <Toggle
+            label="Símbolo padrão do sistema"
+            hint="Sem ícone enviado: mostra o símbolo padrão ao lado do nome. Desligado, aparece só o nome e o subtítulo."
+            checked={wl.showMark}
+            onChange={(v) => set("showMark", v)}
+          />
+        </div>
+
         {/* Ficha */}
         <div className="space-y-3 lg:col-span-2">
           <p className={h3}>Ficha do imóvel</p>

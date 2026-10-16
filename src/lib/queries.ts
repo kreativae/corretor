@@ -27,6 +27,7 @@ import {
   type Visit,
 } from "@/db/schema";
 import { and, asc, count, countDistinct, desc, eq, gte, inArray, lte, ne, sql } from "drizzle-orm";
+import { isMainTenant } from "@/lib/tenant";
 
 /* ─────────────────────── White label ─────────────────────── */
 
@@ -50,6 +51,8 @@ export type WhiteLabel = {
   logoDarkUrl: string;
   /** Ícone quadrado — favicon e selo da marca */
   iconUrl: string;
+  /** Sem ícone enviado: usar o símbolo padrão do sistema (senão, só o nome) */
+  showMark: boolean;
   /** Ficha do imóvel: exibir o ícone no cabeçalho */
   fichaShowIcon: boolean;
   /** Ficha do imóvel: exibir o nome da organização no cabeçalho */
@@ -76,6 +79,7 @@ export const WL_DEFAULTS: WhiteLabel = {
   logoUrl: "",
   logoDarkUrl: "",
   iconUrl: "",
+  showMark: true,
   fichaShowIcon: true,
   fichaShowName: true,
   fichaShowDomain: true,
@@ -120,6 +124,8 @@ export async function getWhiteLabel(): Promise<WhiteLabel> {
         ([k, x]) => !isLegacy || !legacy[k as keyof WhiteLabel]?.includes(String(x)),
       ),
     ) as Partial<WhiteLabel>;
+    // Símbolo padrão é da empresa principal; empresas novas mostram só o nome
+    if (clean.showMark === undefined) clean.showMark = await isMainTenant();
     return { ...WL_DEFAULTS, ...clean };
   } catch {
     return WL_DEFAULTS;

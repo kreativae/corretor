@@ -12,6 +12,8 @@ export type Brand = {
   logoUrl: string;
   logoDarkUrl: string;
   iconUrl: string;
+  /** Sem ícone: usar o símbolo padrão (senão, só o nome) */
+  showMark?: boolean;
 };
 
 const BrandContext = createContext<Brand>({
@@ -46,6 +48,7 @@ export function Mark({ className, src }: { className?: string; src?: string }) {
       />
     );
   }
+  if (brand.showMark === false) return null;
   return <Monogram className={cn("size-7 text-ink", className)} tip="rgb(var(--accent))" />;
 }
 

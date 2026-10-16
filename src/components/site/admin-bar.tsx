@@ -1,5 +1,6 @@
 "use client";
 
+import { useBrand } from "@/components/brand";
 import { Monogram } from "@/components/monogram";
 import { cn } from "@/lib/utils";
 import {
@@ -37,6 +38,7 @@ export function AdminBar({
   hidden?: boolean;
 }) {
   const pathname = usePathname();
+  const brand = useBrand();
   const [open, setOpen] = useState(false);
   const menu = useRef<HTMLDivElement>(null);
   const [shown, setShown] = useState(false);
@@ -126,7 +128,14 @@ export function AdminBar({
         aria-label="Barra de edição"
       >
         <Link href="/crm" className={cn(item, "gap-2 pl-3 sm:pl-4")} title="Abrir o painel">
-          <Monogram className="size-5" color="#fff" />
+          {brand.iconUrl ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img src={brand.iconUrl} alt="" className="size-5 rounded-[22%] object-cover" />
+          ) : brand.showMark === false ? (
+            <LayoutDashboard className="size-4" />
+          ) : (
+            <Monogram className="size-5" color="#fff" />
+          )}
           <span className="hidden sm:inline">Painel</span>
         </Link>
 

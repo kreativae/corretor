@@ -98,7 +98,7 @@ export default async function FichaPage({
         today={today}
         logoUrl={wl.logoUrl}
         iconUrl={wl.iconUrl}
-        showIcon={wl.fichaShowIcon}
+        showIcon={wl.fichaShowIcon && (!!wl.iconUrl || wl.showMark)}
         showName={wl.fichaShowName}
         showDomain={wl.fichaShowDomain}
         qrSvg={qrSvg}
