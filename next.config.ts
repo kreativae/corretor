@@ -11,6 +11,8 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Gera .next/standalone para a imagem Docker (Coolify); a Vercel ignora.
+  output: "standalone",
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "images.pexels.com" },
