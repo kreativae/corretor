@@ -39,7 +39,9 @@ SQL
 echo "== Usuários: dono ($OWNER) e um por empresa"
 {
   echo "DO \$\$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '$OWNER') THEN CREATE ROLE \"$OWNER\" NOLOGIN; END IF; END \$\$;"
-  echo "DO \$\$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'neon_superuser') THEN CREATE ROLE neon_superuser NOLOGIN; END IF; END \$\$;"
+  for r in neon_superuser cloud_admin; do
+    echo "DO \$\$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '$r') THEN CREATE ROLE $r NOLOGIN; END IF; END \$\$;"
+  done
   psql "$SRC" -At <<'SQL'
 SELECT format(
   'DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = %L) THEN CREATE ROLE %I LOGIN; END IF; END $$;'
