@@ -31,9 +31,15 @@ type PartnerProperty = {
   status: string;
 };
 
-/** Valores do imóvel com o imposto (base do imóvel ou, sem ajuste, a do parceiro) */
-const valuesOf = (x: PartnerProperty, p: Row) =>
-  commissionValues(x.price, x.commissionPct, x.partnerSharePct, x.taxPct, x.taxBase ?? (p.taxBase as TaxBase));
+/** Imposto do imóvel ou, sem ajuste nele, o padrão do parceiro (0 no imóvel = sem imposto) */
+const taxOf = (x: PartnerProperty, p: Row) => ({
+  taxPct: x.taxPct ?? p.taxPct,
+  taxBase: x.taxBase ?? (p.taxBase as TaxBase),
+});
+const valuesOf = (x: PartnerProperty, p: Row) => {
+  const t = taxOf(x, p);
+  return commissionValues(x.price, x.commissionPct, x.partnerSharePct, t.taxPct, t.taxBase);
+};
 
 const EMPTY = {
   name: "",
@@ -311,7 +317,7 @@ export function PartnersClient({ partners, properties }: { partners: Row[]; prop
           </Field>
         </div>
         <p className="mt-3 text-[11px] text-subtle">
-          Comissão, repasse e imposto são o padrão para novos imóveis dele; dá para ajustar imóvel a imóvel.
+          Comissão e repasse são o padrão para novos imóveis dele. O imposto vale para todos os imóveis dele, a menos que o imóvel tenha um próprio (0 = sem imposto).
           Comissão inteira: o imposto sai antes da divisão e o repasse é sobre o líquido. Só a nossa parte:
           cada um paga o seu imposto.
         </p>
@@ -390,8 +396,7 @@ export function PartnersClient({ partners, properties }: { partners: Row[]; prop
                           price={x.price}
                           commissionPct={x.commissionPct}
                           partnerSharePct={x.partnerSharePct}
-                          taxPct={x.taxPct}
-                          taxBase={x.taxBase ?? (viewing.taxBase as TaxBase)}
+                          {...taxOf(x, viewing)}
                           className="mt-2"
                         />
                         {x.commissionPct == null && <p className="mt-1 text-[11px] text-subtle">Sem comissão definida neste imóvel.</p>}

@@ -90,10 +90,14 @@ export function PropertyForm({
       partnerId: id,
       commissionPct: f.commissionPct || (p?.commissionPct?.toString() ?? ""),
       partnerSharePct: id ? f.partnerSharePct || (p?.partnerSharePct?.toString() ?? "") : "",
-      taxPct: f.taxPct || (p?.taxPct?.toString() ?? ""),
-      taxBase: id ? f.taxBase || (p?.taxBase ?? "") : "",
+      taxBase: id ? f.taxBase : "",
     }));
   }
+
+  /** Padrão do parceiro escolhido: vale enquanto o imóvel não tiver imposto próprio */
+  const chosenPartner = partners.find((x) => x.id === form.partnerId);
+  const partnerTax = chosenPartner?.taxPct ?? null;
+  const partnerBase: TaxBase = chosenPartner?.taxBase ?? "total";
 
   const set = (k: string, v: string | boolean | string[]) =>
     setForm((f) => ({ ...f, [k]: v }));
@@ -481,13 +485,13 @@ export function PropertyForm({
                     suffix="%"
                     value={form.taxPct}
                     onChange={(e) => set("taxPct", e.target.value)}
-                    placeholder="Sem imposto"
+                    placeholder={partnerTax != null ? `Do parceiro: ${partnerTax}` : "Sem imposto"}
                     className={inputCls}
                   />
                 </Field>
                 {form.partnerId && (
                   <Field label="O imposto incide sobre">
-                    <Select value={form.taxBase || "total"} onChange={(e) => set("taxBase", e.target.value)}>
+                    <Select value={form.taxBase || partnerBase} onChange={(e) => set("taxBase", e.target.value)}>
                       {Object.entries(TAX_BASE).map(([k, l]) => (
                         <option key={k} value={k}>
                           {l}
@@ -501,8 +505,8 @@ export function PropertyForm({
                 price={Number(form.price) || 0}
                 commissionPct={form.commissionPct === "" ? null : Number(form.commissionPct)}
                 partnerSharePct={form.partnerId && form.partnerSharePct !== "" ? Number(form.partnerSharePct) : null}
-                taxPct={form.taxPct === "" ? null : Number(String(form.taxPct).replace(",", "."))}
-                taxBase={form.partnerId ? (form.taxBase || "total") : "total"}
+                taxPct={form.taxPct === "" ? partnerTax : Number(String(form.taxPct).replace(",", "."))}
+                taxBase={form.partnerId ? form.taxBase || partnerBase : "total"}
                 className="rounded-xl bg-soft px-4 py-3"
               />
               <p className="text-[11px] text-subtle">Uso interno — não aparece no site nem na ficha.</p>

@@ -302,7 +302,7 @@ export async function PropertyDetail({
                 price={p.price}
                 commissionPct={p.commissionPct}
                 partnerSharePct={partner ? p.partnerSharePct : null}
-                taxPct={p.taxPct}
+                taxPct={p.taxPct ?? (partner ? partner.taxPct : null)}
                 taxBase={p.taxBase ?? partner?.taxBase ?? "total"}
                 className="mt-3"
               />
