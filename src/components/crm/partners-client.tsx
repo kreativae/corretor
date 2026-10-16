@@ -4,10 +4,12 @@ import { Badge, Button, EmptyState, Field, Input, Modal, Select, Textarea } from
 import type { Partner } from "@/db/schema";
 import { TYPE_LABELS } from "@/lib/labels";
 import { PctInput, SharePicks } from "@/components/crm/share-picks";
-import { commissionValues, PARTNER_WATERMARK, type PartnerWatermark } from "@/lib/partners";
+import { CommissionBreakdown } from "@/components/crm/commission-breakdown";
+import { commissionValues, PARTNER_WATERMARK, TAX_BASE, type PartnerWatermark, type TaxBase } from "@/lib/partners";
+import { STATUS_LABELS } from "@/lib/labels";
 import { crmPropertyPath } from "@/lib/rural";
 import { formatBRL, formatPhone, plural } from "@/lib/utils";
-import { Building2, Droplets, Handshake, Mail, Pencil, Phone, Plus, Search, Trash2 } from "lucide-react";
+import { Building2, Droplets, Eye, Handshake, Mail, Pencil, Phone, Plus, Search, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -24,7 +26,14 @@ type PartnerProperty = {
   partnerId: string;
   commissionPct: number | null;
   partnerSharePct: number | null;
+  taxPct: number | null;
+  taxBase: TaxBase | null;
+  status: string;
 };
+
+/** Valores do imóvel com o imposto (base do imóvel ou, sem ajuste, a do parceiro) */
+const valuesOf = (x: PartnerProperty, p: Row) =>
+  commissionValues(x.price, x.commissionPct, x.partnerSharePct, x.taxPct, x.taxBase ?? (p.taxBase as TaxBase));
 
 const EMPTY = {
   name: "",
@@ -34,6 +43,8 @@ const EMPTY = {
   creci: "",
   commissionPct: "",
   partnerSharePct: "",
+  taxPct: "",
+  taxBase: "total" as TaxBase,
   watermark: "padrao" as PartnerWatermark,
   notes: "",
 };
@@ -46,6 +57,7 @@ export function PartnersClient({ partners, properties }: { partners: Row[]; prop
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const [toDelete, setToDelete] = useState<Row | null>(null);
+  const [viewing, setViewing] = useState<Row | null>(null);
   const set = (p: Partial<typeof EMPTY>) => setForm((f) => ({ ...f, ...p }));
 
   const list = useMemo(() => {
@@ -72,6 +84,8 @@ export function PartnersClient({ partners, properties }: { partners: Row[]; prop
       creci: p.creci ?? "",
       commissionPct: p.commissionPct?.toString() ?? "",
       partnerSharePct: p.partnerSharePct?.toString() ?? "",
+      taxPct: p.taxPct?.toString() ?? "",
+      taxBase: (p.taxBase as TaxBase) ?? "total",
       watermark: p.watermark as PartnerWatermark,
       notes: p.notes ?? "",
     });
@@ -155,13 +169,16 @@ export function PartnersClient({ partners, properties }: { partners: Row[]; prop
             return (
               <div key={p.id} className="card-elev rounded-2xl border border-hairline bg-card p-5">
                 <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="truncate font-display text-lg font-semibold tracking-tight">{p.name}</p>
+                  <button type="button" onClick={() => setViewing(p)} className="min-w-0 text-left">
+                    <p className="truncate font-display text-lg font-semibold tracking-tight hover:underline">{p.name}</p>
                     <p className="truncate text-xs text-subtle">
                       {[p.company, p.creci && `CRECI ${p.creci}`].filter(Boolean).join(" · ") || "Parceiro"}
                     </p>
-                  </div>
+                  </button>
                   <div className="flex shrink-0 gap-1">
+                    <Button variant="ghost" size="icon" aria-label="Visualizar" title="Visualizar" onClick={() => setViewing(p)}>
+                      <Eye className="size-4" />
+                    </Button>
                     <Button variant="ghost" size="icon" aria-label="Editar" onClick={() => openEdit(p)}>
                       <Pencil className="size-4" />
                     </Button>
@@ -191,6 +208,11 @@ export function PartnersClient({ partners, properties }: { partners: Row[]; prop
                     Comissão {p.commissionPct != null ? `${p.commissionPct}%` : "—"}
                     {p.partnerSharePct != null && ` · repasse ${p.partnerSharePct}% da comissão`}
                   </Badge>
+                  {p.taxPct != null && (
+                    <Badge>
+                      Imposto {p.taxPct}% · {p.taxBase === "ours" ? "sobre a nossa parte" : "sobre a comissão inteira"}
+                    </Badge>
+                  )}
                   <Badge>
                     <Droplets className="size-3" />
                     {PARTNER_WATERMARK[p.watermark as PartnerWatermark]}
@@ -204,7 +226,7 @@ export function PartnersClient({ partners, properties }: { partners: Row[]; prop
                   {props.length > 0 && (
                     <ul className="mt-2 space-y-1.5">
                       {props.slice(0, 6).map((x) => {
-                        const v = commissionValues(x.price, x.commissionPct, x.partnerSharePct);
+                        const v = valuesOf(x, p);
                         return (
                           <li key={x.id}>
                             <Link
@@ -263,6 +285,18 @@ export function PartnersClient({ partners, properties }: { partners: Row[]; prop
             </Field>
             <SharePicks value={form.partnerSharePct} onPick={(v) => set({ partnerSharePct: v })} />
           </div>
+          <Field label="Imposto sobre a comissão">
+            <PctInput suffix="%" value={form.taxPct} onChange={(e) => set({ taxPct: e.target.value })} placeholder="Sem imposto" />
+          </Field>
+          <Field label="O imposto incide sobre">
+            <Select value={form.taxBase} onChange={(e) => set({ taxBase: e.target.value as TaxBase })}>
+              {Object.entries(TAX_BASE).map(([k, l]) => (
+                <option key={k} value={k}>
+                  {l}
+                </option>
+              ))}
+            </Select>
+          </Field>
           <Field label="Marca d'água nas fotos dos imóveis dele" className="sm:col-span-2">
             <Select value={form.watermark} onChange={(e) => set({ watermark: e.target.value as PartnerWatermark })}>
               {Object.entries(PARTNER_WATERMARK).map(([k, l]) => (
@@ -277,7 +311,9 @@ export function PartnersClient({ partners, properties }: { partners: Row[]; prop
           </Field>
         </div>
         <p className="mt-3 text-[11px] text-subtle">
-          Comissão e repasse são o padrão para novos imóveis dele; dá para ajustar imóvel a imóvel.
+          Comissão, repasse e imposto são o padrão para novos imóveis dele; dá para ajustar imóvel a imóvel.
+          Comissão inteira: o imposto sai antes da divisão e o repasse é sobre o líquido. Só a nossa parte:
+          cada um paga o seu imposto.
         </p>
         <div className="mt-5 flex justify-end gap-2">
           <Button variant="outline" onClick={() => setOpen(false)}>
@@ -287,6 +323,122 @@ export function PartnersClient({ partners, properties }: { partners: Row[]; prop
             {editing ? "Salvar" : "Cadastrar parceiro"}
           </Button>
         </div>
+      </Modal>
+
+      <Modal open={!!viewing} onClose={() => setViewing(null)} title={viewing?.name ?? "Parceiro"} wide>
+        {viewing && (() => {
+          const props = properties.filter((x) => x.partnerId === viewing.id);
+          const sum = props.reduce(
+            (acc, x) => {
+              const v = valuesOf(x, viewing);
+              return {
+                total: acc.total + (v.total ?? 0),
+                tax: acc.tax + (v.tax ?? 0),
+                partner: acc.partner + (v.partner ?? 0),
+                ours: acc.ours + (v.ours ?? 0),
+              };
+            },
+            { total: 0, tax: 0, partner: 0, ours: 0 },
+          );
+          const info: [string, string | null][] = [
+            ["Imobiliária / empresa", viewing.company],
+            ["CRECI", viewing.creci],
+            ["WhatsApp", viewing.phone ? formatPhone(viewing.phone) : null],
+            ["E-mail", viewing.email],
+            ["Comissão padrão", viewing.commissionPct != null ? `${viewing.commissionPct}% do imóvel` : null],
+            ["Repasse padrão", viewing.partnerSharePct != null ? `${viewing.partnerSharePct}% da comissão` : null],
+            [
+              "Imposto padrão",
+              viewing.taxPct != null ? `${viewing.taxPct}% · ${TAX_BASE[(viewing.taxBase as TaxBase) ?? "total"]}` : null,
+            ],
+            ["Marca d'água", PARTNER_WATERMARK[viewing.watermark as PartnerWatermark]],
+          ];
+          return (
+            <div className="space-y-5">
+              <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+                {info.map(([k, v]) => (
+                  <div key={k}>
+                    <dt className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-subtle">{k}</dt>
+                    <dd className="mt-0.5 text-sm">{v || "—"}</dd>
+                  </div>
+                ))}
+              </dl>
+              {viewing.notes && (
+                <div>
+                  <p className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-subtle">Observações</p>
+                  <p className="mt-1 whitespace-pre-line text-sm">{viewing.notes}</p>
+                </div>
+              )}
+              <div>
+                <p className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-subtle">
+                  {props.length} {plural(props.length, "imóvel", "imóveis")} · {viewing.publishedCount} no site
+                </p>
+                {props.length === 0 ? (
+                  <p className="mt-2 text-sm text-subtle">Nenhum imóvel vinculado a este parceiro.</p>
+                ) : (
+                  <ul className="mt-2 space-y-3">
+                    {props.map((x) => (
+                      <li key={x.id} className="rounded-xl border border-hairline p-3">
+                        <Link href={crmPropertyPath(x)} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm hover:underline">
+                          <span className="font-mono text-[11px] text-subtle">{x.code}</span>
+                          <span className="min-w-0 flex-1 truncate font-medium">{x.title}</span>
+                          <span className="text-[11px] text-subtle">
+                            {TYPE_LABELS[x.type]} · {STATUS_LABELS[x.status as keyof typeof STATUS_LABELS] ?? x.status} · {formatBRL(x.price)}
+                          </span>
+                        </Link>
+                        <CommissionBreakdown
+                          price={x.price}
+                          commissionPct={x.commissionPct}
+                          partnerSharePct={x.partnerSharePct}
+                          taxPct={x.taxPct}
+                          taxBase={x.taxBase ?? (viewing.taxBase as TaxBase)}
+                          className="mt-2"
+                        />
+                        {x.commissionPct == null && <p className="mt-1 text-[11px] text-subtle">Sem comissão definida neste imóvel.</p>}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {props.length > 1 && sum.total > 0 && (
+                  <dl className="mt-3 space-y-1 rounded-xl bg-soft px-4 py-3 text-sm">
+                    <p className="pb-1 font-medium">Somando todos os imóveis</p>
+                    {(
+                      [
+                        ["Comissões", sum.total],
+                        ["Impostos", sum.tax],
+                        ["Repasses ao parceiro", sum.partner],
+                        ["Fica com a imobiliária", sum.ours],
+                      ] as const
+                    )
+                      .filter(([, n]) => n > 0)
+                      .map(([k, n]) => (
+                        <div key={k} className="flex justify-between gap-3">
+                          <dt className="text-subtle">{k}</dt>
+                          <dd className="font-mono tabular">{formatBRL(n)}</dd>
+                        </div>
+                      ))}
+                  </dl>
+                )}
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setViewing(null)}>
+                  Fechar
+                </Button>
+                <Button
+                  variant="accent"
+                  onClick={() => {
+                    const p = viewing;
+                    setViewing(null);
+                    openEdit(p);
+                  }}
+                >
+                  <Pencil className="size-4" />
+                  Editar
+                </Button>
+              </div>
+            </div>
+          );
+        })()}
       </Modal>
 
       <Modal open={!!toDelete} onClose={() => setToDelete(null)} title="Excluir parceiro">

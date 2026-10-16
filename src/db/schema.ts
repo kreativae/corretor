@@ -101,6 +101,10 @@ export const partners = pgTable("partners", {
   commissionPct: real("commission_pct"),
   /** Parte padrão do parceiro (% da comissão) */
   partnerSharePct: real("partner_share_pct"),
+  /** Imposto padrão sobre a comissão (%); vazio = não calcula */
+  taxPct: real("tax_pct"),
+  /** Base do imposto: total = comissão inteira (antes do repasse) · ours = só a parte da imobiliária */
+  taxBase: text("tax_base", { enum: ["total", "ours"] }).notNull().default("total"),
   /** Marca d'água nas fotos dos imóveis dele: padrao | logo | linhas | nenhuma */
   watermark: text("watermark", { enum: ["padrao", "logo", "linhas", "nenhuma"] })
     .notNull()
@@ -164,6 +168,9 @@ export const properties = pgTable("properties", {
   commissionPct: real("commission_pct"),
   /** Parte da comissão que vai para o parceiro (% da comissão) */
   partnerSharePct: real("partner_share_pct"),
+  /** Imposto sobre a comissão deste imóvel (%) e a base (total | ours) */
+  taxPct: real("tax_pct"),
+  taxBase: text("tax_base", { enum: ["total", "ours"] }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

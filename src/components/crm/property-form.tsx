@@ -6,7 +6,8 @@ import type { PropertyWithImages } from "@/lib/queries";
 import { PhotoManager } from "./photo-manager";
 import { KmzField, RuralFields } from "./rural-fields";
 import { crmPropertyPath, isRuralType, normalizeRural, pricePerAlq, RURAL_TYPES, type RuralData } from "@/lib/rural";
-import { commissionValues } from "@/lib/partners";
+import { TAX_BASE, type TaxBase } from "@/lib/partners";
+import { CommissionBreakdown } from "@/components/crm/commission-breakdown";
 import { PctInput, SharePicks } from "@/components/crm/share-picks";
 import { AmenityPicker } from "@/components/crm/amenity-picker";
 import { cn, formatBRL, parseYouTubeUrl } from "@/lib/utils";
@@ -25,6 +26,8 @@ export type PartnerOption = {
   company: string | null;
   commissionPct: number | null;
   partnerSharePct: number | null;
+  taxPct: number | null;
+  taxBase: TaxBase;
 };
 
 export function PropertyForm({
@@ -75,6 +78,8 @@ export function PropertyForm({
     partnerId: initial?.partnerId ?? "",
     commissionPct: initial?.commissionPct?.toString() ?? "",
     partnerSharePct: initial?.partnerSharePct?.toString() ?? "",
+    taxPct: initial?.taxPct?.toString() ?? "",
+    taxBase: (initial?.taxBase ?? "") as TaxBase | "",
   });
 
   /** Escolher o parceiro já sugere a comissão combinada com ele */
@@ -85,6 +90,8 @@ export function PropertyForm({
       partnerId: id,
       commissionPct: f.commissionPct || (p?.commissionPct?.toString() ?? ""),
       partnerSharePct: id ? f.partnerSharePct || (p?.partnerSharePct?.toString() ?? "") : "",
+      taxPct: f.taxPct || (p?.taxPct?.toString() ?? ""),
+      taxBase: id ? f.taxBase || (p?.taxBase ?? "") : "",
     }));
   }
 
@@ -174,6 +181,8 @@ export function PropertyForm({
         partnerId: form.partnerId || null,
         commissionPct: form.commissionPct === "" ? null : form.commissionPct,
         partnerSharePct: form.partnerId && form.partnerSharePct !== "" ? form.partnerSharePct : null,
+        taxPct: form.taxPct === "" ? null : form.taxPct,
+        taxBase: form.partnerId && form.taxBase ? form.taxBase : null,
         ...(rural
           ? {
               rural: ruralData,
@@ -466,32 +475,36 @@ export function PropertyForm({
                   </div>
                 )}
               </div>
-              {(() => {
-                const v = commissionValues(
-                  Number(form.price) || 0,
-                  form.commissionPct === "" ? null : Number(form.commissionPct),
-                  form.partnerId && form.partnerSharePct !== "" ? Number(form.partnerSharePct) : null,
-                );
-                if (v.total == null || !Number(form.price)) return null;
-                return (
-                  <div className="space-y-1.5 rounded-xl bg-soft px-4 py-3 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-subtle">Comissão total ({form.commissionPct}% do imóvel)</span>
-                      <span className="font-mono tabular">{formatBRL(v.total)}</span>
-                    </div>
-                    {form.partnerId && v.partner != null && (
-                      <div className="flex justify-between">
-                        <span className="text-subtle">Repasse ao parceiro ({form.partnerSharePct}% da comissão)</span>
-                        <span className="font-mono tabular">{formatBRL(v.partner)}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between font-medium">
-                      <span>Fica com a imobiliária</span>
-                      <span className="font-mono tabular">{formatBRL(v.ours ?? 0)}</span>
-                    </div>
-                  </div>
-                );
-              })()}
+              <div className={cn("grid gap-3", form.partnerId && "grid-cols-2")}>
+                <Field label="Imposto sobre a comissão">
+                  <PctInput
+                    suffix="%"
+                    value={form.taxPct}
+                    onChange={(e) => set("taxPct", e.target.value)}
+                    placeholder="Sem imposto"
+                    className={inputCls}
+                  />
+                </Field>
+                {form.partnerId && (
+                  <Field label="O imposto incide sobre">
+                    <Select value={form.taxBase || "total"} onChange={(e) => set("taxBase", e.target.value)}>
+                      {Object.entries(TAX_BASE).map(([k, l]) => (
+                        <option key={k} value={k}>
+                          {l}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                )}
+              </div>
+              <CommissionBreakdown
+                price={Number(form.price) || 0}
+                commissionPct={form.commissionPct === "" ? null : Number(form.commissionPct)}
+                partnerSharePct={form.partnerId && form.partnerSharePct !== "" ? Number(form.partnerSharePct) : null}
+                taxPct={form.taxPct === "" ? null : Number(String(form.taxPct).replace(",", "."))}
+                taxBase={form.partnerId ? (form.taxBase || "total") : "total"}
+                className="rounded-xl bg-soft px-4 py-3"
+              />
               <p className="text-[11px] text-subtle">Uso interno — não aparece no site nem na ficha.</p>
             </div>
           </section>

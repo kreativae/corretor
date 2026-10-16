@@ -19,6 +19,9 @@ export default async function ParceirosPage() {
       partnerId: p.partnerId!,
       commissionPct: p.commissionPct,
       partnerSharePct: p.partnerSharePct,
+      taxPct: p.taxPct,
+      taxBase: p.taxBase,
+      status: p.status,
     }));
   return (
     <div className="mx-auto max-w-6xl">

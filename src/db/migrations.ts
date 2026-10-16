@@ -126,6 +126,21 @@ export const RUNTIME_MIGRATIONS = [
      lng real,
      updated_at timestamptz NOT NULL DEFAULT now()
    );`,
+  // Imposto sobre a comissão: padrão do parceiro e ajuste por imóvel
+  `DO $$ BEGIN
+     IF NOT EXISTS (
+       SELECT 1 FROM information_schema.columns
+       WHERE table_schema = current_schema() AND table_name = 'partners' AND column_name = 'tax_pct'
+     ) THEN
+       ALTER TABLE partners ADD COLUMN tax_pct real, ADD COLUMN tax_base text NOT NULL DEFAULT 'total';
+     END IF;
+     IF NOT EXISTS (
+       SELECT 1 FROM information_schema.columns
+       WHERE table_schema = current_schema() AND table_name = 'properties' AND column_name = 'tax_pct'
+     ) THEN
+       ALTER TABLE properties ADD COLUMN tax_pct real, ADD COLUMN tax_base text;
+     END IF;
+   END $$;`,
 ];
 
 /** Só no banco principal (esquema public): cadastro de empresas da gerência */

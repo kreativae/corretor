@@ -1,5 +1,6 @@
 import { RuralDetails } from "@/components/rural-details";
 import { commissionValues } from "@/lib/partners";
+import { CommissionBreakdown } from "@/components/crm/commission-breakdown";
 import { getMessages } from "@/lib/features";
 import { fillMessage } from "@/lib/messages";
 import {
@@ -297,24 +298,14 @@ export async function PropertyDetail({
                   </p>
                 </div>
               )}
-              {commission.total != null && (
-                <dl className="mt-3 space-y-1.5 text-sm">
-                  <div className="flex justify-between">
-                    <dt className="text-subtle">Comissão ({p.commissionPct}% do imóvel)</dt>
-                    <dd className="font-mono tabular">{formatBRL(commission.total)}</dd>
-                  </div>
-                  {partner && commission.partner != null && (
-                    <div className="flex justify-between">
-                      <dt className="text-subtle">Repasse ao parceiro ({p.partnerSharePct}% da comissão)</dt>
-                      <dd className="font-mono tabular">{formatBRL(commission.partner)}</dd>
-                    </div>
-                  )}
-                  <div className="flex justify-between border-t border-hairline pt-1.5 font-medium">
-                    <dt>Fica com a imobiliária</dt>
-                    <dd className="font-mono tabular">{formatBRL(commission.ours ?? 0)}</dd>
-                  </div>
-                </dl>
-              )}
+              <CommissionBreakdown
+                price={p.price}
+                commissionPct={p.commissionPct}
+                partnerSharePct={partner ? p.partnerSharePct : null}
+                taxPct={p.taxPct}
+                taxBase={p.taxBase ?? partner?.taxBase ?? "total"}
+                className="mt-3"
+              />
               <p className="mt-3 text-[11px] text-subtle">Uso interno — não aparece no site nem na ficha.</p>
             </div>
           )}
