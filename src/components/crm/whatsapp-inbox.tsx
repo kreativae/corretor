@@ -3,6 +3,7 @@
 import { Button, Field, Input, Modal, Textarea } from "@/components/ui";
 import type { WaMessage } from "@/db/schema";
 import { cn, formatPhone, initials } from "@/lib/utils";
+import { WhatsAppConnection, type ConnState } from "@/components/crm/whatsapp-connection";
 import {
   Archive,
   ArchiveRestore,
@@ -102,6 +103,7 @@ export function WhatsAppInbox({
   hasTemplate,
   provider = "meta",
   userName = "",
+  ownNumber = false,
 }: {
   ready: boolean;
   isAdmin: boolean;
@@ -111,6 +113,8 @@ export function WhatsAppInbox({
   provider?: "evolution" | "meta";
   /** Quem está logado: apaga as próprias mensagens; o administrador, qualquer uma */
   userName?: string;
+  /** Cada usuário com o próprio número (QR code): vê e gerencia só as conversas dele */
+  ownNumber?: boolean;
 }) {
   const [threads, setThreads] = useState<Thread[] | null>(null);
   const [archived, setArchived] = useState(false);
@@ -122,7 +126,8 @@ export function WhatsAppInbox({
   const [deletingThread, setDeletingThread] = useState(false);
   const [deleting, setDeleting] = useState<"all" | "me" | null>(null);
   const canDelete = (m: WaMessage) =>
-    m.type !== "deleted" && (isAdmin || (m.direction === "out" && !!m.sentBy && m.sentBy === userName));
+    m.type !== "deleted" && (ownNumber || isAdmin || (m.direction === "out" && !!m.sentBy && m.sentBy === userName));
+  const canDeleteThread = ownNumber || isAdmin;
   const canRevoke = (m: WaMessage) =>
     provider === "evolution" &&
     m.direction === "out" &&
@@ -279,6 +284,7 @@ export function WhatsAppInbox({
       window.clearInterval(t);
     };
   }, [qrMode, ready]);
+  const onConnState = useCallback((s: ConnState) => setConnState(s.state), []);
 
   // Antes de salvar no CRM, pede o nome (muitos números chegam sem nome)
   const [saveAs, setSaveAs] = useState<{ action: "lead" | "contato"; name: string; email: string } | null>(null);
@@ -352,7 +358,8 @@ export function WhatsAppInbox({
           <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-subtle">Atendimento</p>
           <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight">WhatsApp</h1>
           <p className="mt-1 text-sm text-subtle">
-            Conversas do número da imobiliária. Números novos só entram no CRM quando você clica em Criar lead ou Salvar contato.
+            {ownNumber ? "Conversas do seu número." : "Conversas do número da imobiliária."} Números novos só entram no CRM quando você
+            clica em Criar lead ou Salvar contato.
           </p>
         </div>
         {isAdmin && (
@@ -379,15 +386,13 @@ export function WhatsAppInbox({
       )}
 
       {ready && qrMode && connState && connState !== "open" && (
-        <div className="mt-6 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm">
-          O WhatsApp está desconectado do CRM — as mensagens novas não estão chegando.{" "}
-          {isAdmin ? (
-            <Link href="/admin/configuracoes#whatsapp" className="font-medium underline underline-offset-2">
-              Ler o QR code de novo
-            </Link>
-          ) : (
-            "Peça a um administrador para reconectar em Configurações › WhatsApp."
-          )}
+        <div className="mt-6 space-y-3">
+          <p className="text-sm text-subtle">
+            {connState === "missing"
+              ? "Conecte o seu WhatsApp para atender por aqui. Só você vê as conversas do seu número."
+              : "O seu WhatsApp está desconectado do CRM — as mensagens novas não estão chegando. Leia o QR code de novo."}
+          </p>
+          <WhatsAppConnection whose="do seu número" onState={onConnState} />
         </div>
       )}
 
@@ -510,7 +515,7 @@ export function WhatsAppInbox({
                 <Button variant="ghost" size="sm" onClick={toggleArchive} aria-label={thread.archived ? "Desarquivar" : "Arquivar"} title={thread.archived ? "Desarquivar" : "Arquivar"}>
                   {thread.archived ? <ArchiveRestore className="size-4" /> : <Archive className="size-4" />}
                 </Button>
-                {isAdmin && (
+                {canDeleteThread && (
                   <Button variant="ghost" size="sm" onClick={() => setConfirmThread(true)} aria-label="Apagar conversa" title="Apagar conversa">
                     <Trash2 className="size-4" />
                   </Button>

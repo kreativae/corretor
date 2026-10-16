@@ -141,6 +141,27 @@ export const RUNTIME_MIGRATIONS = [
        ALTER TABLE properties ADD COLUMN tax_pct real, ADD COLUMN tax_base text;
      END IF;
    END $$;`,
+  // WhatsApp por usuário: cada conversa pertence a uma linha ("main" = número da empresa)
+  `DO $$ BEGIN
+     IF NOT EXISTS (
+       SELECT 1 FROM information_schema.columns
+       WHERE table_schema = current_schema() AND table_name = 'wa_threads' AND column_name = 'line'
+     ) THEN
+       ALTER TABLE wa_threads ADD COLUMN line text NOT NULL DEFAULT 'main';
+       ALTER TABLE wa_threads DROP CONSTRAINT IF EXISTS wa_threads_pkey;
+       ALTER TABLE wa_threads ADD PRIMARY KEY (line, phone);
+     END IF;
+     IF NOT EXISTS (
+       SELECT 1 FROM information_schema.columns
+       WHERE table_schema = current_schema() AND table_name = 'wa_messages' AND column_name = 'line'
+     ) THEN
+       ALTER TABLE wa_messages ADD COLUMN line text NOT NULL DEFAULT 'main';
+       ALTER TABLE wa_messages DROP CONSTRAINT IF EXISTS wa_messages_wa_message_id_key;
+       ALTER TABLE wa_messages DROP CONSTRAINT IF EXISTS wa_messages_wa_message_id_unique;
+       CREATE UNIQUE INDEX IF NOT EXISTS wa_messages_line_wa_id_key ON wa_messages (line, wa_message_id);
+       CREATE INDEX IF NOT EXISTS wa_messages_line_phone_idx ON wa_messages (line, phone, created_at);
+     END IF;
+   END $$;`,
 ];
 
 /** Só no banco principal (esquema public): cadastro de empresas da gerência */

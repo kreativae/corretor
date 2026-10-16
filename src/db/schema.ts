@@ -4,10 +4,12 @@ import {
   boolean,
   integer,
   jsonb,
+  primaryKey,
   pgTable,
   real,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -396,9 +398,14 @@ export const regionGeo = pgTable("region_geo", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-/** WhatsApp: uma conversa por número (dígitos com DDI) */
+/**
+ * WhatsApp: uma conversa por número (dígitos com DDI) em cada linha.
+ * Linha "main" = número principal da empresa; as outras são o id do usuário
+ * dono do número (cada um conecta o seu pelo QR code).
+ */
 export const waThreads = pgTable("wa_threads", {
-  phone: text("phone").primaryKey(),
+  line: text("line").notNull().default("main"),
+  phone: text("phone").notNull(),
   contactId: uuid("contact_id").references(() => contacts.id, { onDelete: "set null" }),
   profileName: text("profile_name"),
   lastMessage: text("last_message"),
@@ -408,10 +415,11 @@ export const waThreads = pgTable("wa_threads", {
   unread: integer("unread").notNull().default(0),
   archived: boolean("archived").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [primaryKey({ columns: [t.line, t.phone] })]);
 
 export const waMessages = pgTable("wa_messages", {
   id: uuid("id").primaryKey().defaultRandom(),
+  line: text("line").notNull().default("main"),
   phone: text("phone").notNull(),
   contactId: uuid("contact_id").references(() => contacts.id, { onDelete: "set null" }),
   direction: text("direction", { enum: ["in", "out"] }).notNull(),
@@ -419,7 +427,7 @@ export const waMessages = pgTable("wa_messages", {
   body: text("body"),
   mediaId: text("media_id"),
   mediaMime: text("media_mime"),
-  waMessageId: text("wa_message_id").unique(),
+  waMessageId: text("wa_message_id"),
   /** received | sent | delivered | read | failed */
   status: text("status").notNull().default("received"),
   error: text("error"),
@@ -428,7 +436,7 @@ export const waMessages = pgTable("wa_messages", {
   deliveredAt: timestamp("delivered_at", { withTimezone: true }),
   readAt: timestamp("read_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [uniqueIndex("wa_messages_line_wa_id_key").on(t.line, t.waMessageId)]);
 
 /* ─────────────────────────── Tipos ─────────────────────────── */
 

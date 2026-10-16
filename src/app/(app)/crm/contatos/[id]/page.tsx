@@ -36,6 +36,8 @@ import {
   Send,
   Sparkles,
 } from "lucide-react";
+import { getCurrentUser } from "@/lib/auth";
+import { lineFor, MAIN_LINE } from "@/lib/whatsapp";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -56,13 +58,14 @@ export default async function ContatoPage({
     listProperties(),
   ]);
   if (!c) notFound();
+  const waLine = getCurrentUser().then(async (u) => (u ? (await lineFor(u.id)).line : MAIN_LINE));
 
   const [matches, activities, leadDates, sends, waMsgs] = await Promise.all([
     getMatchesFor(c),
     listActivitiesFor("contato", c.id, 15),
     listLeadDates(c.id),
     listPropertySends(c.id, 20),
-    listContactWhatsApp(c.id, 8),
+    waLine.then((line) => listContactWhatsApp(c.id, line, 8)),
   ]);
 
   const myVisits = allVisits.filter((v) => v.contact?.id === c.id);

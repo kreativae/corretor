@@ -1,11 +1,11 @@
 import "server-only";
 import { getDb } from "@/db";
-import { activities, contacts, settings, waMessages, waThreads, type WaMessage } from "@/db/schema";
+import { activities, contacts, settings, users, waMessages, waThreads, type WaMessage } from "@/db/schema";
 import { noteHeader } from "@/lib/contact-notes";
 import { tenantParam } from "@/lib/tenant";
 import { formatPhone } from "@/lib/utils";
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
-import { desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 
 /**
  * WhatsApp pela API oficial da Meta (WhatsApp Cloud API).
@@ -37,6 +37,8 @@ export type WhatsAppConfig = {
   /** Modelo aprovado para reabrir conversa fora da janela de 24 h */
   templateName: string;
   templateLang: string;
+  /** Usuário dono do número principal (vazio = primeiro administrador) */
+  mainOwner: string;
 };
 
 const DEFAULTS: WhatsAppConfig = {
@@ -54,6 +56,7 @@ const DEFAULTS: WhatsAppConfig = {
   notify: true,
   templateName: "",
   templateLang: "pt_BR",
+  mainOwner: "",
 };
 
 export async function getWhatsAppConfig(): Promise<WhatsAppConfig> {
@@ -102,12 +105,61 @@ export async function saveWhatsAppConfig(input: Partial<WhatsAppConfig>) {
     notify: input.notify !== false,
     templateName: str(input.templateName, 120).replace(/[^\w]/g, ""),
     templateLang: str(input.templateLang, 10) || "pt_BR",
+    mainOwner: input.mainOwner === undefined ? cur.mainOwner : str(input.mainOwner, 40).replace(/[^0-9a-f-]/gi, ""),
   };
   const [row] = await (await getDb()).select().from(settings).where(eq(settings.key, "whatsapp"));
   if (row) await (await getDb()).update(settings).set({ value: next }).where(eq(settings.key, "whatsapp"));
   else await (await getDb()).insert(settings).values({ key: "whatsapp", value: next });
   return next;
 }
+
+/* ─────────────────────── linhas (um número por usuário) ─────────────────────── */
+
+/**
+ * Na conexão por QR code cada usuário tem o próprio número (uma instância na
+ * Evolution), e as conversas ficam separadas por linha. O número principal
+ * (instância configurada pelo administrador) é a linha "main", do dono
+ * escolhido em Configurações. Na API oficial há um número só, compartilhado.
+ */
+export const MAIN_LINE = "main";
+
+export type LineConfig = WhatsAppConfig & { line: string };
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Valor de linha recebido de fora (URL, formulário): "main" ou id de usuário */
+export const parseLine = (v: unknown) => (typeof v === "string" && UUID.test(v) ? v.toLowerCase() : MAIN_LINE);
+
+/** Números separados por usuário? (só na conexão por QR code) */
+export const perUserLines = (cfg: WhatsAppConfig) => cfg.provider === "evolution";
+
+/** Dono do número principal: o escolhido em Configurações ou o primeiro administrador */
+export async function mainLineOwner(cfg: WhatsAppConfig) {
+  if (cfg.mainOwner) return cfg.mainOwner;
+  const [first] = await (await getDb())
+    .select({ id: users.id })
+    .from(users)
+    .where(and(inArray(users.role, ["superadmin", "admin"]), eq(users.active, true)))
+    .orderBy(asc(users.createdAt))
+    .limit(1)
+    .catch(() => []);
+  return first?.id ?? "";
+}
+
+/** Configuração apontando para a instância da linha */
+export function forLine(cfg: WhatsAppConfig, line: string): LineConfig {
+  if (line === MAIN_LINE) return { ...cfg, line };
+  return { ...cfg, line, evolutionInstance: `${cfg.evolutionInstance || "corretor"}-${line.replace(/-/g, "").slice(0, 12)}` };
+}
+
+/** Linha (número) do usuário logado */
+export async function lineFor(userId: string, cfg?: WhatsAppConfig): Promise<LineConfig> {
+  const c = cfg ?? (await getWhatsAppConfig());
+  if (!perUserLines(c)) return forLine(c, MAIN_LINE);
+  return forLine(c, (await mainLineOwner(c)) === userId ? MAIN_LINE : userId);
+}
+
+const threadKey = (line: string, phone: string) => and(eq(waThreads.line, line), eq(waThreads.phone, phone));
 
 export const mask = (s: string) => (s ? `${"•".repeat(8)}${s.slice(-4)}` : "");
 
@@ -202,20 +254,18 @@ async function send(cfg: WhatsAppConfig, to: string, payload: Record<string, unk
 }
 
 /** Envia texto e grava na conversa */
-export async function sendText(phone: string, text: string, sentBy: string) {
-  const cfg = await getWhatsAppConfig();
+export async function sendText(cfg: LineConfig, phone: string, text: string, sentBy: string) {
   if (!whatsappReady(cfg)) throw new WhatsAppError("WhatsApp não configurado.");
   const to = waPhone(phone);
   const id =
     cfg.provider === "evolution"
       ? await evoSendText(cfg, to, text)
       : await send(cfg, to, { type: "text", text: { body: text, preview_url: true } });
-  return recordOutgoing(to, { type: "text", body: text, waMessageId: id, sentBy });
+  return recordOutgoing(cfg.line, to, { type: "text", body: text, waMessageId: id, sentBy });
 }
 
 /** Envia o modelo aprovado (reabre a conversa fora da janela de 24 h) */
-export async function sendTemplate(phone: string, sentBy: string) {
-  const cfg = await getWhatsAppConfig();
+export async function sendTemplate(cfg: LineConfig, phone: string, sentBy: string) {
   if (cfg.provider === "evolution") throw new WhatsAppError("Modelos só existem na API oficial — pela conexão por QR code a mensagem normal funciona sempre.");
   if (!whatsappReady(cfg)) throw new WhatsAppError("WhatsApp não configurado.");
   if (!cfg.templateName) throw new WhatsAppError("Cadastre o nome do modelo aprovado em Configurações › WhatsApp.");
@@ -224,32 +274,32 @@ export async function sendTemplate(phone: string, sentBy: string) {
     type: "template",
     template: { name: cfg.templateName, language: { code: cfg.templateLang || "pt_BR" } },
   });
-  return recordOutgoing(to, { type: "template", body: `Modelo: ${cfg.templateName}`, waMessageId: id, sentBy });
+  return recordOutgoing(cfg.line, to, { type: "template", body: `Modelo: ${cfg.templateName}`, waMessageId: id, sentBy });
 }
 
 async function recordOutgoing(
+  line: string,
   phone: string,
   m: { type: string; body: string; waMessageId: string | null; sentBy: string },
 ) {
-  const [thread] = await (await getDb()).select().from(waThreads).where(eq(waThreads.phone, phone));
+  const [thread] = await (await getDb()).select().from(waThreads).where(threadKey(line, phone));
   const contactId = thread?.contactId ?? (await findContactByPhone(phone))?.id ?? null;
   const [row] = await (await getDb())
     .insert(waMessages)
-    .values({ phone, contactId, direction: "out", type: m.type, body: m.body, waMessageId: m.waMessageId, status: "sent", sentBy: m.sentBy })
+    .values({ line, phone, contactId, direction: "out", type: m.type, body: m.body, waMessageId: m.waMessageId, status: "sent", sentBy: m.sentBy })
     .returning();
   await (await getDb())
     .insert(waThreads)
-    .values({ phone, contactId, lastMessage: m.body.slice(0, 200), lastMessageAt: new Date() })
+    .values({ line, phone, contactId, lastMessage: m.body.slice(0, 200), lastMessageAt: new Date() })
     .onConflictDoUpdate({
-      target: waThreads.phone,
+      target: [waThreads.line, waThreads.phone],
       set: { lastMessage: m.body.slice(0, 200), lastMessageAt: new Date(), archived: false, ...(contactId ? { contactId } : {}) },
     });
   return row;
 }
 
 /** Arquivo de mídia recebida (foto, áudio, documento) */
-export async function fetchMedia(mediaId: string) {
-  const cfg = await getWhatsAppConfig();
+export async function fetchMedia(cfg: LineConfig, mediaId: string) {
   if (cfg.provider === "evolution") return evoMedia(cfg, mediaId);
   const meta = await graph<{ url: string; mime_type: string }>(mediaId, cfg);
   const res = await fetch(meta.url, { headers: { Authorization: `Bearer ${cfg.accessToken}` } });
@@ -320,7 +370,7 @@ function describe(m: Incoming): { body: string; mediaId?: string; mime?: string 
 
 /** Processa o corpo do webhook da Meta (mensagens recebidas e status das enviadas). */
 export async function handleWebhook(payload: unknown, baseUrl: string) {
-  const cfg = await getWhatsAppConfig();
+  const cfg = forLine(await getWhatsAppConfig(), MAIN_LINE);
   type Value = {
     contacts?: { wa_id: string; profile?: { name?: string } }[];
     messages?: Incoming[];
@@ -332,7 +382,7 @@ export async function handleWebhook(payload: unknown, baseUrl: string) {
       const v = change.value ?? {};
       for (const st of v.statuses ?? []) {
         const ts = Number(st.timestamp);
-        await setMessageStatus(st.id, st.status, ts ? new Date(ts * 1000) : new Date(), st.errors?.[0]?.message || st.errors?.[0]?.title);
+        await setMessageStatus(cfg.line, st.id, st.status, ts ? new Date(ts * 1000) : new Date(), st.errors?.[0]?.message || st.errors?.[0]?.title);
       }
       for (const m of v.messages ?? []) {
         const profile = v.contacts?.find((c) => c.wa_id === m.from)?.profile?.name;
@@ -342,7 +392,7 @@ export async function handleWebhook(payload: unknown, baseUrl: string) {
   }
 }
 
-async function ingest(m: Incoming, profileName: string | undefined, cfg: WhatsAppConfig, baseUrl: string) {
+async function ingest(m: Incoming, profileName: string | undefined, cfg: LineConfig, baseUrl: string) {
   const { body, mediaId, mime } = describe(m);
   await ingestNormalized(
     {
@@ -372,25 +422,26 @@ export type NormalizedMessage = {
 };
 
 /** Mensagem enviada pelo próprio celular (aparece na conversa do CRM) */
-export async function ingestFromMe(m: NormalizedMessage) {
-  const [dup] = await (await getDb()).select({ id: waMessages.id }).from(waMessages).where(eq(waMessages.waMessageId, m.id));
+export async function ingestFromMe(line: string, m: NormalizedMessage) {
+  const [dup] = await (await getDb()).select({ id: waMessages.id }).from(waMessages).where(and(eq(waMessages.line, line), eq(waMessages.waMessageId, m.id)));
   if (dup) return;
-  const [thread] = await (await getDb()).select().from(waThreads).where(eq(waThreads.phone, m.phone));
+  const [thread] = await (await getDb()).select().from(waThreads).where(threadKey(line, m.phone));
   const contactId = thread?.contactId ?? (await findContactByPhone(m.phone))?.id ?? null;
   await (await getDb())
     .insert(waMessages)
-    .values({ phone: m.phone, contactId, direction: "out", type: m.type, body: m.body, mediaId: m.mediaId, mediaMime: m.mime, waMessageId: m.id, status: "sent", sentBy: "Celular", createdAt: m.at })
+    .values({ line, phone: m.phone, contactId, direction: "out", type: m.type, body: m.body, mediaId: m.mediaId, mediaMime: m.mime, waMessageId: m.id, status: "sent", sentBy: "Celular", createdAt: m.at })
     .onConflictDoNothing();
   await (await getDb())
     .insert(waThreads)
-    .values({ phone: m.phone, contactId, lastMessage: m.body.slice(0, 200), lastMessageAt: m.at })
+    .values({ line, phone: m.phone, contactId, lastMessage: m.body.slice(0, 200), lastMessageAt: m.at })
     .onConflictDoUpdate({
-      target: waThreads.phone,
+      target: [waThreads.line, waThreads.phone],
       set: { lastMessage: m.body.slice(0, 200), lastMessageAt: m.at, ...(contactId ? { contactId } : {}) },
     });
 }
 
-export async function ingestNormalized(n: NormalizedMessage, cfg: WhatsAppConfig, baseUrl: string) {
+export async function ingestNormalized(n: NormalizedMessage, cfg: LineConfig, baseUrl: string) {
+  const line = cfg.line;
   const m = { id: n.id };
   const phone = n.phone;
   const at = n.at;
@@ -398,10 +449,10 @@ export async function ingestNormalized(n: NormalizedMessage, cfg: WhatsAppConfig
   const profileName = n.profileName;
 
   // Mensagem repetida (a Meta reenvia em caso de falha): ignora
-  const [dup] = await (await getDb()).select({ id: waMessages.id }).from(waMessages).where(eq(waMessages.waMessageId, m.id));
+  const [dup] = await (await getDb()).select({ id: waMessages.id }).from(waMessages).where(and(eq(waMessages.line, line), eq(waMessages.waMessageId, m.id)));
   if (dup) return;
 
-  const [thread] = await (await getDb()).select().from(waThreads).where(eq(waThreads.phone, phone));
+  const [thread] = await (await getDb()).select().from(waThreads).where(threadKey(line, phone));
   const contactId = thread?.contactId ?? (await findContactByPhone(phone))?.id ?? null;
   // Número novo não vira contato sozinho: só pelos botões da conversa
   if (contactId && (!thread?.lastInboundAt || at.getTime() - thread.lastInboundAt.getTime() > 12 * 3600_000)) {
@@ -416,14 +467,14 @@ export async function ingestNormalized(n: NormalizedMessage, cfg: WhatsAppConfig
 
   await (await getDb())
     .insert(waMessages)
-    .values({ phone, contactId, direction: "in", type: n.type, body, mediaId, mediaMime: mime, waMessageId: m.id, status: "received", createdAt: at })
+    .values({ line, phone, contactId, direction: "in", type: n.type, body, mediaId, mediaMime: mime, waMessageId: m.id, status: "received", createdAt: at })
     .onConflictDoNothing();
 
   await (await getDb())
     .insert(waThreads)
-    .values({ phone, contactId, profileName: profileName ?? null, lastMessage: body.slice(0, 200), lastMessageAt: at, lastInboundAt: at, unread: 1 })
+    .values({ line, phone, contactId, profileName: profileName ?? null, lastMessage: body.slice(0, 200), lastMessageAt: at, lastInboundAt: at, unread: 1 })
     .onConflictDoUpdate({
-      target: waThreads.phone,
+      target: [waThreads.line, waThreads.phone],
       set: {
         ...(profileName ? { profileName } : {}),
         ...(contactId ? { contactId } : {}),
@@ -437,8 +488,8 @@ export async function ingestNormalized(n: NormalizedMessage, cfg: WhatsAppConfig
 }
 
 /** Cria (ou vincula) o contato de uma conversa — botões "Criar lead" e "Salvar contato" */
-export async function linkThreadContact(phone: string, kind: "lead" | "cliente" = "lead", opts: { name?: string; email?: string } = {}) {
-  const [thread] = await (await getDb()).select().from(waThreads).where(eq(waThreads.phone, phone));
+export async function linkThreadContact(line: string, phone: string, kind: "lead" | "cliente" = "lead", opts: { name?: string; email?: string } = {}) {
+  const [thread] = await (await getDb()).select().from(waThreads).where(threadKey(line, phone));
   if (!thread) throw new WhatsAppError("Conversa não encontrada.");
   if (thread.contactId) return thread.contactId;
   let contactId = (await findContactByPhone(phone))?.id ?? null;
@@ -448,7 +499,7 @@ export async function linkThreadContact(phone: string, kind: "lead" | "cliente" 
     const [first] = await (await getDb())
       .select({ body: waMessages.body, createdAt: waMessages.createdAt })
       .from(waMessages)
-      .where(sql`${waMessages.phone} = ${phone} and ${waMessages.direction} = 'in'`)
+      .where(sql`${waMessages.line} = ${line} and ${waMessages.phone} = ${phone} and ${waMessages.direction} = 'in'`)
       .orderBy(waMessages.createdAt)
       .limit(1);
     const [created] = await (await getDb())
@@ -470,8 +521,8 @@ export async function linkThreadContact(phone: string, kind: "lead" | "cliente" 
       text: kind === "lead" ? `${name} virou lead a partir de uma conversa do WhatsApp.` : `${name} foi salvo nos contatos a partir do WhatsApp.`,
     });
   }
-  await (await getDb()).update(waThreads).set({ contactId }).where(eq(waThreads.phone, phone));
-  await (await getDb()).update(waMessages).set({ contactId }).where(eq(waMessages.phone, phone));
+  await (await getDb()).update(waThreads).set({ contactId }).where(threadKey(line, phone));
+  await (await getDb()).update(waMessages).set({ contactId }).where(and(eq(waMessages.line, line), eq(waMessages.phone, phone)));
   return contactId;
 }
 
@@ -501,8 +552,8 @@ async function evo<T>(cfg: WhatsAppConfig, path: string, init?: RequestInit): Pr
 
 const inst = (cfg: WhatsAppConfig) => encodeURIComponent(cfg.evolutionInstance || "corretor");
 
-export function evolutionWebhookUrl(baseUrl: string, cfg: WhatsAppConfig, tenant?: string | null) {
-  return `${baseUrl}/api/whatsapp/evolution?token=${cfg.webhookToken}${tenant ? `&t=${tenant}` : ""}`;
+export function evolutionWebhookUrl(baseUrl: string, cfg: WhatsAppConfig, tenant?: string | null, line: string = MAIN_LINE) {
+  return `${baseUrl}/api/whatsapp/evolution?token=${cfg.webhookToken}${tenant ? `&t=${tenant}` : ""}${line !== MAIN_LINE ? `&l=${line}` : ""}`;
 }
 
 const EVO_EVENTS = ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "CONNECTION_UPDATE"];
@@ -531,9 +582,9 @@ export async function evolutionState(cfg: WhatsAppConfig) {
 }
 
 /** Cria a instância (se preciso), aponta o webhook para o CRM e devolve o QR code */
-export async function evolutionConnect(cfg: WhatsAppConfig, baseUrl: string, pairNumber?: string) {
+export async function evolutionConnect(cfg: LineConfig, baseUrl: string, pairNumber?: string) {
   const pairQs = pairNumber ? `?number=${waPhone(pairNumber)}` : "";
-  const webhook = { enabled: true, url: evolutionWebhookUrl(baseUrl, cfg, await tenantParam()), byEvents: false, base64: false, events: EVO_EVENTS };
+  const webhook = { enabled: true, url: evolutionWebhookUrl(baseUrl, cfg, await tenantParam(), cfg.line), byEvents: false, base64: false, events: EVO_EVENTS };
   const { state } = await evolutionState(cfg);
   type QrResp = { base64?: string; code?: string; pairingCode?: string; qrcode?: { base64?: string; pairingCode?: string } };
   if (state === "missing") {
@@ -581,8 +632,7 @@ async function evoSendText(cfg: WhatsAppConfig, to: string, text: string) {
 }
 
 /** Envia arquivo (foto ou PDF) por URL pública */
-export async function sendMediaUrl(phone: string, url: string, opts: { caption?: string; fileName?: string; mime?: string; sentBy: string }) {
-  const cfg = await getWhatsAppConfig();
+export async function sendMediaUrl(cfg: LineConfig, phone: string, url: string, opts: { caption?: string; fileName?: string; mime?: string; sentBy: string }) {
   if (cfg.provider !== "evolution") throw new WhatsAppError("Envio de arquivos disponível na conexão por QR code.");
   const to = waPhone(phone);
   const mediatype = (opts.mime ?? "").startsWith("image/") ? "image" : "document";
@@ -590,7 +640,7 @@ export async function sendMediaUrl(phone: string, url: string, opts: { caption?:
     method: "POST",
     body: JSON.stringify({ number: to, mediatype, mimetype: opts.mime, caption: opts.caption ?? "", media: url, fileName: opts.fileName }),
   });
-  return recordOutgoing(to, {
+  return recordOutgoing(cfg.line, to, {
     type: mediatype,
     body: opts.caption || (mediatype === "image" ? "📷 Foto" : `📄 ${opts.fileName ?? "Arquivo"}`),
     waMessageId: d.key?.id ?? null,
@@ -667,9 +717,10 @@ const STATUS_RANK: Record<string, number> = { sent: 1, delivered: 2, read: 3 };
  * Atualiza o status de uma mensagem enviada sem voltar atrás (um "entregue" atrasado
  * não desfaz o "lida") e guarda o horário de entrega e de leitura.
  */
-async function setMessageStatus(waMessageId: string, status: string, at: Date, error?: string) {
+async function setMessageStatus(line: string, waMessageId: string, status: string, at: Date, error?: string) {
+  const where = and(eq(waMessages.line, line), eq(waMessages.waMessageId, waMessageId));
   if (status === "failed") {
-    await (await getDb()).update(waMessages).set({ status, error: error || null }).where(eq(waMessages.waMessageId, waMessageId));
+    await (await getDb()).update(waMessages).set({ status, error: error || null }).where(where);
     return;
   }
   const rank = STATUS_RANK[status];
@@ -684,7 +735,7 @@ async function setMessageStatus(waMessageId: string, status: string, at: Date, e
       ...(rank >= 2 ? { deliveredAt: sql`coalesce(${waMessages.deliveredAt}, ${at.toISOString()}::timestamptz)` } : {}),
       ...(rank >= 3 ? { readAt: sql`coalesce(${waMessages.readAt}, ${at.toISOString()}::timestamptz)` } : {}),
     })
-    .where(eq(waMessages.waMessageId, waMessageId));
+    .where(where);
 }
 
 const EVO_STATUS: Record<string, string> = {
@@ -696,8 +747,8 @@ const EVO_STATUS: Record<string, string> = {
 };
 
 /** Eventos da Evolution API (mensagens recebidas, enviadas pelo celular e status) */
-export async function handleEvolutionWebhook(payload: unknown, baseUrl: string) {
-  const cfg = await getWhatsAppConfig();
+export async function handleEvolutionWebhook(payload: unknown, baseUrl: string, line: string = MAIN_LINE) {
+  const cfg = forLine(await getWhatsAppConfig(), line);
   const p = payload as { event?: string; data?: unknown };
   const event = String(p?.event ?? "").toLowerCase().replace(/_/g, ".");
   const items = Array.isArray(p?.data) ? p.data : p?.data ? [p.data] : [];
@@ -710,7 +761,7 @@ export async function handleEvolutionWebhook(payload: unknown, baseUrl: string) 
         | { type?: string | number; key?: { id?: string } }
         | undefined;
       if (proto && (proto.type === "REVOKE" || proto.type === 0) && proto.key?.id) {
-        await markDeleted(eq(waMessages.waMessageId, proto.key.id));
+        await markDeleted(and(eq(waMessages.line, line), eq(waMessages.waMessageId, proto.key.id)));
         continue;
       }
       const phone = jidPhone(key, raw);
@@ -727,7 +778,7 @@ export async function handleEvolutionWebhook(payload: unknown, baseUrl: string) 
         mime: d.mime,
         profileName: key.fromMe ? undefined : (raw.pushName as string | undefined),
       };
-      if (key.fromMe) await ingestFromMe(n);
+      if (key.fromMe) await ingestFromMe(line, n);
       else await ingestNormalized(n, cfg, baseUrl);
     }
   } else if (event === "messages.update") {
@@ -735,11 +786,11 @@ export async function handleEvolutionWebhook(payload: unknown, baseUrl: string) 
       const id = (raw.keyId as string) ?? ((raw.key as EvoKey | undefined)?.id) ?? (raw.messageId as string);
       const rawStatus = String(raw.status ?? "").toUpperCase();
       if (id && rawStatus === "DELETED") {
-        await markDeleted(eq(waMessages.waMessageId, id));
+        await markDeleted(and(eq(waMessages.line, line), eq(waMessages.waMessageId, id)));
         continue;
       }
       const status = EVO_STATUS[rawStatus];
-      if (id && status) await setMessageStatus(id, status, new Date());
+      if (id && status) await setMessageStatus(line, id, status, new Date());
     }
   }
 }
@@ -752,27 +803,30 @@ const DELETED_BODY = "🚫 Mensagem apagada";
 export const REVOKE_WINDOW_MS = 48 * 3600_000;
 
 /** Último texto da conversa depois de apagar uma mensagem */
-async function refreshThreadPreview(phone: string) {
+async function refreshThreadPreview(line: string, phone: string) {
   const [last] = await (await getDb())
     .select({ body: waMessages.body, createdAt: waMessages.createdAt })
     .from(waMessages)
-    .where(eq(waMessages.phone, phone))
+    .where(and(eq(waMessages.line, line), eq(waMessages.phone, phone)))
     .orderBy(desc(waMessages.createdAt))
     .limit(1);
   await (await getDb())
     .update(waThreads)
     .set({ lastMessage: last?.body?.slice(0, 200) ?? null, ...(last ? { lastMessageAt: last.createdAt } : {}) })
-    .where(eq(waThreads.phone, phone));
+    .where(threadKey(line, phone));
 }
 
 /** Troca o conteúdo pelo aviso de apagada (fica o registro na conversa) */
-async function markDeleted(where: ReturnType<typeof eq>) {
+async function markDeleted(where: SQL | undefined) {
   const rows = await (await getDb())
     .update(waMessages)
     .set({ type: DELETED_TYPE, body: DELETED_BODY, mediaId: null, mediaMime: null, error: null })
     .where(where)
     .returning();
-  for (const phone of new Set(rows.map((r) => r.phone))) await refreshThreadPreview(phone);
+  for (const key of new Set(rows.map((r) => `${r.line}|${r.phone}`))) {
+    const [line, phone] = key.split("|");
+    await refreshThreadPreview(line, phone);
+  }
   return rows[0] ?? null;
 }
 
@@ -792,15 +846,14 @@ export function canRevoke(m: Pick<WaMessage, "direction" | "waMessageId" | "type
  * Apaga uma mensagem. "all": apaga no WhatsApp do contato também (só enviadas,
  * conexão por QR code) e deixa o aviso na conversa. "me": tira só do CRM.
  */
-export async function deleteMessage(id: string, scope: "all" | "me") {
-  const [m] = await (await getDb()).select().from(waMessages).where(eq(waMessages.id, id));
+export async function deleteMessage(cfg: LineConfig, id: string, scope: "all" | "me") {
+  const [m] = await (await getDb()).select().from(waMessages).where(and(eq(waMessages.id, id), eq(waMessages.line, cfg.line)));
   if (!m) throw new WhatsAppError("Mensagem não encontrada.");
   if (scope === "me") {
     await (await getDb()).delete(waMessages).where(eq(waMessages.id, id));
-    await refreshThreadPreview(m.phone);
+    await refreshThreadPreview(m.line, m.phone);
     return { deleted: true as const, message: null };
   }
-  const cfg = await getWhatsAppConfig();
   if (!canRevoke(m, cfg.provider)) {
     throw new WhatsAppError(
       cfg.provider !== "evolution"

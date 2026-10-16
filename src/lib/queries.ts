@@ -550,13 +550,13 @@ export async function listPropertySends(contactId?: string, limit = 200): Promis
   }
 }
 
-/** Últimas mensagens de WhatsApp do contato (mais recentes por último) */
-export async function listContactWhatsApp(contactId: string, limit = 6): Promise<WaMessage[]> {
+/** Últimas mensagens de WhatsApp do contato no número (linha) de quem vê — mais recentes por último */
+export async function listContactWhatsApp(contactId: string, line: string, limit = 6): Promise<WaMessage[]> {
   try {
     const rows = await (await getDb())
       .select()
       .from(waMessages)
-      .where(eq(waMessages.contactId, contactId))
+      .where(and(eq(waMessages.contactId, contactId), eq(waMessages.line, line)))
       .orderBy(desc(waMessages.createdAt))
       .limit(limit);
     return rows.reverse();

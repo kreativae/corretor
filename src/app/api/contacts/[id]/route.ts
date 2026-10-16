@@ -3,6 +3,7 @@ import { getDb } from "@/db";
 import { activities, contacts, integrations } from "@/db/schema";
 import { GoogleApiError, googleApi } from "@/lib/google";
 import { getContact, getMatchesFor, listDeals, listLeadDates, listVisits, listPropertySends, listContactWhatsApp } from "@/lib/queries";
+import { lineFor } from "@/lib/whatsapp";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
@@ -10,7 +11,8 @@ export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  if (!(await apiUser())) return unauthorized();
+  const user = await apiUser();
+  if (!user) return unauthorized();
   const { id } = await params;
   const contact = await getContact(id);
   if (!contact) {
@@ -23,7 +25,7 @@ export async function GET(
     getMatchesFor(contact),
     listLeadDates(contact.id),
     listPropertySends(contact.id, 5),
-    listContactWhatsApp(contact.id, 4),
+    lineFor(user.id).then((l) => listContactWhatsApp(contact.id, l.line, 4)),
   ]);
 
   const myVisits = allVisits

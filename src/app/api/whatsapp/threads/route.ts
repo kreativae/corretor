@@ -1,12 +1,15 @@
 import { getDb } from "@/db";
 import { contacts, waThreads } from "@/db/schema";
 import { apiUser, unauthorized } from "@/lib/api-auth";
-import { desc, eq } from "drizzle-orm";
+import { lineFor } from "@/lib/whatsapp";
+import { and, desc, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
-/** Lista de conversas (mais recentes primeiro) */
+/** Conversas do número de quem está logado (mais recentes primeiro) */
 export async function GET(req: Request) {
-  if (!(await apiUser())) return unauthorized();
+  const user = await apiUser();
+  if (!user) return unauthorized();
+  const { line } = await lineFor(user.id);
   const archived = new URL(req.url).searchParams.get("arquivadas") === "1";
   const rows = await (await getDb())
     .select({
@@ -23,7 +26,7 @@ export async function GET(req: Request) {
     })
     .from(waThreads)
     .leftJoin(contacts, eq(contacts.id, waThreads.contactId))
-    .where(eq(waThreads.archived, archived))
+    .where(and(eq(waThreads.line, line), eq(waThreads.archived, archived)))
     .orderBy(desc(waThreads.lastMessageAt))
     .limit(300);
   return NextResponse.json(rows);

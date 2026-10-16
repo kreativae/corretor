@@ -1,5 +1,5 @@
 import { apiUser, unauthorized } from "@/lib/api-auth";
-import { sendMediaUrl } from "@/lib/whatsapp";
+import { lineFor, sendMediaUrl } from "@/lib/whatsapp";
 import { NextResponse } from "next/server";
 
 const MAX = 4 * 1024 * 1024;
@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     if (!(file instanceof File) || phone.length < 10) return NextResponse.json({ error: "Arquivo ou número inválido." }, { status: 400 });
     if (file.size > MAX) return NextResponse.json({ error: "Arquivo acima de 4 MB." }, { status: 413 });
     const base64 = Buffer.from(await file.arrayBuffer()).toString("base64");
-    const msg = await sendMediaUrl(phone, base64, {
+    const msg = await sendMediaUrl(await lineFor(user.id), phone, base64, {
       caption,
       fileName: file.name,
       mime: file.type || "application/octet-stream",

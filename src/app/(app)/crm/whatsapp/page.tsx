@@ -1,6 +1,6 @@
 import { WhatsAppInbox } from "@/components/crm/whatsapp-inbox";
 import { getCurrentUser } from "@/lib/auth";
-import { getWhatsAppConfig, waPhone, whatsappReady } from "@/lib/whatsapp";
+import { getWhatsAppConfig, perUserLines, waPhone, whatsappReady } from "@/lib/whatsapp";
 import type { Metadata } from "next";
 import { isAdmin } from "@/lib/roles";
 
@@ -18,6 +18,7 @@ export default async function WhatsAppPage({ searchParams }: { searchParams: Pro
         hasTemplate={!!cfg.templateName}
         provider={cfg.provider}
         userName={user?.name ?? ""}
+        ownNumber={perUserLines(cfg)}
       />
     </div>
   );

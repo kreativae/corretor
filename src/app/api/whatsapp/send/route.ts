@@ -1,5 +1,5 @@
 import { apiUser, unauthorized } from "@/lib/api-auth";
-import { sendTemplate, sendText, WhatsAppError } from "@/lib/whatsapp";
+import { lineFor, sendTemplate, sendText, WhatsAppError } from "@/lib/whatsapp";
 import { NextResponse } from "next/server";
 
 /** Envia texto (ou o modelo aprovado, com template: true) para um número */
@@ -11,7 +11,8 @@ export async function POST(req: Request) {
   const text = String(body.text ?? "").trim().slice(0, 4096);
   if (phone.length < 10) return NextResponse.json({ error: "Número inválido." }, { status: 400 });
   try {
-    const msg = body.template ? await sendTemplate(phone, user.name) : text ? await sendText(phone, text, user.name) : null;
+    const cfg = await lineFor(user.id);
+    const msg = body.template ? await sendTemplate(cfg, phone, user.name) : text ? await sendText(cfg, phone, text, user.name) : null;
     if (!msg) return NextResponse.json({ error: "Escreva a mensagem." }, { status: 400 });
     return NextResponse.json(msg);
   } catch (e) {
