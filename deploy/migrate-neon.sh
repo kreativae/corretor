@@ -11,6 +11,13 @@ set -eu
 printf "URL do Neon (conexão DIRETA, sem -pooler): "; stty -echo 2>/dev/null || true; read -r SRC; stty echo 2>/dev/null || true; echo
 printf "URL do Postgres do Coolify (interna): ";     stty -echo 2>/dev/null || true; read -r DST; stty echo 2>/dev/null || true; echo
 
+for u in "$SRC" "$DST"; do
+  case "$u" in
+    postgres://*|postgresql://*) ;;
+    *) echo "URL inválida: precisa começar com postgresql:// (cole de novo, sem apertar outras teclas antes)."; exit 1 ;;
+  esac
+done
+
 echo "== Origem:  $(psql "$SRC" -Atc "select current_user || ' · ' || version()")"
 echo "== Destino: $(psql "$DST" -Atc "select current_user || ' · ' || version()")"
 OWNER=$(psql "$SRC" -Atc "select current_user")
