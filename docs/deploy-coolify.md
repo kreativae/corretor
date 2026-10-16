@@ -102,3 +102,11 @@ são gravados no disco em vez do Blob (sem `UPLOAD_DIR`, tudo segue no Blob, com
 Os arquivos ficam no volume do servidor: ative os **Backups** da Hetzner (cópia diária
 do servidor inteiro) ou copie `/app/storage` para um S3. No dia da troca de domínio, rode
 o script de novo com o domínio definitivo (depois de copiar o banco, seção 5).
+
+## 7. Deploy automático a cada push
+
+App do CRM › **Webhooks** › **Manual Git webhooks › GitHub**: copie a **Webhook URL**
+(`.../webhooks/source/github/events/manual`) e gere o **Webhook secret**. No GitHub,
+`Settings › Webhooks › Add webhook` com essa URL, `application/json`, o mesmo secret e
+"Just the push event". Com **Auto Deploy** ligado (Advanced), cada push na branch do app
+dispara o deploy, e o resultado chega pelas notificações do Coolify (Telegram).
