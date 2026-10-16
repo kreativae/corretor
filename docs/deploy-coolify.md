@@ -69,3 +69,17 @@ dois lados, para a sincronização não rodar em dobro.
    `https://evolution.SEU-DOMINIO` e reconecte pelo QR code.
 4. Só depois de algumas semanas estável, desative o projeto na Vercel — **sem**
    remover a integração do Neon nem o Blob Store (podem apagar banco e arquivos).
+
+## 5. Trazer o banco do Neon para o servidor (opcional)
+
+1. Coolify › projeto › **+ New › Database › PostgreSQL**. Imagem `postgres:17-alpine`,
+   **Initial Database** `corretor`. Não marque "Make it publicly available".
+   Ative **Backups** (agendado, de preferência para um S3).
+2. No servidor, rode [`deploy/migrate-neon.sh`](../deploy/migrate-neon.sh) (o cabeçalho
+   do arquivo tem o comando). Ele pede a URL **direta** do Neon (sem `-pooler`) e a
+   **Postgres URL (internal)** do Coolify, recria os usuários das empresas e copia tudo.
+   O Neon só é lido; pode repetir quantas vezes quiser (o destino é apagado a cada vez).
+3. No app do CRM, troque `DATABASE_URL` pela URL interna do Coolify e faça **Restart**.
+
+Enquanto a Vercel estiver no ar ela continua gravando no Neon: faça a cópia final
+no momento da troca de domínio, com a Vercel já desligada, para não perder dados.
