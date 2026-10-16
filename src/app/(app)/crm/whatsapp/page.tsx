@@ -17,6 +17,7 @@ export default async function WhatsAppPage({ searchParams }: { searchParams: Pro
         initialPhone={tel ? waPhone(tel) : undefined}
         hasTemplate={!!cfg.templateName}
         provider={cfg.provider}
+        userName={user?.name ?? ""}
       />
     </div>
   );

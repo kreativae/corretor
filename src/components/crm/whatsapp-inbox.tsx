@@ -17,6 +17,7 @@ import {
   Search,
   Send,
   Settings,
+  Trash2,
   UserPlus,
   UserRound,
   X,
@@ -39,6 +40,8 @@ type Thread = {
 };
 
 const DAY = 24 * 3600_000;
+/** Mesmo prazo do servidor para "apagar para todos" (src/lib/whatsapp.ts) */
+const REVOKE_WINDOW_MS = 48 * 3600_000;
 
 const national = (p: string) => (p.startsWith("55") && p.length >= 12 ? p.slice(2) : p);
 /** "às 14:32" hoje, "ontem às 14:32" ou "12/10 às 14:32" */
@@ -98,6 +101,7 @@ export function WhatsAppInbox({
   initialPhone,
   hasTemplate,
   provider = "meta",
+  userName = "",
 }: {
   ready: boolean;
   isAdmin: boolean;
@@ -105,12 +109,49 @@ export function WhatsAppInbox({
   hasTemplate: boolean;
   /** evolution = QR code (sem janela de 24 h, envia arquivos) */
   provider?: "evolution" | "meta";
+  /** Quem está logado: apaga as próprias mensagens; o administrador, qualquer uma */
+  userName?: string;
 }) {
   const [threads, setThreads] = useState<Thread[] | null>(null);
   const [archived, setArchived] = useState(false);
   const [active, setActive] = useState<string | null>(initialPhone ?? null);
   // Mensagem enviada com os dados abertos (enviada / entregue / lida)
   const [infoId, setInfoId] = useState<string | null>(null);
+  const [toDelete, setToDelete] = useState<WaMessage | null>(null);
+  const [deleting, setDeleting] = useState<"all" | "me" | null>(null);
+  const canDelete = (m: WaMessage) =>
+    m.type !== "deleted" && (isAdmin || (m.direction === "out" && !!m.sentBy && m.sentBy === userName));
+  const canRevoke = (m: WaMessage) =>
+    provider === "evolution" &&
+    m.direction === "out" &&
+    !!m.waMessageId &&
+    m.type !== "deleted" &&
+    m.status !== "failed" &&
+    now - new Date(m.createdAt).getTime() < REVOKE_WINDOW_MS;
+
+  async function removeMessage(scope: "all" | "me") {
+    if (!toDelete) return;
+    setDeleting(scope);
+    try {
+      const res = await fetch(`/api/whatsapp/messages/${toDelete.id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scope }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Falha ao apagar.");
+      const id = toDelete.id;
+      setMessages((cur) =>
+        data.deleted ? cur.filter((x) => x.id !== id) : cur.map((x) => (x.id === id && data.message ? data.message : x)),
+      );
+      toast.success(scope === "all" ? "Mensagem apagada para todos." : "Mensagem apagada do CRM.");
+      setToDelete(null);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao apagar.");
+    } finally {
+      setDeleting(null);
+    }
+  }
   const [messages, setMessages] = useState<WaMessage[]>([]);
   const lastOutId = useMemo(() => [...messages].reverse().find((m) => m.direction === "out")?.id ?? null, [messages]);
   const [loadingMsgs, setLoadingMsgs] = useState(false);
@@ -131,7 +172,7 @@ export function WhatsAppInbox({
     if (res?.ok) {
       const data: WaMessage[] = await res.json();
       // Só troca a lista se algo mudou (inclui status de mensagens antigas: entregue, lida)
-      const sig = (list: WaMessage[]) => list.map((m) => `${m.id}:${m.status}`).join("|");
+      const sig = (list: WaMessage[]) => list.map((m) => `${m.id}:${m.status}:${m.type}`).join("|");
       setMessages((cur) => (sig(cur) === sig(data) ? cur : data));
     }
     if (!quiet) setLoadingMsgs(false);
@@ -468,13 +509,25 @@ export function WhatsAppInbox({
                           {new Date(m.createdAt).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" })}
                         </p>
                       )}
-                      <div className={cn("flex", out ? "justify-end" : "justify-start")}>
+                      <div className={cn("group flex items-center gap-1.5", out ? "justify-end" : "justify-start")}>
+                        {out && canDelete(m) && (
+                          <button
+                            type="button"
+                            onClick={() => setToDelete(m)}
+                            aria-label="Apagar mensagem"
+                            title="Apagar mensagem"
+                            className="rounded-full p-1.5 text-subtle opacity-60 transition hover:bg-hairline hover:text-red-600 focus:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                          >
+                            <Trash2 className="size-3.5" />
+                          </button>
+                        )}
                         <div
                           onClick={out ? () => setInfoId((v) => (v === m.id ? null : m.id)) : undefined}
                           title={out ? "Ver dados da mensagem" : undefined}
                           className={cn(
                             "max-w-[80%] rounded-2xl px-3.5 py-2 text-sm shadow-sm",
                             out ? "cursor-pointer rounded-br-md bg-emerald-600 text-white" : "rounded-bl-md bg-card",
+                            m.type === "deleted" && "italic opacity-70",
                           )}
                         >
                           {m.mediaId && m.type === "image" && (
@@ -508,6 +561,17 @@ export function WhatsAppInbox({
                           </p>
                           {m.status === "failed" && m.error && <p className="mt-1 text-[11px] text-red-100">{m.error}</p>}
                         </div>
+                        {!out && canDelete(m) && (
+                          <button
+                            type="button"
+                            onClick={() => setToDelete(m)}
+                            aria-label="Apagar mensagem"
+                            title="Apagar mensagem"
+                            className="rounded-full p-1.5 text-subtle opacity-60 transition hover:bg-hairline hover:text-red-600 focus:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                          >
+                            <Trash2 className="size-3.5" />
+                          </button>
+                        )}
                       </div>
                       {out && infoId === m.id ? (
                         <MessageInfo m={m} />
@@ -603,6 +667,39 @@ export function WhatsAppInbox({
           )}
         </section>
       </div>
+
+      <Modal open={!!toDelete} onClose={() => !deleting && setToDelete(null)} title="Apagar mensagem">
+        {toDelete && (
+          <div className="space-y-4">
+            <p className="line-clamp-3 rounded-xl border border-hairline bg-card px-3 py-2 text-sm text-subtle">
+              {toDelete.body || "Mensagem sem texto"}
+            </p>
+            <p className="text-sm text-subtle">
+              {canRevoke(toDelete)
+                ? "\"Apagar para todos\" remove também do WhatsApp do contato, que vê o aviso de mensagem apagada. \"Só no CRM\" tira apenas daqui."
+                : toDelete.direction === "out" && provider === "evolution" && toDelete.status !== "failed"
+                  ? "Passou o prazo do WhatsApp (cerca de 2 dias) para apagar para todos. Dá para tirar só do CRM; o contato continua vendo."
+                  : toDelete.direction === "out" && provider !== "evolution"
+                    ? "A API oficial do WhatsApp não permite apagar para todos. Dá para tirar só do CRM; o contato continua vendo."
+                    : "Mensagens recebidas só podem ser tiradas do CRM; no WhatsApp do contato elas continuam."}
+            </p>
+            <div className="flex flex-wrap justify-end gap-2 pt-1">
+              <Button type="button" variant="outline" onClick={() => setToDelete(null)} disabled={!!deleting}>
+                Cancelar
+              </Button>
+              <Button type="button" variant="outline" onClick={() => removeMessage("me")} loading={deleting === "me"} disabled={!!deleting}>
+                Apagar só no CRM
+              </Button>
+              {canRevoke(toDelete) && (
+                <Button type="button" variant="accent" onClick={() => removeMessage("all")} loading={deleting === "all"} disabled={!!deleting}>
+                  <Trash2 className="size-4" />
+                  Apagar para todos
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <Modal open={!!saveAs} onClose={() => !linking && setSaveAs(null)} title={saveAs?.action === "lead" ? "Criar lead" : "Salvar contato"}>
         {saveAs && thread && (

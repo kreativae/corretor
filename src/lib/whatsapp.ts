@@ -1,11 +1,11 @@
 import "server-only";
 import { getDb } from "@/db";
-import { activities, contacts, settings, waMessages, waThreads } from "@/db/schema";
+import { activities, contacts, settings, waMessages, waThreads, type WaMessage } from "@/db/schema";
 import { noteHeader } from "@/lib/contact-notes";
 import { tenantParam } from "@/lib/tenant";
 import { formatPhone } from "@/lib/utils";
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
-import { eq, sql } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 
 /**
  * WhatsApp pela API oficial da Meta (WhatsApp Cloud API).
@@ -705,6 +705,14 @@ export async function handleEvolutionWebhook(payload: unknown, baseUrl: string) 
   if (event === "messages.upsert") {
     for (const raw of items as Record<string, unknown>[]) {
       const key = (raw.key ?? {}) as EvoKey;
+      // Contato (ou o próprio celular) apagou para todos: mostra o aviso no lugar
+      const proto = (raw.message as EvoMessage | undefined)?.protocolMessage as
+        | { type?: string | number; key?: { id?: string } }
+        | undefined;
+      if (proto && (proto.type === "REVOKE" || proto.type === 0) && proto.key?.id) {
+        await markDeleted(eq(waMessages.waMessageId, proto.key.id));
+        continue;
+      }
       const phone = jidPhone(key, raw);
       const d = describeEvo(raw.message as EvoMessage);
       if (!phone || !key.id || !d) continue;
@@ -725,8 +733,86 @@ export async function handleEvolutionWebhook(payload: unknown, baseUrl: string) 
   } else if (event === "messages.update") {
     for (const raw of items as Record<string, unknown>[]) {
       const id = (raw.keyId as string) ?? ((raw.key as EvoKey | undefined)?.id) ?? (raw.messageId as string);
-      const status = EVO_STATUS[String(raw.status ?? "").toUpperCase()];
+      const rawStatus = String(raw.status ?? "").toUpperCase();
+      if (id && rawStatus === "DELETED") {
+        await markDeleted(eq(waMessages.waMessageId, id));
+        continue;
+      }
+      const status = EVO_STATUS[rawStatus];
       if (id && status) await setMessageStatus(id, status, new Date());
     }
   }
+}
+
+/* ─────────────────────── Apagar mensagens ─────────────────────── */
+
+export const DELETED_TYPE = "deleted";
+const DELETED_BODY = "🚫 Mensagem apagada";
+/** O WhatsApp aceita "apagar para todos" por cerca de 2 dias e meio; 2 dias por segurança */
+export const REVOKE_WINDOW_MS = 48 * 3600_000;
+
+/** Último texto da conversa depois de apagar uma mensagem */
+async function refreshThreadPreview(phone: string) {
+  const [last] = await (await getDb())
+    .select({ body: waMessages.body, createdAt: waMessages.createdAt })
+    .from(waMessages)
+    .where(eq(waMessages.phone, phone))
+    .orderBy(desc(waMessages.createdAt))
+    .limit(1);
+  await (await getDb())
+    .update(waThreads)
+    .set({ lastMessage: last?.body?.slice(0, 200) ?? null, ...(last ? { lastMessageAt: last.createdAt } : {}) })
+    .where(eq(waThreads.phone, phone));
+}
+
+/** Troca o conteúdo pelo aviso de apagada (fica o registro na conversa) */
+async function markDeleted(where: ReturnType<typeof eq>) {
+  const rows = await (await getDb())
+    .update(waMessages)
+    .set({ type: DELETED_TYPE, body: DELETED_BODY, mediaId: null, mediaMime: null, error: null })
+    .where(where)
+    .returning();
+  for (const phone of new Set(rows.map((r) => r.phone))) await refreshThreadPreview(phone);
+  return rows[0] ?? null;
+}
+
+/** Pode apagar para todos: enviada pelo CRM/celular, com id do WhatsApp, dentro do prazo */
+export function canRevoke(m: Pick<WaMessage, "direction" | "waMessageId" | "type" | "status" | "createdAt">, provider: string) {
+  return (
+    provider === "evolution" &&
+    m.direction === "out" &&
+    !!m.waMessageId &&
+    m.type !== DELETED_TYPE &&
+    m.status !== "failed" &&
+    Date.now() - new Date(m.createdAt).getTime() < REVOKE_WINDOW_MS
+  );
+}
+
+/**
+ * Apaga uma mensagem. "all": apaga no WhatsApp do contato também (só enviadas,
+ * conexão por QR code) e deixa o aviso na conversa. "me": tira só do CRM.
+ */
+export async function deleteMessage(id: string, scope: "all" | "me") {
+  const [m] = await (await getDb()).select().from(waMessages).where(eq(waMessages.id, id));
+  if (!m) throw new WhatsAppError("Mensagem não encontrada.");
+  if (scope === "me") {
+    await (await getDb()).delete(waMessages).where(eq(waMessages.id, id));
+    await refreshThreadPreview(m.phone);
+    return { deleted: true as const, message: null };
+  }
+  const cfg = await getWhatsAppConfig();
+  if (!canRevoke(m, cfg.provider)) {
+    throw new WhatsAppError(
+      cfg.provider !== "evolution"
+        ? "A API oficial do WhatsApp não permite apagar para todos. Use \"Apagar só no CRM\"."
+        : m.direction !== "out"
+          ? "Só dá para apagar para todos as mensagens enviadas por vocês."
+          : "Passou o prazo do WhatsApp para apagar para todos (cerca de 2 dias).",
+    );
+  }
+  await evo(cfg, `/chat/deleteMessageForEveryone/${inst(cfg)}`, {
+    method: "DELETE",
+    body: JSON.stringify({ id: m.waMessageId, remoteJid: `${m.phone}@s.whatsapp.net`, fromMe: true }),
+  });
+  return { deleted: false as const, message: await markDeleted(eq(waMessages.id, id)) };
 }
