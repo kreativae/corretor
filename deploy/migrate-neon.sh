@@ -3,9 +3,9 @@
 # t_* e seus usuários). Pode rodar quantas vezes quiser: cada execução apaga o
 # destino e copia de novo. O Neon não é alterado.
 #
-# No servidor, dentro de um container com o cliente do Postgres 17:
+# No servidor, dentro de um container com o cliente do Postgres 18 (a versão do Neon):
 #   curl -fsSLO https://raw.githubusercontent.com/kreativae/corretor/claude/vigilant-hopper-4d8t6r/deploy/migrate-neon.sh
-#   docker run --rm -it --network coolify -v "$PWD":/w -w /w postgres:17-alpine sh migrate-neon.sh
+#   docker run --rm -it --network coolify -v "$PWD":/w -w /w postgres:18-alpine sh migrate-neon.sh
 set -eu
 
 printf "URL do Neon (conexão DIRETA, sem -pooler): "; stty -echo 2>/dev/null || true; read -r SRC; stty echo 2>/dev/null || true; echo
