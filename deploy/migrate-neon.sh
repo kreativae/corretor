@@ -4,7 +4,7 @@
 # destino e copia de novo. O Neon não é alterado.
 #
 # No servidor, dentro de um container com o cliente do Postgres 18 (a versão do Neon):
-#   curl -fsSLO https://raw.githubusercontent.com/kreativae/corretor/claude/vigilant-hopper-4d8t6r/deploy/migrate-neon.sh
+#   curl -fsSLO https://raw.githubusercontent.com/kreativae/corretor/server/deploy/migrate-neon.sh
 #   docker run --rm -it --network coolify -v "$PWD":/w -w /w postgres:18-alpine sh migrate-neon.sh
 set -eu
 
