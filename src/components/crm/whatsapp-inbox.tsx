@@ -11,8 +11,12 @@ import {
   Check,
   CheckCheck,
   Clock,
+  Download,
   ExternalLink,
+  FileText,
+  Image as ImageIcon,
   Loader2,
+  Mic,
   MessageCircle,
   Paperclip,
   Search,
@@ -44,7 +48,6 @@ const DAY = 24 * 3600_000;
 /** Mesmo prazo do servidor para "apagar para todos" (src/lib/whatsapp.ts) */
 const REVOKE_WINDOW_MS = 48 * 3600_000;
 
-const national = (p: string) => (p.startsWith("55") && p.length >= 12 ? p.slice(2) : p);
 /** "às 14:32" hoje, "ontem às 14:32" ou "12/10 às 14:32" */
 function stamp(d: string | Date) {
   const date = new Date(d);
@@ -79,7 +82,53 @@ function MessageInfo({ m }: { m: WaMessage }) {
   );
 }
 
-const nameOf = (t: Thread) => t.contactName || t.profileName || formatPhone(national(t.phone));
+/**
+ * Foto, áudio ou arquivo recebido: nada é baixado nem guardado no servidor até
+ * a pessoa tocar (o arquivo fica no WhatsApp e é buscado na hora).
+ */
+function MediaAttachment({ m, out }: { m: WaMessage; out: boolean }) {
+  const [show, setShow] = useState(false);
+  const src = `/api/whatsapp/media/${m.mediaId}`;
+  const chip = cn(
+    "mb-1.5 flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors",
+    out ? "bg-white/15 hover:bg-white/25" : "bg-soft hover:bg-hairline",
+  );
+  const stop = (e: React.MouseEvent) => e.stopPropagation();
+
+  if (m.type === "image" || m.type === "sticker") {
+    return show ? (
+      <a href={src} target="_blank" rel="noreferrer" onClick={stop}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={src} alt="" className="mb-1.5 max-h-72 rounded-lg object-cover" />
+      </a>
+    ) : (
+      <button type="button" className={chip} onClick={(e) => (stop(e), setShow(true))}>
+        <ImageIcon className="size-4" /> {m.type === "sticker" ? "Ver figurinha" : "Ver foto"}
+      </button>
+    );
+  }
+  if (m.type === "audio" || m.type === "voice") {
+    return show ? (
+      <audio controls autoPlay src={src} className="mb-1 h-10 max-w-full" onClick={stop} />
+    ) : (
+      <button type="button" className={chip} onClick={(e) => (stop(e), setShow(true))}>
+        <Mic className="size-4" /> Ouvir áudio
+      </button>
+    );
+  }
+  return (
+    <div className="mb-1.5 flex flex-wrap gap-1.5">
+      <a href={src} target="_blank" rel="noreferrer" className={chip} onClick={stop}>
+        <FileText className="size-4" /> Abrir
+      </a>
+      <a href={`${src}?download=1`} download className={chip} onClick={stop}>
+        <Download className="size-4" /> Baixar
+      </a>
+    </div>
+  );
+}
+
+const nameOf = (t: Thread) => t.contactName || t.profileName || formatPhone(`+${t.phone}`);
 
 function when(d: string) {
   const date = new Date(d);
@@ -491,7 +540,7 @@ export function WhatsAppInbox({
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">{nameOf(thread)}</p>
-                  <p className="truncate font-mono text-[11px] text-subtle">{formatPhone(national(thread.phone))}</p>
+                  <p className="truncate font-mono text-[11px] text-subtle">{formatPhone(`+${thread.phone}`)}</p>
                 </div>
                 {thread.contactId ? (
                   <Link href={`/crm/contatos/${thread.contactId}`}>
@@ -561,20 +610,7 @@ export function WhatsAppInbox({
                             m.type === "deleted" && "italic opacity-70",
                           )}
                         >
-                          {m.mediaId && m.type === "image" && (
-                            <a href={`/api/whatsapp/media/${m.mediaId}`} target="_blank" rel="noreferrer">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={`/api/whatsapp/media/${m.mediaId}`} alt="" className="mb-1.5 max-h-72 rounded-lg object-cover" loading="lazy" />
-                            </a>
-                          )}
-                          {m.mediaId && (m.type === "audio" || m.type === "voice") && (
-                            <audio controls src={`/api/whatsapp/media/${m.mediaId}`} className="mb-1 h-10 max-w-full" />
-                          )}
-                          {m.mediaId && (m.type === "document" || m.type === "video") && (
-                            <a href={`/api/whatsapp/media/${m.mediaId}`} target="_blank" rel="noreferrer" className="mb-1 block underline underline-offset-2">
-                              Abrir arquivo
-                            </a>
-                          )}
+                          {m.mediaId && <MediaAttachment m={m} out={out} />}
                           {m.body && <p className="whitespace-pre-wrap break-words">{m.body}</p>}
                           <p className={cn("mt-1 flex items-center justify-end gap-1 font-mono text-[10px]", out ? "text-white/70" : "text-subtle")}>
                             {out && m.sentBy && <span className="mr-1 truncate">{m.sentBy.split(" ")[0]}</span>}
@@ -702,7 +738,7 @@ export function WhatsAppInbox({
       <Modal open={confirmThread} onClose={() => !deletingThread && setConfirmThread(false)} title="Apagar conversa">
         <div className="space-y-4">
           <p className="text-sm text-subtle">
-            Apaga do CRM todas as mensagens desta conversa{thread ? ` com ${thread.contactName || thread.profileName || formatPhone(national(thread.phone))}` : ""}.
+            Apaga do CRM todas as mensagens desta conversa{thread ? ` com ${thread.contactName || thread.profileName || formatPhone(`+${thread.phone}`)}` : ""}.
             No WhatsApp do contato nada muda: o WhatsApp não permite apagar a conversa do outro lado. O contato no CRM
             (se houver) continua salvo. Não dá para desfazer.
           </p>
@@ -770,7 +806,7 @@ export function WhatsAppInbox({
               />
             </Field>
             <Field label="WhatsApp">
-              <Input value={formatPhone(national(thread.phone))} disabled className="font-mono" />
+              <Input value={formatPhone(`+${thread.phone}`)} disabled className="font-mono" />
             </Field>
             <Field label="E-mail (opcional)">
               <Input

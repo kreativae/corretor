@@ -494,7 +494,7 @@ export async function linkThreadContact(line: string, phone: string, kind: "lead
   if (thread.contactId) return thread.contactId;
   let contactId = (await findContactByPhone(phone))?.id ?? null;
   if (!contactId) {
-    const name = opts.name?.trim() || thread.profileName?.trim() || formatPhone(nationalPhone(phone));
+    const name = opts.name?.trim() || thread.profileName?.trim() || formatPhone(`+${phone}`);
     const email = opts.email?.trim() || null;
     const [first] = await (await getDb())
       .select({ body: waMessages.body, createdAt: waMessages.createdAt })

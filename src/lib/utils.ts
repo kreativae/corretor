@@ -13,11 +13,46 @@ export function siteImage<T extends string | null | undefined>(
 }
 
 /** Telefone para exibição: "43. 99664. 7565" (sem o 55 do país). */
+/** Códigos de país mais comuns (DDI), do mais longo para o mais curto */
+const DDI = new Set(
+  "1 7 20 27 30 31 32 33 34 36 39 40 41 43 44 45 46 47 48 49 51 52 53 54 56 57 58 60 61 62 63 64 65 66 81 82 84 86 90 91 92 93 94 95 98 212 213 216 238 239 244 245 258 351 352 353 354 355 356 357 358 359 370 371 372 380 385 386 420 421 591 593 595 598 852 965 966 971 972 973 974".split(" "),
+);
+/** Grupos de dígitos por país (o resto vai de 3 em 3) */
+const GROUPS: Record<string, number[]> = { "1": [3, 3, 4], "351": [3, 3, 3], "34": [3, 3, 3], "971": [2, 3, 4], "44": [4, 6], "33": [1, 2, 2, 2, 2] };
+
+/**
+ * Telefone para exibição. Brasil: "+55 43 99911. 7632" (celular antigo sem o 9,
+ * como o WhatsApp às vezes entrega, ganha o 9). Exterior: "+351 961 267 424".
+ * Aceita o número nacional brasileiro (10 ou 11 dígitos) ou com DDI; com "+" na
+ * frente é sempre lido como internacional (ex.: números do WhatsApp).
+ */
 export function formatPhone(raw: string | null | undefined) {
-  let d = (raw ?? "").replace(/\D/g, "");
-  if ((d.length === 12 || d.length === 13) && d.startsWith("55")) d = d.slice(2);
-  // DDD + meio + 4 últimos; números fora do padrão (dígito a mais) seguem o mesmo formato
-  if (d.length >= 10 && d.length <= 12) return `${d.slice(0, 2)}. ${d.slice(2, -4)}. ${d.slice(-4)}`;
+  const d = (raw ?? "").replace(/\D/g, "");
+  const br = (n: string) => {
+    let local = n.slice(2);
+    if (local.length === 8 && /^[6-9]/.test(local)) local = `9${local}`;
+    return `+55 ${n.slice(0, 2)} ${local.slice(0, -4)}. ${local.slice(-4)}`;
+  };
+  if (!(raw ?? "").trim().startsWith("+") && (d.length === 10 || d.length === 11)) return br(d);
+  if ((d.length === 12 || d.length === 13) && d.startsWith("55")) return br(d.slice(2));
+  if (d.length >= 8 && d.length <= 15) {
+    const cc = [3, 2, 1].map((n) => d.slice(0, n)).find((c) => DDI.has(c));
+    if (cc) {
+      const rest = d.slice(cc.length);
+      const parts: string[] = [];
+      let i = 0;
+      for (const g of GROUPS[cc] ?? []) {
+        if (i >= rest.length) break;
+        parts.push(rest.slice(i, i + g));
+        i += g;
+      }
+      for (; i < rest.length; i += 3) parts.push(rest.slice(i, i + 3));
+      // Último grupo de 1 dígito fica junto do anterior
+      if (parts.length > 1 && parts[parts.length - 1].length === 1) parts.splice(-2, 2, parts.at(-2)! + parts.at(-1)!);
+      return `+${cc} ${parts.join(" ")}`;
+    }
+    return `+${d}`;
+  }
   return raw ?? "";
 }
 
