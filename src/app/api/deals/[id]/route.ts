@@ -1,5 +1,5 @@
 import { apiUser, unauthorized } from "@/lib/api-auth";
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { activities, contacts, deals } from "@/db/schema";
 import { DEAL_STAGE_LABELS } from "@/lib/labels";
 import { eq } from "drizzle-orm";
@@ -14,7 +14,7 @@ export async function PATCH(
     const { id } = await params;
     const body = await req.json();
 
-    const [updated] = await db
+    const [updated] = await (await getDb())
       .update(deals)
       .set({
         ...(body.stage ? { stage: body.stage } : {}),
@@ -29,12 +29,12 @@ export async function PATCH(
     }
 
     if (body.stage) {
-      const [contact] = await db
+      const [contact] = await (await getDb())
         .select()
         .from(contacts)
         .where(eq(contacts.id, updated.contactId));
       const label = `Negociação de ${contact?.name ?? "contato"} movida para “${DEAL_STAGE_LABELS[updated.stage]}”.`;
-      await db.insert(activities).values([
+      await (await getDb()).insert(activities).values([
         { entity: "negocio", entityId: updated.id, kind: "stage", text: label },
         { entity: "contato", entityId: updated.contactId, kind: "stage", text: label },
       ]);

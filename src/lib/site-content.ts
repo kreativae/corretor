@@ -1,4 +1,4 @@
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { settings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
@@ -304,7 +304,7 @@ function upgrade<T>(v: T): T {
 /** Faz merge profundo do conteúdo salvo sobre os defaults. */
 export async function getSiteContent(): Promise<SiteContent> {
   try {
-    const rows = await db
+    const rows = await (await getDb())
       .select()
       .from(settings)
       .where(eq(settings.key, "siteContent"));

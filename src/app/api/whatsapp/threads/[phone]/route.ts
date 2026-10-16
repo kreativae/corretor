@@ -1,4 +1,4 @@
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { waMessages, waThreads } from "@/db/schema";
 import { apiUser, unauthorized } from "@/lib/api-auth";
 import { linkThreadContact } from "@/lib/whatsapp";
@@ -11,13 +11,13 @@ type Params = { params: Promise<{ phone: string }> };
 export async function GET(_req: Request, { params }: Params) {
   if (!(await apiUser())) return unauthorized();
   const phone = (await params).phone.replace(/\D/g, "");
-  const messages = await db
+  const messages = await (await getDb())
     .select()
     .from(waMessages)
     .where(eq(waMessages.phone, phone))
     .orderBy(asc(waMessages.createdAt))
     .limit(500);
-  await db.update(waThreads).set({ unread: 0 }).where(eq(waThreads.phone, phone));
+  await (await getDb()).update(waThreads).set({ unread: 0 }).where(eq(waThreads.phone, phone));
   return NextResponse.json(messages);
 }
 
@@ -35,7 +35,7 @@ export async function PATCH(req: Request, { params }: Params) {
         }),
       });
     if (typeof body.archived === "boolean") {
-      await db.update(waThreads).set({ archived: body.archived }).where(eq(waThreads.phone, phone));
+      await (await getDb()).update(waThreads).set({ archived: body.archived }).where(eq(waThreads.phone, phone));
       return NextResponse.json({ ok: true });
     }
     return NextResponse.json({ error: "Nada a fazer." }, { status: 400 });

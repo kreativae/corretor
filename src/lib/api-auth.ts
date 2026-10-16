@@ -1,5 +1,5 @@
 import "server-only";
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { apiKeys } from "@/db/schema";
 import { getCurrentUser, type SessionUser } from "@/lib/auth";
 import { and, eq } from "drizzle-orm";
@@ -33,7 +33,7 @@ export async function apiAuth(req: Request, need: Scope = "leitura"): Promise<Ap
   const secret = fullKey.slice(fullKey.lastIndexOf("_") + 1);
   if (!/^[0-9a-f]{48}$/.test(secret)) return null;
 
-  const [key] = await db
+  const [key] = await (await getDb())
     .select()
     .from(apiKeys)
     .where(and(eq(apiKeys.secret, secret), eq(apiKeys.revoked, false)))
@@ -44,7 +44,7 @@ export async function apiAuth(req: Request, need: Scope = "leitura"): Promise<Ap
   if (expected.length !== given.length || !timingSafeEqual(expected, given)) return null;
   if (SCOPE_RANK[key.scope] < SCOPE_RANK[need]) return null;
 
-  await db.update(apiKeys).set({ lastUsedAt: new Date() }).where(eq(apiKeys.id, key.id));
+  await (await getDb()).update(apiKeys).set({ lastUsedAt: new Date() }).where(eq(apiKeys.id, key.id));
   return { kind: "key", keyId: key.id, label: key.label };
 }
 

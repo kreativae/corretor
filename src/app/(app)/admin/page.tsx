@@ -1,6 +1,6 @@
 import { StatCard } from "@/components/crm/stat-card";
 import { StatsGrid } from "@/components/crm/stats-grid";
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { integrations } from "@/db/schema";
 import {
   getPortfolioViews,
@@ -33,7 +33,7 @@ export default async function AdminPage() {
       listProperties(),
       listPortals(),
       listDeals(),
-      db.select().from(integrations),
+      (await getDb()).select().from(integrations),
       getPortfolioViews(),
       getTopViewedProperties(5),
     ]);

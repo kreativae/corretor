@@ -1,5 +1,5 @@
 import "server-only";
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { settings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
@@ -33,7 +33,7 @@ const CARTO_ATTR = "© OpenStreetMap © CARTO";
 
 export async function getMapProvider(): Promise<MapProviderConfig> {
   try {
-    const [row] = await db.select().from(settings).where(eq(settings.key, "mapProvider"));
+    const [row] = await (await getDb()).select().from(settings).where(eq(settings.key, "mapProvider"));
     const v = (row?.value ?? {}) as Partial<MapProviderConfig>;
     return {
       ...DEFAULTS,
@@ -63,9 +63,9 @@ export async function saveMapProvider(input: Partial<MapProviderConfig>) {
     cartoToken: token === "-" ? "" : !token || token.includes("•") ? cur.cartoToken : token,
   };
   if (next.style === "custom" && !next.customTiles) next.style = "auto";
-  const [row] = await db.select().from(settings).where(eq(settings.key, "mapProvider"));
-  if (row) await db.update(settings).set({ value: next }).where(eq(settings.key, "mapProvider"));
-  else await db.insert(settings).values({ key: "mapProvider", value: next });
+  const [row] = await (await getDb()).select().from(settings).where(eq(settings.key, "mapProvider"));
+  if (row) await (await getDb()).update(settings).set({ value: next }).where(eq(settings.key, "mapProvider"));
+  else await (await getDb()).insert(settings).values({ key: "mapProvider", value: next });
   return next;
 }
 

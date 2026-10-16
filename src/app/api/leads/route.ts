@@ -1,4 +1,4 @@
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { activities, contacts, deals, properties } from "@/db/schema";
 import { TYPE_LABELS } from "@/lib/labels";
 import { noteHeader } from "@/lib/contact-notes";
@@ -91,7 +91,7 @@ export async function POST(req: Request) {
     // Contato vindo da página de um imóvel (QR da ficha): só imóveis publicados
     let property: { id: string; code: string; title: string; type: string; price: number } | null = null;
     if (propertyId) {
-      const [p] = await db
+      const [p] = await (await getDb())
         .select({
           id: properties.id,
           code: properties.code,
@@ -114,7 +114,7 @@ export async function POST(req: Request) {
         : [];
 
     // Mesmo telefone (ignorando máscara) → reaproveita o contato
-    const [existing] = await db
+    const [existing] = await (await getDb())
       .select()
       .from(contacts)
       .where(sql`regexp_replace(${contacts.phone}, '\\D', '', 'g') = ${phone}`)
@@ -134,7 +134,7 @@ export async function POST(req: Request) {
     let contactId: string;
     if (existing) {
       contactId = existing.id;
-      await db
+      await (await getDb())
         .update(contacts)
         .set({
           email: existing.email || email || null,
@@ -146,7 +146,7 @@ export async function POST(req: Request) {
         })
         .where(sql`${contacts.id} = ${existing.id}`);
     } else {
-      const [created] = await db
+      const [created] = await (await getDb())
         .insert(contacts)
         .values({
           name,
@@ -171,7 +171,7 @@ export async function POST(req: Request) {
       : existing
         ? `${existing.name} voltou a entrar em contato pelo site${interestLabel}.`
         : `${name} entrou em contato pelo formulário do site${interestLabel}.`;
-    await db.insert(activities).values([
+    await (await getDb()).insert(activities).values([
       { entity: "contato", entityId: contactId, kind: "lead", text: leadText },
       ...(property
         ? [{ entity: "imovel" as const, entityId: property.id, kind: "lead" as const, text: leadText }]
@@ -180,7 +180,7 @@ export async function POST(req: Request) {
 
     // Interesse num imóvel específico abre negociação no pipeline (sem duplicar)
     if (property) {
-      const [open] = await db
+      const [open] = await (await getDb())
         .select({ id: deals.id })
         .from(deals)
         .where(
@@ -188,11 +188,11 @@ export async function POST(req: Request) {
         )
         .limit(1);
       if (!open) {
-        const [deal] = await db
+        const [deal] = await (await getDb())
           .insert(deals)
           .values({ contactId, propertyId: property.id, stage: "novo", value: property.price })
           .returning();
-        await db.insert(activities).values({
+        await (await getDb()).insert(activities).values({
           entity: "negocio",
           entityId: deal.id,
           kind: "stage",

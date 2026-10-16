@@ -1,5 +1,5 @@
 import { apiUser, unauthorized } from "@/lib/api-auth";
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { activities, contacts, integrations } from "@/db/schema";
 import { GoogleApiError, googleApi } from "@/lib/google";
 import { inArray, eq } from "drizzle-orm";
@@ -17,7 +17,7 @@ export async function POST(req: Request) {
   if (!ids.length) return NextResponse.json({ error: "Nenhum contato selecionado." }, { status: 400 });
 
   try {
-    const rows = await db
+    const rows = await (await getDb())
       .select({ id: contacts.id, name: contacts.name, googleResourceName: contacts.googleResourceName })
       .from(contacts)
       .where(inArray(contacts.id, ids));
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
     let deletedInGoogle = 0;
     const linked = rows.filter((r) => r.googleResourceName);
     if (body.google === true && linked.length) {
-      const [integration] = await db.select().from(integrations).where(eq(integrations.provider, "google_contacts"));
+      const [integration] = await (await getDb()).select().from(integrations).where(eq(integrations.provider, "google_contacts"));
       if (!integration?.connected) {
         return NextResponse.json(
           { error: "Google Contacts não está conectado. Conecte ou exclua só no CRM." },
@@ -47,10 +47,10 @@ export async function POST(req: Request) {
       }
     }
 
-    await db.delete(contacts).where(inArray(contacts.id, rows.map((r) => r.id)));
+    await (await getDb()).delete(contacts).where(inArray(contacts.id, rows.map((r) => r.id)));
 
     const names = rows.slice(0, 5).map((r) => r.name).join(", ");
-    await db.insert(activities).values({
+    await (await getDb()).insert(activities).values({
       entity: "sistema",
       entityId: null,
       kind: "updated",

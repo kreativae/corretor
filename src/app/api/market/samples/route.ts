@@ -1,4 +1,4 @@
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { marketSamples } from "@/db/schema";
 import { apiUser, unauthorized } from "@/lib/api-auth";
 import { TYPE_LABELS } from "@/lib/labels";
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
   if (!price || !area) return NextResponse.json({ error: "Informe valor e área." }, { status: 400 });
   if (!city) return NextResponse.json({ error: "Informe a cidade." }, { status: 400 });
   const date = typeof b.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(b.date) ? new Date(`${b.date}T12:00:00`) : new Date();
-  const [row] = await db
+  const [row] = await (await getDb())
     .insert(marketSamples)
     .values({
       type,

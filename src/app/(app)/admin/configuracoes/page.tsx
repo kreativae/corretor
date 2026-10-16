@@ -9,7 +9,7 @@ import { MessagesCard } from "@/components/admin/messages-card";
 import { WhatsAppCard } from "@/components/admin/whatsapp-card";
 import { WhiteLabelCard } from "@/components/admin/white-label-card";
 import { emailConfigured, getNotifySettings } from "@/lib/notify";
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { apiKeys, integrations } from "@/db/schema";
 import { ensureGoogleIntegrations } from "@/lib/google";
 import { getWhiteLabel, listActivities } from "@/lib/queries";
@@ -21,8 +21,8 @@ export const metadata: Metadata = { title: "Configurações" };
 export default async function ConfiguracoesPage() {
   await ensureGoogleIntegrations();
   const [ints, keys, wl] = await Promise.all([
-    db.select().from(integrations).orderBy(integrations.name),
-    db.select().from(apiKeys).orderBy(apiKeys.createdAt),
+    (await getDb()).select().from(integrations).orderBy(integrations.name),
+    (await getDb()).select().from(apiKeys).orderBy(apiKeys.createdAt),
     getWhiteLabel(),
   ]);
   const [notify, features, statCards, mapOptions, watermark, audit, messages] = await Promise.all([

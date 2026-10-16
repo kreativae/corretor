@@ -7,12 +7,28 @@ const CRM_MARK_COOKIE = "imob_crm";
 /** Espelho de AUTH_OPEN em src/lib/auth.ts. */
 const AUTH_TEMP_DISABLED = process.env.AUTH_OPEN !== "0";
 
+/** Espelho de TENANT_HEADER em src/lib/tenant.ts. */
+const TENANT_HEADER = "x-imob-tenant";
+
+/** Repassa ?t=empresa como cabeçalho interno (e descarta o que vier do cliente) */
+function forward(req: NextRequest) {
+  const headers = new Headers(req.headers);
+  headers.delete(TENANT_HEADER);
+  const t = req.nextUrl.searchParams.get("t");
+  if (t && /^[a-z0-9-]{1,40}$/.test(t)) headers.set(TENANT_HEADER, t);
+  return NextResponse.next({ request: { headers } });
+}
+
 /** Guarda de borda: bloqueia /crm e /admin sem cookie de sessão.
  *  A validação real (sessão válida + papel) acontece nos layouts server-side. */
 export function middleware(req: NextRequest) {
+  const { pathname } = req.nextUrl;
+  const panel = pathname.startsWith("/crm") || pathname.startsWith("/admin");
+  if (!panel) return forward(req);
+
   if (AUTH_TEMP_DISABLED) {
     // Marca este navegador como de quem usa o painel: o site mostra a barra de edição
-    const res = NextResponse.next();
+    const res = forward(req);
     if (!req.cookies.has(CRM_MARK_COOKIE)) {
       res.cookies.set(CRM_MARK_COOKIE, "1", {
         httpOnly: true,
@@ -25,7 +41,7 @@ export function middleware(req: NextRequest) {
     return res;
   }
 
-  const { pathname, search } = req.nextUrl;
+  const { search } = req.nextUrl;
   const hasSession = req.cookies.has(SESSION_COOKIE);
 
   if (!hasSession) {
@@ -35,9 +51,10 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  return NextResponse.next();
+  return forward(req);
 }
 
 export const config = {
-  matcher: ["/crm/:path*", "/admin/:path*"],
+  // Tudo, menos arquivos estáticos do Next
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };

@@ -1,4 +1,4 @@
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { activities, properties } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { codePrefixes } from "@/lib/property-code";
@@ -18,7 +18,7 @@ export async function POST() {
   if (!isAdmin(user)) return NextResponse.json({ error: "Apenas administradores." }, { status: 403 });
   try {
     const prefixes = await codePrefixes();
-    const rows = await db.select({ id: properties.id, code: properties.code, type: properties.type }).from(properties);
+    const rows = await (await getDb()).select({ id: properties.id, code: properties.code, type: properties.type }).from(properties);
     const taken = new Set(rows.map((r) => r.code));
     let changed = 0;
     for (const r of rows) {
@@ -29,13 +29,13 @@ export async function POST() {
       let n = Number(m[2]);
       let code = `${want}-${n}`;
       while (taken.has(code)) code = `${want}-${++n}`;
-      await db.update(properties).set({ code }).where(eq(properties.id, r.id));
+      await (await getDb()).update(properties).set({ code }).where(eq(properties.id, r.id));
       taken.delete(r.code);
       taken.add(code);
       changed += 1;
     }
     if (changed) {
-      await db.insert(activities).values({
+      await (await getDb()).insert(activities).values({
         entity: "sistema",
         entityId: null,
         kind: "updated",

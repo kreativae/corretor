@@ -1,4 +1,4 @@
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { activities, integrations } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
 import { syncGoogleIntegration } from "@/lib/google-sync";
@@ -28,7 +28,7 @@ export async function PATCH(req: Request, { params }: Params) {
       patch.calendarId = body.calendarId.trim() || "primary";
     if (Array.isArray(body.scopes)) patch.scopes = body.scopes;
 
-    const [updated] = await db
+    const [updated] = await (await getDb())
       .update(integrations)
       .set(patch)
       .where(eq(integrations.id, id))
@@ -51,7 +51,7 @@ export async function POST(req: Request, { params }: Params) {
     const { id } = await params;
     const { action } = await req.json();
 
-    const [integration] = await db
+    const [integration] = await (await getDb())
       .select()
       .from(integrations)
       .where(eq(integrations.id, id));
@@ -60,7 +60,7 @@ export async function POST(req: Request, { params }: Params) {
     }
 
     if (action === "disconnect") {
-      const [updated] = await db
+      const [updated] = await (await getDb())
         .update(integrations)
         .set({
           connected: false,
@@ -74,7 +74,7 @@ export async function POST(req: Request, { params }: Params) {
         })
         .where(eq(integrations.id, id))
         .returning();
-      await db.insert(activities).values({
+      await (await getDb()).insert(activities).values({
         entity: "sistema",
         entityId: null,
         kind: "sync",

@@ -1,7 +1,8 @@
 import "server-only";
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { activities, contacts, settings, waMessages, waThreads } from "@/db/schema";
 import { noteHeader } from "@/lib/contact-notes";
+import { tenantParam } from "@/lib/tenant";
 import { formatPhone } from "@/lib/utils";
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
@@ -58,7 +59,7 @@ const DEFAULTS: WhatsAppConfig = {
 export async function getWhatsAppConfig(): Promise<WhatsAppConfig> {
   let saved: Partial<WhatsAppConfig> = {};
   try {
-    const [row] = await db.select().from(settings).where(eq(settings.key, "whatsapp"));
+    const [row] = await (await getDb()).select().from(settings).where(eq(settings.key, "whatsapp"));
     saved = (row?.value ?? {}) as Partial<WhatsAppConfig>;
   } catch {
     /* sem banco: só variáveis */
@@ -102,9 +103,9 @@ export async function saveWhatsAppConfig(input: Partial<WhatsAppConfig>) {
     templateName: str(input.templateName, 120).replace(/[^\w]/g, ""),
     templateLang: str(input.templateLang, 10) || "pt_BR",
   };
-  const [row] = await db.select().from(settings).where(eq(settings.key, "whatsapp"));
-  if (row) await db.update(settings).set({ value: next }).where(eq(settings.key, "whatsapp"));
-  else await db.insert(settings).values({ key: "whatsapp", value: next });
+  const [row] = await (await getDb()).select().from(settings).where(eq(settings.key, "whatsapp"));
+  if (row) await (await getDb()).update(settings).set({ value: next }).where(eq(settings.key, "whatsapp"));
+  else await (await getDb()).insert(settings).values({ key: "whatsapp", value: next });
   return next;
 }
 
@@ -141,7 +142,7 @@ function matchKey(raw: string) {
 export async function findContactByPhone(raw: string) {
   const key = matchKey(raw);
   if (!key) return null;
-  const rows = await db
+  const rows = await (await getDb())
     .select({ id: contacts.id, name: contacts.name, phone: contacts.phone })
     .from(contacts)
     .where(sql`right(regexp_replace(${contacts.phone}, '\\D', '', 'g'), 8) = ${key.last8}`);
@@ -230,13 +231,13 @@ async function recordOutgoing(
   phone: string,
   m: { type: string; body: string; waMessageId: string | null; sentBy: string },
 ) {
-  const [thread] = await db.select().from(waThreads).where(eq(waThreads.phone, phone));
+  const [thread] = await (await getDb()).select().from(waThreads).where(eq(waThreads.phone, phone));
   const contactId = thread?.contactId ?? (await findContactByPhone(phone))?.id ?? null;
-  const [row] = await db
+  const [row] = await (await getDb())
     .insert(waMessages)
     .values({ phone, contactId, direction: "out", type: m.type, body: m.body, waMessageId: m.waMessageId, status: "sent", sentBy: m.sentBy })
     .returning();
-  await db
+  await (await getDb())
     .insert(waThreads)
     .values({ phone, contactId, lastMessage: m.body.slice(0, 200), lastMessageAt: new Date() })
     .onConflictDoUpdate({
@@ -372,15 +373,15 @@ export type NormalizedMessage = {
 
 /** Mensagem enviada pelo próprio celular (aparece na conversa do CRM) */
 export async function ingestFromMe(m: NormalizedMessage) {
-  const [dup] = await db.select({ id: waMessages.id }).from(waMessages).where(eq(waMessages.waMessageId, m.id));
+  const [dup] = await (await getDb()).select({ id: waMessages.id }).from(waMessages).where(eq(waMessages.waMessageId, m.id));
   if (dup) return;
-  const [thread] = await db.select().from(waThreads).where(eq(waThreads.phone, m.phone));
+  const [thread] = await (await getDb()).select().from(waThreads).where(eq(waThreads.phone, m.phone));
   const contactId = thread?.contactId ?? (await findContactByPhone(m.phone))?.id ?? null;
-  await db
+  await (await getDb())
     .insert(waMessages)
     .values({ phone: m.phone, contactId, direction: "out", type: m.type, body: m.body, mediaId: m.mediaId, mediaMime: m.mime, waMessageId: m.id, status: "sent", sentBy: "Celular", createdAt: m.at })
     .onConflictDoNothing();
-  await db
+  await (await getDb())
     .insert(waThreads)
     .values({ phone: m.phone, contactId, lastMessage: m.body.slice(0, 200), lastMessageAt: m.at })
     .onConflictDoUpdate({
@@ -397,15 +398,15 @@ export async function ingestNormalized(n: NormalizedMessage, cfg: WhatsAppConfig
   const profileName = n.profileName;
 
   // Mensagem repetida (a Meta reenvia em caso de falha): ignora
-  const [dup] = await db.select({ id: waMessages.id }).from(waMessages).where(eq(waMessages.waMessageId, m.id));
+  const [dup] = await (await getDb()).select({ id: waMessages.id }).from(waMessages).where(eq(waMessages.waMessageId, m.id));
   if (dup) return;
 
-  const [thread] = await db.select().from(waThreads).where(eq(waThreads.phone, phone));
+  const [thread] = await (await getDb()).select().from(waThreads).where(eq(waThreads.phone, phone));
   const contactId = thread?.contactId ?? (await findContactByPhone(phone))?.id ?? null;
   // Número novo não vira contato sozinho: só pelos botões da conversa
   if (contactId && (!thread?.lastInboundAt || at.getTime() - thread.lastInboundAt.getTime() > 12 * 3600_000)) {
     // Contato conhecido voltando a falar: uma linha na linha do tempo (não a cada mensagem)
-    await db.insert(activities).values({
+    await (await getDb()).insert(activities).values({
       entity: "contato",
       entityId: contactId,
       kind: "message",
@@ -413,12 +414,12 @@ export async function ingestNormalized(n: NormalizedMessage, cfg: WhatsAppConfig
     });
   }
 
-  await db
+  await (await getDb())
     .insert(waMessages)
     .values({ phone, contactId, direction: "in", type: n.type, body, mediaId, mediaMime: mime, waMessageId: m.id, status: "received", createdAt: at })
     .onConflictDoNothing();
 
-  await db
+  await (await getDb())
     .insert(waThreads)
     .values({ phone, contactId, profileName: profileName ?? null, lastMessage: body.slice(0, 200), lastMessageAt: at, lastInboundAt: at, unread: 1 })
     .onConflictDoUpdate({
@@ -437,20 +438,20 @@ export async function ingestNormalized(n: NormalizedMessage, cfg: WhatsAppConfig
 
 /** Cria (ou vincula) o contato de uma conversa — botões "Criar lead" e "Salvar contato" */
 export async function linkThreadContact(phone: string, kind: "lead" | "cliente" = "lead", opts: { name?: string; email?: string } = {}) {
-  const [thread] = await db.select().from(waThreads).where(eq(waThreads.phone, phone));
+  const [thread] = await (await getDb()).select().from(waThreads).where(eq(waThreads.phone, phone));
   if (!thread) throw new WhatsAppError("Conversa não encontrada.");
   if (thread.contactId) return thread.contactId;
   let contactId = (await findContactByPhone(phone))?.id ?? null;
   if (!contactId) {
     const name = opts.name?.trim() || thread.profileName?.trim() || formatPhone(nationalPhone(phone));
     const email = opts.email?.trim() || null;
-    const [first] = await db
+    const [first] = await (await getDb())
       .select({ body: waMessages.body, createdAt: waMessages.createdAt })
       .from(waMessages)
       .where(sql`${waMessages.phone} = ${phone} and ${waMessages.direction} = 'in'`)
       .orderBy(waMessages.createdAt)
       .limit(1);
-    const [created] = await db
+    const [created] = await (await getDb())
       .insert(contacts)
       .values({
         name: name.slice(0, 120),
@@ -462,15 +463,15 @@ export async function linkThreadContact(phone: string, kind: "lead" | "cliente" 
       })
       .returning({ id: contacts.id });
     contactId = created.id;
-    await db.insert(activities).values({
+    await (await getDb()).insert(activities).values({
       entity: "contato",
       entityId: contactId,
       kind: kind === "lead" ? "lead" : "note",
       text: kind === "lead" ? `${name} virou lead a partir de uma conversa do WhatsApp.` : `${name} foi salvo nos contatos a partir do WhatsApp.`,
     });
   }
-  await db.update(waThreads).set({ contactId }).where(eq(waThreads.phone, phone));
-  await db.update(waMessages).set({ contactId }).where(eq(waMessages.phone, phone));
+  await (await getDb()).update(waThreads).set({ contactId }).where(eq(waThreads.phone, phone));
+  await (await getDb()).update(waMessages).set({ contactId }).where(eq(waMessages.phone, phone));
   return contactId;
 }
 
@@ -500,8 +501,8 @@ async function evo<T>(cfg: WhatsAppConfig, path: string, init?: RequestInit): Pr
 
 const inst = (cfg: WhatsAppConfig) => encodeURIComponent(cfg.evolutionInstance || "corretor");
 
-export function evolutionWebhookUrl(baseUrl: string, cfg: WhatsAppConfig) {
-  return `${baseUrl}/api/whatsapp/evolution?token=${cfg.webhookToken}`;
+export function evolutionWebhookUrl(baseUrl: string, cfg: WhatsAppConfig, tenant?: string | null) {
+  return `${baseUrl}/api/whatsapp/evolution?token=${cfg.webhookToken}${tenant ? `&t=${tenant}` : ""}`;
 }
 
 const EVO_EVENTS = ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "CONNECTION_UPDATE"];
@@ -532,7 +533,7 @@ export async function evolutionState(cfg: WhatsAppConfig) {
 /** Cria a instância (se preciso), aponta o webhook para o CRM e devolve o QR code */
 export async function evolutionConnect(cfg: WhatsAppConfig, baseUrl: string, pairNumber?: string) {
   const pairQs = pairNumber ? `?number=${waPhone(pairNumber)}` : "";
-  const webhook = { enabled: true, url: evolutionWebhookUrl(baseUrl, cfg), byEvents: false, base64: false, events: EVO_EVENTS };
+  const webhook = { enabled: true, url: evolutionWebhookUrl(baseUrl, cfg, await tenantParam()), byEvents: false, base64: false, events: EVO_EVENTS };
   const { state } = await evolutionState(cfg);
   type QrResp = { base64?: string; code?: string; pairingCode?: string; qrcode?: { base64?: string; pairingCode?: string } };
   if (state === "missing") {
@@ -668,7 +669,7 @@ const STATUS_RANK: Record<string, number> = { sent: 1, delivered: 2, read: 3 };
  */
 async function setMessageStatus(waMessageId: string, status: string, at: Date, error?: string) {
   if (status === "failed") {
-    await db.update(waMessages).set({ status, error: error || null }).where(eq(waMessages.waMessageId, waMessageId));
+    await (await getDb()).update(waMessages).set({ status, error: error || null }).where(eq(waMessages.waMessageId, waMessageId));
     return;
   }
   const rank = STATUS_RANK[status];
@@ -676,7 +677,7 @@ async function setMessageStatus(waMessageId: string, status: string, at: Date, e
   const ranks = Object.entries(STATUS_RANK)
     .filter(([, r]) => r < rank)
     .map(([s]) => s);
-  await db
+  await (await getDb())
     .update(waMessages)
     .set({
       status: sql`case when ${waMessages.status} = any(${sql.raw(`array[${ranks.map((r) => `'${r}'`).join(",") || "''"}]`)}) then ${status} else ${waMessages.status} end`,

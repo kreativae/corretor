@@ -1,4 +1,4 @@
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { integrations } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
 import { buildGoogleAuthUrl, requestPublicOrigin } from "@/lib/google";
@@ -17,7 +17,7 @@ export async function GET(req: Request) {
     );
   }
 
-  const [integration] = await db
+  const [integration] = await (await getDb())
     .select()
     .from(integrations)
     .where(eq(integrations.id, integrationId));

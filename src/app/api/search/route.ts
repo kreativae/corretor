@@ -1,4 +1,4 @@
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { contacts, deals, properties, visits } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { desc, eq, ilike, or } from "drizzle-orm";
@@ -26,7 +26,7 @@ export async function GET(req: Request) {
   );
 
   const [props, people, visitRows, dealRows] = await Promise.all([
-    db
+    (await getDb())
       .select({
         id: properties.id,
         code: properties.code,
@@ -47,7 +47,7 @@ export async function GET(req: Request) {
         ),
       )
       .limit(8),
-    db
+    (await getDb())
       .select({
         id: contacts.id,
         name: contacts.name,
@@ -63,7 +63,7 @@ export async function GET(req: Request) {
         ),
       )
       .limit(5),
-    db
+    (await getDb())
       .select({
         id: visits.id,
         scheduledAt: visits.scheduledAt,
@@ -79,7 +79,7 @@ export async function GET(req: Request) {
       .where(related)
       .orderBy(desc(visits.scheduledAt))
       .limit(5),
-    db
+    (await getDb())
       .select({
         id: deals.id,
         stage: deals.stage,

@@ -1,4 +1,4 @@
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { activities, propertyDocuments } from "@/db/schema";
 import { apiUser, unauthorized } from "@/lib/api-auth";
 import { blobToken } from "@/lib/blob";
@@ -9,7 +9,7 @@ import { NextResponse } from "next/server";
 type Params = { params: Promise<{ id: string; docId: string }> };
 
 async function findDoc(id: string, docId: string) {
-  const [doc] = await db
+  const [doc] = await (await getDb())
     .select()
     .from(propertyDocuments)
     .where(and(eq(propertyDocuments.id, docId), eq(propertyDocuments.propertyId, id)));
@@ -60,8 +60,8 @@ export async function DELETE(_req: Request, { params }: Params) {
     if (!doc) return NextResponse.json({ error: "Documento não encontrado" }, { status: 404 });
     const token = blobToken();
     if (token) await del(doc.url || doc.pathname, { token }).catch((e) => console.error(e));
-    await db.delete(propertyDocuments).where(eq(propertyDocuments.id, doc.id));
-    await db.insert(activities).values({
+    await (await getDb()).delete(propertyDocuments).where(eq(propertyDocuments.id, doc.id));
+    await (await getDb()).insert(activities).values({
       entity: "imovel",
       entityId: id,
       kind: "updated",

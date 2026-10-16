@@ -1,4 +1,4 @@
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { activities, partners } from "@/db/schema";
 import { apiUser, unauthorized } from "@/lib/api-auth";
 import { sanitizePartner } from "@/lib/partners";
@@ -13,7 +13,7 @@ export async function PATCH(req: Request, { params }: Params) {
     const { id } = await params;
     const data = sanitizePartner(await req.json());
     if (data.name.length < 2) return NextResponse.json({ error: "Informe o nome do parceiro." }, { status: 400 });
-    const [updated] = await db
+    const [updated] = await (await getDb())
       .update(partners)
       .set({ ...data, updatedAt: new Date() })
       .where(eq(partners.id, id))
@@ -31,9 +31,9 @@ export async function DELETE(_req: Request, { params }: Params) {
   if (!(await apiUser())) return unauthorized();
   try {
     const { id } = await params;
-    const [removed] = await db.delete(partners).where(eq(partners.id, id)).returning();
+    const [removed] = await (await getDb()).delete(partners).where(eq(partners.id, id)).returning();
     if (!removed) return NextResponse.json({ error: "Parceiro não encontrado" }, { status: 404 });
-    await db.insert(activities).values({
+    await (await getDb()).insert(activities).values({
       entity: "sistema",
       entityId: null,
       kind: "updated",

@@ -1,4 +1,4 @@
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { integrations } from "@/db/schema";
 import { apiUser, unauthorized } from "@/lib/api-auth";
 import { syncGoogleIntegration } from "@/lib/google-sync";
@@ -8,7 +8,7 @@ import { NextResponse } from "next/server";
 /** Sincroniza agora Google Contacts e Calendar (botão do topo do CRM). */
 export async function POST() {
   if (!(await apiUser())) return unauthorized();
-  const connected = await db
+  const connected = await (await getDb())
     .select()
     .from(integrations)
     .where(and(eq(integrations.category, "google"), eq(integrations.connected, true)));

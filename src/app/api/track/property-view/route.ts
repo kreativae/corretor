@@ -1,4 +1,4 @@
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { properties, propertyViews } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { cookies } from "next/headers";
@@ -28,7 +28,7 @@ export async function POST(req: Request) {
       return new Response(null, { status: 204 });
     }
 
-    const [prop] = await db
+    const [prop] = await (await getDb())
       .select({ id: properties.id })
       .from(properties)
       .where(eq(properties.id, propertyId));
@@ -47,7 +47,7 @@ export async function POST(req: Request) {
       });
     }
 
-    await db.insert(propertyViews).values({
+    await (await getDb()).insert(propertyViews).values({
       propertyId,
       visitorId,
       referrer: req.headers.get("referer")?.slice(0, 300) ?? null,

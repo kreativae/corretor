@@ -1,10 +1,11 @@
 import "server-only";
-import { db } from "@/db";
+import { controlDb, getDb } from "@/db";
 import { sessions, users, type User } from "@/db/schema";
 import { and, eq, gt } from "drizzle-orm";
 import { randomBytes } from "node:crypto";
 import { hashPassword, verifyPassword } from "./password";
 import { isAdmin, isSuperadmin } from "./roles";
+import { isMainTenant } from "./tenant";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -28,7 +29,7 @@ export { hashPassword, verifyPassword };
 export async function createSession(userId: string) {
   const token = randomBytes(32).toString("hex");
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 864e5);
-  await db.insert(sessions).values({ token, userId, expiresAt });
+  await (await getDb()).insert(sessions).values({ token, userId, expiresAt });
 
   const jar = await cookies();
   jar.set(SESSION_COOKIE, token, {
@@ -45,7 +46,9 @@ export async function destroySession() {
   const jar = await cookies();
   const token = jar.get(SESSION_COOKIE)?.value;
   if (token) {
-    await db.delete(sessions).where(eq(sessions.token, token));
+    await (await getDb()).delete(sessions).where(eq(sessions.token, token));
+    // Gerência em outra empresa: a sessão fica no banco principal
+    await controlDb.delete(sessions).where(eq(sessions.token, token)).catch(() => undefined);
   }
   jar.delete(SESSION_COOKIE);
 }
@@ -56,13 +59,13 @@ export type SessionUser = Pick<
 >;
 
 /** Usuário da sessão (cookie), se houver */
-async function sessionUser(): Promise<SessionUser | null> {
+async function sessionUser(fromControl = false): Promise<SessionUser | null> {
   try {
     const jar = await cookies();
     const token = jar.get(SESSION_COOKIE)?.value;
     if (!token) return null;
 
-    const rows = await db
+    const rows = await (fromControl ? controlDb : await getDb())
       .select({
         id: users.id,
         name: users.name,
@@ -81,7 +84,14 @@ async function sessionUser(): Promise<SessionUser | null> {
       .limit(1);
 
     const u = rows[0];
-    if (!u || !u.active) return null;
+    if (!u || !u.active) {
+      // Gerência navegando em outra empresa: a sessão dela fica no banco principal
+      if (!fromControl && !(await isMainTenant())) {
+        const g = await sessionUser(true);
+        return isSuperadmin(g) ? g : null;
+      }
+      return null;
+    }
     return {
       id: u.id,
       name: u.name,
@@ -100,11 +110,12 @@ async function sessionUser(): Promise<SessionUser | null> {
 export async function getCurrentUser(): Promise<SessionUser | null> {
   // Acesso liberado: quem fez login continua sendo quem é (ex.: gerência);
   // sem sessão, opera como o primeiro administrador da base
-  if (AUTH_TEMP_DISABLED) {
+  // Empresas criadas pela gerência sempre exigem login
+  if (AUTH_TEMP_DISABLED && (await isMainTenant())) {
     const logged = await sessionUser();
     if (logged) return logged;
     try {
-      const [admin] = await db
+      const [admin] = await (await getDb())
         .select({
           id: users.id,
           name: users.name,
@@ -151,14 +162,19 @@ export async function requireAdmin(from?: string): Promise<SessionUser> {
 
 /** Exige gerência (sempre com login real, mesmo com o acesso liberado). */
 export async function requireSuperadmin(): Promise<SessionUser> {
-  const user = await sessionUser();
+  const user = await superadminSession();
   if (!isSuperadmin(user)) redirect("/gerencia/entrar");
   return user as SessionUser;
 }
 
 /** Gerência logada (para APIs) ou null */
 export async function getSuperadmin(): Promise<SessionUser | null> {
-  const user = await sessionUser();
+  return superadminSession();
+}
+
+/** Sessão de gerência (sempre no banco principal, em qualquer empresa) */
+async function superadminSession(): Promise<SessionUser | null> {
+  const user = await sessionUser(true);
   return isSuperadmin(user) ? user : null;
 }
 

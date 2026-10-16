@@ -1,4 +1,4 @@
-import { db } from "@/db";
+import { controlDb, DEFAULT_SCHEMA, withTenant } from "@/db";
 import { activities, users } from "@/db/schema";
 import { createSession, hashPassword } from "@/lib/auth";
 import { eq } from "drizzle-orm";
@@ -35,23 +35,24 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "A senha deve ter ao menos 8 caracteres." }, { status: 400 });
   }
 
-  const [existing] = await db.select().from(users).where(eq(users.email, email));
+  const [existing] = await controlDb.select().from(users).where(eq(users.email, email));
   let id: string;
   if (existing) {
-    await db
+    await controlDb
       .update(users)
       .set({ role: "superadmin", name, passwordHash: hashPassword(password), active: true })
       .where(eq(users.id, existing.id));
     id = existing.id;
   } else {
-    const [created] = await db
+    const [created] = await controlDb
       .insert(users)
       .values({ name, email, role: "superadmin", passwordHash: hashPassword(password) })
       .returning({ id: users.id });
     id = created.id;
   }
-  await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, id));
-  await createSession(id);
-  await db.insert(activities).values({ entity: "sistema", entityId: null, kind: "updated", text: `${name} recebeu acesso de gerência.` });
+  await controlDb.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, id));
+  // Sessão da gerência fica sempre no banco principal
+  await withTenant({ schema: DEFAULT_SCHEMA }, () => createSession(id));
+  await controlDb.insert(activities).values({ entity: "sistema", entityId: null, kind: "updated", text: `${name} recebeu acesso de gerência.` });
   return NextResponse.json({ ok: true });
 }

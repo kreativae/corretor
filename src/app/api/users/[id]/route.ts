@@ -1,4 +1,4 @@
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { activities, sessions, users } from "@/db/schema";
 import { hashPassword, requireAdmin } from "@/lib/auth";
 import { ROLE_LABELS } from "@/lib/labels";
@@ -16,7 +16,7 @@ export async function PATCH(
     const body = await req.json();
 
     // Contas da gerência só são alteradas pela própria gerência
-    const [target] = await db.select({ role: users.role }).from(users).where(eq(users.id, id));
+    const [target] = await (await getDb()).select({ role: users.role }).from(users).where(eq(users.id, id));
     if (target?.role === "superadmin" && !isSuperadmin(me)) {
       return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
     }
@@ -53,7 +53,7 @@ export async function PATCH(
       patch.passwordHash = hashPassword(String(body.password));
     }
 
-    const [updated] = await db
+    const [updated] = await (await getDb())
       .update(users)
       .set(patch)
       .where(eq(users.id, id))
@@ -65,7 +65,7 @@ export async function PATCH(
 
     // Senha trocada ou conta desativada → encerra sessões ativas
     if (body.password || body.active === false) {
-      await db.delete(sessions).where(eq(sessions.userId, id));
+      await (await getDb()).delete(sessions).where(eq(sessions.userId, id));
     }
 
     const what = body.password
@@ -78,7 +78,7 @@ export async function PATCH(
             ? `agora é ${ROLE_LABELS[updated.role].toLowerCase()}`
             : "teve o cadastro atualizado";
 
-    await db.insert(activities).values({
+    await (await getDb()).insert(activities).values({
       entity: "sistema",
       entityId: null,
       kind: "updated",

@@ -1,4 +1,4 @@
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { regionGeo } from "@/db/schema";
 import { apiUser, unauthorized } from "@/lib/api-auth";
 import { cartoGeocode, getMapProvider, osmGeocode } from "@/lib/map-provider";
@@ -16,7 +16,7 @@ export async function POST(req: Request) {
   const q = typeof b.q === "string" ? b.q.slice(0, 200) : "";
   if (!key || !q) return NextResponse.json({ error: "Região inválida." }, { status: 400 });
 
-  const [cached] = await db.select().from(regionGeo).where(eq(regionGeo.key, key));
+  const [cached] = await (await getDb()).select().from(regionGeo).where(eq(regionGeo.key, key));
   if (cached) return NextResponse.json({ lat: cached.lat, lng: cached.lng });
 
   // CARTO quando há token; OpenStreetMap como alternativa gratuita
@@ -39,6 +39,6 @@ export async function POST(req: Request) {
     }
   }
   const [lat, lng] = hit ?? [null, null];
-  await db.insert(regionGeo).values({ key, lat, lng }).onConflictDoNothing();
+  await (await getDb()).insert(regionGeo).values({ key, lat, lng }).onConflictDoNothing();
   return NextResponse.json({ lat, lng });
 }

@@ -1,4 +1,4 @@
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { activities, settings } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
 import { DEFAULT_CONTENT, getSiteContent } from "@/lib/site-content";
@@ -13,21 +13,21 @@ export async function POST(req: Request) {
   await requireAdmin();
   try {
     const content = await req.json();
-    const existing = await db
+    const existing = await (await getDb())
       .select()
       .from(settings)
       .where(eq(settings.key, "siteContent"));
 
     if (existing.length) {
-      await db
+      await (await getDb())
         .update(settings)
         .set({ value: content })
         .where(eq(settings.key, "siteContent"));
     } else {
-      await db.insert(settings).values({ key: "siteContent", value: content });
+      await (await getDb()).insert(settings).values({ key: "siteContent", value: content });
     }
 
-    await db.insert(activities).values({
+    await (await getDb()).insert(activities).values({
       entity: "sistema",
       entityId: null,
       kind: "updated",
@@ -43,8 +43,8 @@ export async function POST(req: Request) {
 
 export async function DELETE() {
   await requireAdmin();
-  await db.delete(settings).where(eq(settings.key, "siteContent"));
-  await db.insert(activities).values({
+  await (await getDb()).delete(settings).where(eq(settings.key, "siteContent"));
+  await (await getDb()).insert(activities).values({
     entity: "sistema",
     entityId: null,
     kind: "updated",

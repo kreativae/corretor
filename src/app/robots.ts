@@ -1,9 +1,10 @@
 import { getWhiteLabel } from "@/lib/queries";
 import type { MetadataRoute } from "next";
+import { siteBaseUrl } from "@/lib/tenant";
 
 export default async function robots(): Promise<MetadataRoute.Robots> {
   const wl = await getWhiteLabel();
-  const base = process.env.NEXT_PUBLIC_SITE_URL ?? `https://${wl.domain}`;
+  const base = await siteBaseUrl(wl.domain);
 
   return {
     rules: [

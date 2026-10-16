@@ -1,4 +1,4 @@
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { activities, settings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { requireAdmin } from "@/lib/auth";
@@ -62,22 +62,22 @@ export async function POST(req: Request) {
       value = { leadEmails: String(value?.leadEmails ?? "").slice(0, 500), enabled: value?.enabled !== false };
     }
 
-    const existing = await db
+    const existing = await (await getDb())
       .select()
       .from(settings)
       .where(eq(settings.key, key));
 
     if (existing.length) {
-      await db
+      await (await getDb())
         .update(settings)
         .set({ value })
         .where(eq(settings.key, key));
     } else {
-      await db.insert(settings).values({ key, value });
+      await (await getDb()).insert(settings).values({ key, value });
     }
 
     if (key === "whiteLabel") {
-      await db.insert(activities).values({
+      await (await getDb()).insert(activities).values({
         entity: "sistema",
         entityId: null,
         kind: "updated",

@@ -1,4 +1,5 @@
 import { listPublishedProperties, getWhiteLabel } from "@/lib/queries";
+import { siteBaseUrl } from "@/lib/tenant";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,7 @@ export async function GET() {
     listPublishedProperties(),
   ]);
 
-  const baseUrl = `https://${wl.domain}`;
+  const baseUrl = await siteBaseUrl(wl.domain);
 
   const items = props
     .map((p) => {
@@ -68,7 +69,7 @@ ${images}
 
       <ContactInfo>
         <Name>${esc(wl.orgName)}</Name>
-        <Email>contato@${esc(wl.domain)}</Email>
+        <Email>contato@${esc(new URL(baseUrl).host)}</Email>
         <Telephone>+${esc(wl.phone)}</Telephone>
         <Website>${esc(baseUrl)}</Website>
         <Logo>${esc(baseUrl)}/icon.svg</Logo>
@@ -88,7 +89,7 @@ ${images}
                  version="2.0">
   <Header>
     <Provider>${esc(wl.orgName)}</Provider>
-    <Email>integracao@${esc(wl.domain)}</Email>
+    <Email>integracao@${esc(new URL(baseUrl).host)}</Email>
     <ContactName>${esc(wl.orgName)}</ContactName>
     <PublishDate>${new Date().toISOString()}</PublishDate>
     <TotalListings>${props.length}</TotalListings>

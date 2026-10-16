@@ -1,4 +1,4 @@
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { regionGeo } from "@/db/schema";
 import { isNull } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
@@ -20,7 +20,7 @@ export async function POST(req: Request) {
   try {
     const saved = await saveMapProvider(await req.json());
     // Com token novo, tenta de novo as regiões que o mapa gratuito não encontrou
-    if (saved.cartoToken) await db.delete(regionGeo).where(isNull(regionGeo.lat));
+    if (saved.cartoToken) await (await getDb()).delete(regionGeo).where(isNull(regionGeo.lat));
     return NextResponse.json(view(saved));
   } catch (e) {
     console.error(e);

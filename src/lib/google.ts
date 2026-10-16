@@ -1,6 +1,6 @@
 import "server-only";
 
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { integrations, type Integration } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
@@ -19,7 +19,7 @@ export const GOOGLE_SCOPES: Record<string, string[]> = {
 
 /** Garante que os cartões do Google existam (base sem seed). */
 export async function ensureGoogleIntegrations() {
-  await db
+  await (await getDb())
     .insert(integrations)
     .values([
       {
@@ -151,7 +151,7 @@ export async function getGoogleAccessToken(integration: Integration) {
   );
 
   const expiresAt = new Date(Date.now() + token.expires_in * 1000);
-  await db
+  await (await getDb())
     .update(integrations)
     .set({
       accessToken: token.access_token,

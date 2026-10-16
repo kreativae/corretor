@@ -1,5 +1,5 @@
 import { apiUser, unauthorized } from "@/lib/api-auth";
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { activities, portals, properties } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
@@ -12,7 +12,7 @@ export async function PATCH(req: Request, { params }: Params) {
     const { id } = await params;
     const { enabled } = await req.json();
 
-    const [updated] = await db
+    const [updated] = await (await getDb())
       .update(portals)
       .set({
         enabled: !!enabled,
@@ -25,7 +25,7 @@ export async function PATCH(req: Request, { params }: Params) {
       return NextResponse.json({ error: "Portal não encontrado" }, { status: 404 });
     }
 
-    await db.insert(activities).values({
+    await (await getDb()).insert(activities).values({
       entity: "portal",
       entityId: id,
       kind: "sync",
@@ -51,17 +51,17 @@ export async function POST(req: Request, { params }: Params) {
       return NextResponse.json({ error: "Ação inválida" }, { status: 400 });
     }
 
-    const [portal] = await db.select().from(portals).where(eq(portals.id, id));
+    const [portal] = await (await getDb()).select().from(portals).where(eq(portals.id, id));
     if (!portal) {
       return NextResponse.json({ error: "Portal não encontrado" }, { status: 404 });
     }
 
-    await db
+    await (await getDb())
       .update(portals)
       .set({ status: "sincronizando" })
       .where(eq(portals.id, id));
 
-    const published = await db
+    const published = await (await getDb())
       .select()
       .from(properties)
       .where(and(eq(properties.published, true)));
@@ -73,7 +73,7 @@ export async function POST(req: Request, { params }: Params) {
     // latência simulada do ciclo de exportação
     await new Promise((r) => setTimeout(r, 900));
 
-    const [updated] = await db
+    const [updated] = await (await getDb())
       .update(portals)
       .set({
         status: "conectado",
@@ -84,7 +84,7 @@ export async function POST(req: Request, { params }: Params) {
       .where(eq(portals.id, id))
       .returning();
 
-    await db.insert(activities).values({
+    await (await getDb()).insert(activities).values({
       entity: "portal",
       entityId: id,
       kind: "sync",

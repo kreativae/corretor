@@ -1,4 +1,4 @@
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { activities, contacts, properties, visits } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { formatDate } from "@/lib/utils";
@@ -20,7 +20,7 @@ export async function POST(req: Request) {
       if (!body.name?.trim() || !body.phone?.trim() || !body.propertyId) {
         return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
       }
-      const [prop] = await db
+      const [prop] = await (await getDb())
         .select({ published: properties.published })
         .from(properties)
         .where(eq(properties.id, String(body.propertyId)));
@@ -29,14 +29,14 @@ export async function POST(req: Request) {
       }
     }
     if (!contactId && body.name && body.phone) {
-      const found = await db
+      const found = await (await getDb())
         .select()
         .from(contacts)
         .where(eq(contacts.phone, String(body.phone).trim()));
       if (found.length) {
         contactId = found[0].id;
       } else {
-        const [c] = await db
+        const [c] = await (await getDb())
           .insert(contacts)
           .values({
             name: String(body.name).trim(),
@@ -45,7 +45,7 @@ export async function POST(req: Request) {
           })
           .returning();
         contactId = c.id;
-        await db.insert(activities).values({
+        await (await getDb()).insert(activities).values({
           entity: "contato",
           entityId: c.id,
           kind: "lead",
@@ -64,23 +64,23 @@ export async function POST(req: Request) {
       ? new Date(String(body.scheduledAt))
       : new Date(`${body.date}T${time}:00-03:00`);
 
-    const [created] = await db
+    const [created] = await (await getDb())
       .insert(visits)
       .values({ propertyId: body.propertyId, contactId, scheduledAt })
       .returning();
 
-    const [prop] = await db
+    const [prop] = await (await getDb())
       .select()
       .from(properties)
       .where(eq(properties.id, body.propertyId));
-    const [contact] = await db
+    const [contact] = await (await getDb())
       .select()
       .from(contacts)
       .where(eq(contacts.id, contactId));
 
     const label = `Visita agendada: ${contact?.name ?? "cliente"} · ${prop?.code ?? "imóvel"} · ${formatDate(scheduledAt)} ${time}`;
 
-    await db.insert(activities).values([
+    await (await getDb()).insert(activities).values([
       { entity: "visita", entityId: created.id, kind: "visit", text: label },
       { entity: "imovel", entityId: body.propertyId, kind: "visit", text: label },
       { entity: "contato", entityId: contactId, kind: "visit", text: label },

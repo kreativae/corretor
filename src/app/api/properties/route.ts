@@ -1,5 +1,5 @@
 import { apiUser, unauthorized } from "@/lib/api-auth";
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { activities, properties, propertyImages } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { sanitizePropertyPartnerFields } from "@/lib/partners";
@@ -49,7 +49,7 @@ export async function POST(req: Request) {
 
     const code = await nextPropertyCode(rural);
 
-    const [created] = await db
+    const [created] = await (await getDb())
       .insert(properties)
       .values({
         ...(data as typeof properties.$inferInsert),
@@ -58,7 +58,7 @@ export async function POST(req: Request) {
       .returning();
 
     if (images.length) {
-      await db.insert(propertyImages).values(
+      await (await getDb()).insert(propertyImages).values(
         images
           .filter((u) => typeof u === "string" && u.startsWith("http"))
           .map((url, i) => ({ propertyId: created.id, url, position: i })),
@@ -66,7 +66,7 @@ export async function POST(req: Request) {
     }
 
     const author = await getCurrentUser();
-    await db.insert(activities).values({
+    await (await getDb()).insert(activities).values({
       entity: "imovel",
       entityId: created.id,
       kind: "created",

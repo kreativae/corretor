@@ -1,5 +1,5 @@
 import { apiUser, unauthorized } from "@/lib/api-auth";
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { activities, contacts, integrations, properties, visits } from "@/db/schema";
 import { googleApi } from "@/lib/google";
 import { VISIT_STATUS_LABELS } from "@/lib/labels";
@@ -35,7 +35,7 @@ export async function PATCH(
       edited = true;
     }
     if (body.date && !body.scheduledAt) {
-      const [current] = await db
+      const [current] = await (await getDb())
         .select()
         .from(visits)
         .where(eq(visits.id, id));
@@ -48,7 +48,7 @@ export async function PATCH(
       }
     }
 
-    const [updated] = await db
+    const [updated] = await (await getDb())
       .update(visits)
       .set(update)
       .where(eq(visits.id, id))
@@ -58,11 +58,11 @@ export async function PATCH(
       return NextResponse.json({ error: "Visita não encontrada" }, { status: 404 });
     }
 
-    const [prop] = await db
+    const [prop] = await (await getDb())
       .select()
       .from(properties)
       .where(eq(properties.id, updated.propertyId));
-    const [contact] = await db
+    const [contact] = await (await getDb())
       .select()
       .from(contacts)
       .where(eq(contacts.id, updated.contactId));
@@ -73,7 +73,7 @@ export async function PATCH(
       ? `Visita reagendada: ${contact?.name ?? "cliente"} · ${prop?.code ?? "imóvel"} · ${formatDateTime(updated.scheduledAt)}`
       : `Visita ${VISIT_STATUS_LABELS[updated.status].toLowerCase()}: ${contact?.name ?? "cliente"} · ${prop?.code ?? "imóvel"}`;
 
-    await db.insert(activities).values([
+    await (await getDb()).insert(activities).values([
       { entity: "visita", entityId: updated.id, kind: "visit", text: label },
       { entity: "imovel", entityId: updated.propertyId, kind: "visit", text: label },
       { entity: "contato", entityId: updated.contactId, kind: "visit", text: label },
@@ -94,11 +94,11 @@ export async function DELETE(
   if (!(await apiUser())) return unauthorized();
   try {
     const { id } = await params;
-    const [visit] = await db.select().from(visits).where(eq(visits.id, id));
+    const [visit] = await (await getDb()).select().from(visits).where(eq(visits.id, id));
     if (!visit) return NextResponse.json({ error: "Visita não encontrada" }, { status: 404 });
 
     if (visit.googleEventId) {
-      const [cal] = await db
+      const [cal] = await (await getDb())
         .select()
         .from(integrations)
         .where(eq(integrations.provider, "google_calendar"));
@@ -112,12 +112,12 @@ export async function DELETE(
       }
     }
 
-    await db.delete(visits).where(eq(visits.id, id));
+    await (await getDb()).delete(visits).where(eq(visits.id, id));
 
-    const [prop] = await db.select().from(properties).where(eq(properties.id, visit.propertyId));
-    const [contact] = await db.select().from(contacts).where(eq(contacts.id, visit.contactId));
+    const [prop] = await (await getDb()).select().from(properties).where(eq(properties.id, visit.propertyId));
+    const [contact] = await (await getDb()).select().from(contacts).where(eq(contacts.id, visit.contactId));
     const label = `Visita excluída: ${contact?.name ?? "cliente"} · ${prop?.code ?? "imóvel"} · ${formatDateTime(visit.scheduledAt)}`;
-    await db.insert(activities).values([
+    await (await getDb()).insert(activities).values([
       { entity: "imovel", entityId: visit.propertyId, kind: "visit", text: label },
       { entity: "contato", entityId: visit.contactId, kind: "visit", text: label },
     ]);

@@ -1,4 +1,4 @@
-import { db } from "@/db";
+import { getDb } from "@/db";
 import {
   partners,
   propertySends,
@@ -100,7 +100,7 @@ export function brandShortName(wl: Pick<WhiteLabel, "shortName" | "orgName">) {
 
 export async function getWhiteLabel(): Promise<WhiteLabel> {
   try {
-    const rows = await db
+    const rows = await (await getDb())
       .select()
       .from(settings)
       .where(eq(settings.key, "whiteLabel"));
@@ -139,7 +139,7 @@ export type PropertyWithImages = Property & {
 async function partnerModes(rows: Property[]) {
   const ids = [...new Set(rows.map((r) => r.partnerId).filter(Boolean))] as string[];
   if (!ids.length) return new Map<string, string>();
-  const list = await db
+  const list = await (await getDb())
     .select({ id: partners.id, mode: partners.watermark })
     .from(partners)
     .where(inArray(partners.id, ids))
@@ -171,12 +171,12 @@ function attachImages(
 }
 
 export async function listProperties(): Promise<PropertyWithImages[]> {
-  const rows = await db
+  const rows = await (await getDb())
     .select()
     .from(properties)
     .orderBy(desc(properties.createdAt));
   if (!rows.length) return [];
-  const imgs = await db
+  const imgs = await (await getDb())
     .select()
     .from(propertyImages)
     .where(
@@ -197,9 +197,9 @@ export async function listPublishedProperties(): Promise<PropertyWithImages[]> {
 }
 
 export async function getPropertyById(id: string) {
-  const rows = await db.select().from(properties).where(eq(properties.id, id));
+  const rows = await (await getDb()).select().from(properties).where(eq(properties.id, id));
   if (!rows.length) return null;
-  const imgs = await db
+  const imgs = await (await getDb())
     .select()
     .from(propertyImages)
     .where(eq(propertyImages.propertyId, id));
@@ -207,21 +207,21 @@ export async function getPropertyById(id: string) {
 }
 
 export async function getPropertyByCode(code: string) {
-  let rows = await db
+  let rows = await (await getDb())
     .select()
     .from(properties)
     .where(eq(properties.code, code));
   // Link antigo (prefixo trocado no White Label): mesmo número, único anúncio
   const num = code.match(/^[A-Za-z0-9]+-(\d+)$/)?.[1];
   if (!rows.length && num) {
-    const same = await db
+    const same = await (await getDb())
       .select()
       .from(properties)
       .where(sql`${properties.code} ~ ${`^[A-Za-z0-9]+-${num}$`}`);
     if (same.length === 1) rows = same;
   }
   if (!rows.length) return null;
-  const imgs = await db
+  const imgs = await (await getDb())
     .select()
     .from(propertyImages)
     .where(eq(propertyImages.propertyId, rows[0].id));
@@ -231,11 +231,11 @@ export async function getPropertyByCode(code: string) {
 /* ─────────────────────── Contatos / CRM ─────────────────────── */
 
 export async function listContacts(): Promise<Contact[]> {
-  return db.select().from(contacts).orderBy(desc(contacts.createdAt));
+  return (await getDb()).select().from(contacts).orderBy(desc(contacts.createdAt));
 }
 
 export async function getContact(id: string): Promise<Contact | null> {
-  const rows = await db.select().from(contacts).where(eq(contacts.id, id));
+  const rows = await (await getDb()).select().from(contacts).where(eq(contacts.id, id));
   return rows[0] ?? null;
 }
 
@@ -246,7 +246,7 @@ export type VisitFull = {
 };
 
 export async function listVisits(): Promise<VisitFull[]> {
-  const rows = await db
+  const rows = await (await getDb())
     .select({ visit: visits, property: properties, contact: contacts })
     .from(visits)
     .leftJoin(properties, eq(visits.propertyId, properties.id))
@@ -262,7 +262,7 @@ export type DealFull = {
 };
 
 export async function listDeals(): Promise<DealFull[]> {
-  return db
+  return (await getDb())
     .select({ deal: deals, property: properties, contact: contacts })
     .from(deals)
     .leftJoin(properties, eq(deals.propertyId, properties.id))
@@ -275,7 +275,7 @@ export async function listDeals(): Promise<DealFull[]> {
  * histórico da linha do tempo. Negócios criados já fechados não têm registro.
  */
 export async function listDealClosedDates(): Promise<Record<string, string>> {
-  const rows = await db
+  const rows = await (await getDb())
     .select({ id: activities.entityId, at: sql<string>`max(${activities.createdAt})` })
     .from(activities)
     .where(
@@ -292,12 +292,12 @@ export async function listDealClosedDates(): Promise<Record<string, string>> {
 }
 
 export async function listActivities(limit = 30): Promise<Activity[]> {
-  return db.select().from(activities).orderBy(desc(activities.createdAt)).limit(limit);
+  return (await getDb()).select().from(activities).orderBy(desc(activities.createdAt)).limit(limit);
 }
 
 /** Quando o contato entrou como lead (mais antigos primeiro) — data das mensagens antigas */
 export async function listLeadDates(contactId: string) {
-  const rows = await db
+  const rows = await (await getDb())
     .select({ entity: activities.entity, kind: activities.kind, createdAt: activities.createdAt })
     .from(activities)
     .where(eq(activities.entityId, contactId))
@@ -312,7 +312,7 @@ export async function listActivitiesFor(
   entityId: string,
   limit = 20,
 ) {
-  const all = await db
+  const all = await (await getDb())
     .select()
     .from(activities)
     .where(eq(activities.entityId, entityId))
@@ -322,12 +322,12 @@ export async function listActivitiesFor(
 }
 
 export async function listPortals(): Promise<Portal[]> {
-  return db.select().from(portals).orderBy(portals.name);
+  return (await getDb()).select().from(portals).orderBy(portals.name);
 }
 
 /** Equipe do cliente — a gerência não aparece aqui */
 export async function listUsers(): Promise<User[]> {
-  return db.select().from(users).where(ne(users.role, "superadmin")).orderBy(users.createdAt);
+  return (await getDb()).select().from(users).where(ne(users.role, "superadmin")).orderBy(users.createdAt);
 }
 
 /* ─────────────────── Analytics de imóveis ─────────────────── */
@@ -350,7 +350,7 @@ export async function getPropertyViewStats(
   const d14 = new Date(now.getTime() - 13 * 864e5);
   d14.setHours(0, 0, 0, 0);
 
-  const rows = await db
+  const rows = await (await getDb())
     .select({
       createdAt: propertyViews.createdAt,
       visitorId: propertyViews.visitorId,
@@ -392,7 +392,7 @@ export async function listPropertyViewTotals(range?: {
     range?.from != null ? gte(propertyViews.createdAt, new Date(range.from)) : undefined,
     range?.to != null ? lte(propertyViews.createdAt, new Date(range.to)) : undefined,
   ].filter(Boolean);
-  const rows = await db
+  const rows = await (await getDb())
     .select({
       propertyId: propertyViews.propertyId,
       total: count(),
@@ -413,7 +413,7 @@ export type PortfolioViews = { total30d: number; unique30d: number };
 
 export async function getPortfolioViews(): Promise<PortfolioViews> {
   const d30 = new Date(Date.now() - 30 * 864e5);
-  const [row] = await db
+  const [row] = await (await getDb())
     .select({
       total30d: count(),
       unique30d: countDistinct(propertyViews.visitorId),
@@ -433,7 +433,7 @@ export type TopViewed = {
 };
 
 export async function getTopViewedProperties(limit = 5): Promise<TopViewed[]> {
-  const rows = await db
+  const rows = await (await getDb())
     .select({
       propertyId: propertyViews.propertyId,
       total: count(),
@@ -487,7 +487,7 @@ export async function getMatchesFor(contact: Contact): Promise<Match[]> {
 /** Documentos internos de um imóvel, mais recentes primeiro. */
 export async function listPropertyDocuments(propertyId: string): Promise<PropertyDocument[]> {
   try {
-    return await db
+    return await (await getDb())
       .select()
       .from(propertyDocuments)
       .where(eq(propertyDocuments.propertyId, propertyId))
@@ -504,8 +504,8 @@ export async function listPropertyDocuments(propertyId: string): Promise<Propert
 export async function listPartners() {
   try {
     const [rows, props] = await Promise.all([
-      db.select().from(partners).orderBy(asc(partners.name)),
-      db
+      (await getDb()).select().from(partners).orderBy(asc(partners.name)),
+      (await getDb())
         .select({ partnerId: properties.partnerId, type: properties.type, published: properties.published })
         .from(properties),
     ]);
@@ -524,7 +524,7 @@ export async function listPartners() {
 
 export async function getPartner(id: string) {
   try {
-    const [p] = await db.select().from(partners).where(eq(partners.id, id));
+    const [p] = await (await getDb()).select().from(partners).where(eq(partners.id, id));
     return p ?? null;
   } catch {
     return null;
@@ -536,7 +536,7 @@ export async function getPartner(id: string) {
 /** Histórico da Negociação (e-mails com imóveis enviados ao cliente) */
 export async function listPropertySends(contactId?: string, limit = 200): Promise<PropertySend[]> {
   try {
-    const q = db.select().from(propertySends);
+    const q = (await getDb()).select().from(propertySends);
     const rows = contactId ? await q.where(eq(propertySends.contactId, contactId)) : await q;
     return rows.sort((a, b) => +b.createdAt - +a.createdAt).slice(0, limit);
   } catch {
@@ -547,7 +547,7 @@ export async function listPropertySends(contactId?: string, limit = 200): Promis
 /** Últimas mensagens de WhatsApp do contato (mais recentes por último) */
 export async function listContactWhatsApp(contactId: string, limit = 6): Promise<WaMessage[]> {
   try {
-    const rows = await db
+    const rows = await (await getDb())
       .select()
       .from(waMessages)
       .where(eq(waMessages.contactId, contactId))

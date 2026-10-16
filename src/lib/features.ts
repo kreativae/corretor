@@ -1,5 +1,5 @@
 import "server-only";
-import { db } from "@/db";
+import { currentConn, dbFor, getDb } from "@/db";
 import { settings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { sanitizeWatermark, WATERMARK_DEFAULTS, type WatermarkSettings } from "@/lib/watermark-settings";
@@ -16,7 +16,7 @@ export const FEATURE_DEFAULTS: Features = { closedDeals: false };
 
 export async function getFeatures(): Promise<Features> {
   try {
-    const [row] = await db.select().from(settings).where(eq(settings.key, "features"));
+    const [row] = await (await getDb()).select().from(settings).where(eq(settings.key, "features"));
     return { ...FEATURE_DEFAULTS, ...((row?.value ?? {}) as Partial<Features>) };
   } catch {
     return FEATURE_DEFAULTS;
@@ -25,7 +25,7 @@ export async function getFeatures(): Promise<Features> {
 
 export async function getStatCards(): Promise<StatCards> {
   try {
-    const [row] = await db.select().from(settings).where(eq(settings.key, "statCards"));
+    const [row] = await (await getDb()).select().from(settings).where(eq(settings.key, "statCards"));
     return sanitizeStatCards((row?.value ?? {}) as Record<string, unknown>);
   } catch {
     return STAT_CARDS_DEFAULTS;
@@ -34,22 +34,24 @@ export async function getStatCards(): Promise<StatCards> {
 
 export async function getMapOptions(): Promise<MapOptions> {
   try {
-    const [row] = await db.select().from(settings).where(eq(settings.key, "mapOptions"));
+    const [row] = await (await getDb()).select().from(settings).where(eq(settings.key, "mapOptions"));
     return sanitizeMapOptions((row?.value ?? {}) as Record<string, unknown>);
   } catch {
     return MAP_OPTIONS_DEFAULTS;
   }
 }
 
-// Lida a cada foto servida: guarda por 1 min para não consultar o banco toda hora
-let wmCache: { at: number; value: WatermarkSettings } | null = null;
+// Lida a cada foto servida: guarda por 1 min (por empresa) para não consultar o banco toda hora
+const wmCache = new Map<string, { at: number; value: WatermarkSettings }>();
 
 export async function getWatermarkSettings(fresh = false): Promise<WatermarkSettings> {
-  if (!fresh && wmCache && Date.now() - wmCache.at < 60_000) return wmCache.value;
+  const conn = await currentConn();
+  const hit = wmCache.get(conn.schema);
+  if (!fresh && hit && Date.now() - hit.at < 60_000) return hit.value;
   try {
-    const [row] = await db.select().from(settings).where(eq(settings.key, "watermark"));
+    const [row] = await dbFor(conn).select().from(settings).where(eq(settings.key, "watermark"));
     const value = sanitizeWatermark((row?.value ?? {}) as Record<string, unknown>);
-    wmCache = { at: Date.now(), value };
+    wmCache.set(conn.schema, { at: Date.now(), value });
     return value;
   } catch {
     return WATERMARK_DEFAULTS;
@@ -68,7 +70,7 @@ export function sanitizeFeatures(input: Record<string, unknown>): Features {
 /** Comodidades extras cadastradas pela equipe (somam-se às de FEATURES). */
 export async function getCustomFeatures(): Promise<string[]> {
   try {
-    const [row] = await db.select().from(settings).where(eq(settings.key, "customFeatures"));
+    const [row] = await (await getDb()).select().from(settings).where(eq(settings.key, "customFeatures"));
     return Array.isArray(row?.value) ? (row.value as unknown[]).filter((x): x is string => typeof x === "string") : [];
   } catch {
     return [];
@@ -76,11 +78,11 @@ export async function getCustomFeatures(): Promise<string[]> {
 }
 
 export async function saveCustomFeatures(list: string[]) {
-  const [row] = await db.select().from(settings).where(eq(settings.key, "customFeatures"));
+  const [row] = await (await getDb()).select().from(settings).where(eq(settings.key, "customFeatures"));
   if (row) {
-    await db.update(settings).set({ value: list }).where(eq(settings.key, "customFeatures"));
+    await (await getDb()).update(settings).set({ value: list }).where(eq(settings.key, "customFeatures"));
   } else {
-    await db.insert(settings).values({ key: "customFeatures", value: list });
+    await (await getDb()).insert(settings).values({ key: "customFeatures", value: list });
   }
 }
 
@@ -88,7 +90,7 @@ export async function saveCustomFeatures(list: string[]) {
 export async function getMessages() {
   const { mergeMessages } = await import("@/lib/messages");
   try {
-    const [row] = await db.select().from(settings).where(eq(settings.key, "messages"));
+    const [row] = await (await getDb()).select().from(settings).where(eq(settings.key, "messages"));
     return mergeMessages(row?.value);
   } catch {
     return mergeMessages({});

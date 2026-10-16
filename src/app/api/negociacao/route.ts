@@ -1,4 +1,4 @@
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { propertySends } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { blobToken } from "@/lib/blob";
@@ -16,11 +16,11 @@ export async function DELETE(req: Request) {
       : [];
     if (!ids.length) return NextResponse.json({ error: "Nada para apagar." }, { status: 400 });
 
-    const rows = await db.select().from(propertySends).where(inArray(propertySends.id, ids));
+    const rows = await (await getDb()).select().from(propertySends).where(inArray(propertySends.id, ids));
     const files = rows.flatMap((r) => r.attachments.map((a) => a.pathname)).filter((p) => p.startsWith("envios/"));
     const token = blobToken();
     if (files.length && token) await del(files, { token }).catch((e) => console.error(e));
-    await db.delete(propertySends).where(inArray(propertySends.id, ids));
+    await (await getDb()).delete(propertySends).where(inArray(propertySends.id, ids));
     return NextResponse.json({ deleted: rows.length });
   } catch (e) {
     console.error(e);

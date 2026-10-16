@@ -1,4 +1,4 @@
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { contacts, waThreads } from "@/db/schema";
 import { apiUser, unauthorized } from "@/lib/api-auth";
 import { desc, eq } from "drizzle-orm";
@@ -8,7 +8,7 @@ import { NextResponse } from "next/server";
 export async function GET(req: Request) {
   if (!(await apiUser())) return unauthorized();
   const archived = new URL(req.url).searchParams.get("arquivadas") === "1";
-  const rows = await db
+  const rows = await (await getDb())
     .select({
       phone: waThreads.phone,
       contactId: waThreads.contactId,

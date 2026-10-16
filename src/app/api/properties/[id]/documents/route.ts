@@ -1,4 +1,4 @@
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { activities, properties, propertyDocuments } from "@/db/schema";
 import { apiUser, unauthorized } from "@/lib/api-auth";
 import { blobToken } from "@/lib/blob";
@@ -37,7 +37,7 @@ export async function POST(req: Request, { params }: Params) {
   }
   try {
     const { id } = await params;
-    const [prop] = await db
+    const [prop] = await (await getDb())
       .select({ id: properties.id, code: properties.code })
       .from(properties)
       .where(eq(properties.id, id));
@@ -139,7 +139,7 @@ async function register(d: {
   contentType: string;
   user: string;
 }) {
-  const [doc] = await db
+  const [doc] = await (await getDb())
     .insert(propertyDocuments)
     .values({
       propertyId: d.id,
@@ -152,7 +152,7 @@ async function register(d: {
       uploadedBy: d.user,
     })
     .returning();
-  await db.insert(activities).values({
+  await (await getDb()).insert(activities).values({
     entity: "imovel",
     entityId: d.id,
     kind: "updated",

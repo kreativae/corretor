@@ -1,4 +1,4 @@
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { activities, contacts, propertySends, type SentAttachment } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { blobToken } from "@/lib/blob";
@@ -63,7 +63,7 @@ export async function POST(req: Request) {
   if (!props.length) return NextResponse.json({ error: "Imóveis não encontrados." }, { status: 404 });
 
   if (contactId) {
-    const [c] = await db.select({ id: contacts.id }).from(contacts).where(eq(contacts.id, contactId));
+    const [c] = await (await getDb()).select({ id: contacts.id }).from(contacts).where(eq(contacts.id, contactId));
     if (!c) contactId = null;
   }
 
@@ -104,14 +104,14 @@ export async function POST(req: Request) {
       },
     );
 
-    const [row] = await db
+    const [row] = await (await getDb())
       .insert(propertySends)
       .values({ ...base, status: "enviado", providerId })
       .returning();
 
     const codes = snapshot.map((p) => p.code).join(", ");
     const who = toName || toEmail;
-    await db.insert(activities).values([
+    await (await getDb()).insert(activities).values([
       ...(contactId
         ? [{
             entity: "contato" as const,
@@ -132,7 +132,7 @@ export async function POST(req: Request) {
   } catch (e) {
     const error = e instanceof Error ? e.message : "Falha no envio";
     console.error("[negociação]", e);
-    await db
+    await (await getDb())
       .insert(propertySends)
       .values({ ...base, status: "falhou", error })
       .catch(() => undefined);

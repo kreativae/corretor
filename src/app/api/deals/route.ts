@@ -1,5 +1,5 @@
 import { apiUser, unauthorized } from "@/lib/api-auth";
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { activities, contacts, deals, properties } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
@@ -12,7 +12,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Contato é obrigatório" }, { status: 400 });
     }
 
-    const [created] = await db
+    const [created] = await (await getDb())
       .insert(deals)
       .values({
         contactId: body.contactId,
@@ -22,13 +22,13 @@ export async function POST(req: Request) {
       })
       .returning();
 
-    const [contact] = await db
+    const [contact] = await (await getDb())
       .select()
       .from(contacts)
       .where(eq(contacts.id, body.contactId));
     const propName = body.propertyId
       ? (
-          await db
+          await (await getDb())
             .select({ code: properties.code })
             .from(properties)
             .where(eq(properties.id, body.propertyId))
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
       : null;
 
     const label = `Negociação aberta com ${contact?.name ?? "contato"}${propName ? ` · ${propName}` : ""}.`;
-    await db.insert(activities).values([
+    await (await getDb()).insert(activities).values([
       { entity: "negocio", entityId: created.id, kind: "stage", text: label },
       { entity: "contato", entityId: body.contactId, kind: "stage", text: label },
     ]);

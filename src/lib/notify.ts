@@ -1,5 +1,5 @@
 import "server-only";
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { settings } from "@/db/schema";
 import { TYPE_LABELS } from "@/lib/labels";
 import { getWhiteLabel } from "@/lib/queries";
@@ -23,7 +23,7 @@ export type EmailConfig = { resendApiKey: string; fromEmail: string; fromName: s
 export async function getEmailConfig(): Promise<EmailConfig> {
   let saved: Partial<EmailConfig> = {};
   try {
-    const [row] = await db.select().from(settings).where(eq(settings.key, "email"));
+    const [row] = await (await getDb()).select().from(settings).where(eq(settings.key, "email"));
     saved = (row?.value ?? {}) as Partial<EmailConfig>;
   } catch {
     /* sem banco: só variáveis */
@@ -47,9 +47,9 @@ export async function saveEmailConfig(input: Partial<EmailConfig>) {
     fromEmail: /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(fromEmail) ? fromEmail : "",
     fromName: str(input.fromName, 80).replace(/[<>"]/g, ""),
   };
-  const [row] = await db.select().from(settings).where(eq(settings.key, "email"));
-  if (row) await db.update(settings).set({ value: next }).where(eq(settings.key, "email"));
-  else await db.insert(settings).values({ key: "email", value: next });
+  const [row] = await (await getDb()).select().from(settings).where(eq(settings.key, "email"));
+  if (row) await (await getDb()).update(settings).set({ value: next }).where(eq(settings.key, "email"));
+  else await (await getDb()).insert(settings).values({ key: "email", value: next });
   return next;
 }
 
@@ -57,7 +57,7 @@ export const maskKey = (s: string) => (s ? `${s.slice(0, 3)}${"•".repeat(8)}${
 
 export async function getNotifySettings(): Promise<NotifySettings> {
   try {
-    const [row] = await db.select().from(settings).where(eq(settings.key, "notifications"));
+    const [row] = await (await getDb()).select().from(settings).where(eq(settings.key, "notifications"));
     return { ...DEFAULTS, ...((row?.value ?? {}) as Partial<NotifySettings>) };
   } catch {
     return DEFAULTS;

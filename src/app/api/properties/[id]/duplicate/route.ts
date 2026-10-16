@@ -1,5 +1,5 @@
 import { apiUser, unauthorized } from "@/lib/api-auth";
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { activities, properties, propertyImages } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { nextPropertyCode } from "@/lib/property-code";
@@ -20,14 +20,14 @@ export async function POST(_req: Request, { params }: Params) {
   if (limit) return NextResponse.json({ error: limit }, { status: 403 });
   try {
     const { id } = await params;
-    const [src] = await db.select().from(properties).where(eq(properties.id, id));
+    const [src] = await (await getDb()).select().from(properties).where(eq(properties.id, id));
     if (!src) return NextResponse.json({ error: "Imóvel não encontrado" }, { status: 404 });
 
     const rural = isRuralType(src.type);
     const code = await nextPropertyCode(rural);
     const { id: _id, code: _code, createdAt: _c, updatedAt: _u, ...data } = src;
 
-    const [created] = await db
+    const [created] = await (await getDb())
       .insert(properties)
       .values({
         ...data,
@@ -37,19 +37,19 @@ export async function POST(_req: Request, { params }: Params) {
       })
       .returning();
 
-    const imgs = await db
+    const imgs = await (await getDb())
       .select()
       .from(propertyImages)
       .where(eq(propertyImages.propertyId, id))
       .orderBy(asc(propertyImages.position));
     if (imgs.length) {
-      await db.insert(propertyImages).values(
+      await (await getDb()).insert(propertyImages).values(
         imgs.map((img) => ({ propertyId: created.id, url: img.url, position: img.position })),
       );
     }
 
     const author = await getCurrentUser();
-    await db.insert(activities).values({
+    await (await getDb()).insert(activities).values({
       entity: "imovel",
       entityId: created.id,
       kind: "created",

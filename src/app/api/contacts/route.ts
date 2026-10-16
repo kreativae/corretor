@@ -1,4 +1,4 @@
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { activities, contacts } from "@/db/schema";
 import { apiAuth, unauthorized } from "@/lib/api-auth";
 import { requestPublicOrigin } from "@/lib/google";
@@ -19,7 +19,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Nome e telefone são obrigatórios" }, { status: 400 });
     }
 
-    const [created] = await db
+    const [created] = await (await getDb())
       .insert(contacts)
       .values({
         name: body.name.trim(),
@@ -35,7 +35,7 @@ export async function POST(req: Request) {
       })
       .returning();
 
-    await db.insert(activities).values({
+    await (await getDb()).insert(activities).values({
       entity: "contato",
       entityId: created.id,
       kind: "lead",

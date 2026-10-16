@@ -1,5 +1,5 @@
 import { apiUser, unauthorized } from "@/lib/api-auth";
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { activities, contacts, integrations } from "@/db/schema";
 import { GoogleApiError, googleApi } from "@/lib/google";
 import { getContact, getMatchesFor, listDeals, listLeadDates, listVisits, listPropertySends, listContactWhatsApp } from "@/lib/queries";
@@ -92,7 +92,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Nome e telefone obrigatórios" }, { status: 400 });
     }
 
-    const [updated] = await db
+    const [updated] = await (await getDb())
       .update(contacts)
       .set({
         name: body.name.trim(),
@@ -118,7 +118,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Contato não encontrado" }, { status: 404 });
     }
 
-    await db.insert(activities).values({
+    await (await getDb()).insert(activities).values({
       entity: "contato",
       entityId: id,
       kind: "updated",
@@ -142,14 +142,14 @@ export async function DELETE(
     const { id } = await params;
     const alsoGoogle = new URL(req.url).searchParams.get("google") === "1";
 
-    const [contact] = await db.select().from(contacts).where(eq(contacts.id, id));
+    const [contact] = await (await getDb()).select().from(contacts).where(eq(contacts.id, id));
     if (!contact) {
       return NextResponse.json({ error: "Contato não encontrado" }, { status: 404 });
     }
 
     let deletedInGoogle = false;
     if (alsoGoogle && contact.googleResourceName) {
-      const [integration] = await db
+      const [integration] = await (await getDb())
         .select()
         .from(integrations)
         .where(eq(integrations.provider, "google_contacts"));
@@ -172,9 +172,9 @@ export async function DELETE(
       deletedInGoogle = true;
     }
 
-    await db.delete(contacts).where(eq(contacts.id, id));
+    await (await getDb()).delete(contacts).where(eq(contacts.id, id));
 
-    await db.insert(activities).values({
+    await (await getDb()).insert(activities).values({
       entity: "sistema",
       entityId: null,
       kind: "updated",

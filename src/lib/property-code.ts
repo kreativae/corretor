@@ -1,5 +1,5 @@
 import "server-only";
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { properties } from "@/db/schema";
 import { getWhiteLabel } from "@/lib/queries";
 
@@ -14,7 +14,7 @@ export async function nextPropertyCode(rural: boolean) {
   const p = await codePrefixes();
   const prefix = rural ? p.rural : p.urban;
   const taken = new Set(
-    (await db.select({ code: properties.code }).from(properties)).map((r) => r.code),
+    (await (await getDb()).select({ code: properties.code }).from(properties)).map((r) => r.code),
   );
   let seq = 2401 + taken.size;
   while (taken.has(`${prefix}-${seq}`)) seq += 1;

@@ -1,3 +1,4 @@
+import { currentConn, withTenant } from "@/db";
 import { requestPublicOrigin } from "@/lib/google";
 import { getWhatsAppConfig, handleEvolutionWebhook } from "@/lib/whatsapp";
 import { timingSafeEqual } from "node:crypto";
@@ -18,7 +19,9 @@ export async function POST(req: Request) {
   const payload = await req.json().catch(() => null);
   if (!payload) return NextResponse.json({ ok: true });
   const baseUrl = requestPublicOrigin(req);
-  after(() => handleEvolutionWebhook(payload, baseUrl).catch((e) => console.error("[evolution webhook]", e)));
+  // A empresa vem do ?t= da URL; o processamento roda depois da resposta
+  const conn = await currentConn();
+  after(() => withTenant(conn, () => handleEvolutionWebhook(payload, baseUrl)).catch((e) => console.error("[evolution webhook]", e)));
   return NextResponse.json({ ok: true });
 }
 

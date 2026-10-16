@@ -1,3 +1,4 @@
+import { currentConn, withTenant } from "@/db";
 import { requestPublicOrigin } from "@/lib/google";
 import { getWhatsAppConfig, handleWebhook, validSignature } from "@/lib/whatsapp";
 import { after, NextResponse } from "next/server";
@@ -28,6 +29,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   }
   const baseUrl = requestPublicOrigin(req);
-  after(() => handleWebhook(payload, baseUrl).catch((e) => console.error("[whatsapp webhook]", e)));
+  // A empresa vem do ?t= da URL; o processamento roda depois da resposta
+  const conn = await currentConn();
+  after(() => withTenant(conn, () => handleWebhook(payload, baseUrl)).catch((e) => console.error("[whatsapp webhook]", e)));
   return NextResponse.json({ ok: true });
 }

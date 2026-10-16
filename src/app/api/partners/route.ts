@@ -1,4 +1,4 @@
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { activities, partners } from "@/db/schema";
 import { apiUser, unauthorized } from "@/lib/api-auth";
 import { sanitizePartner } from "@/lib/partners";
@@ -15,8 +15,8 @@ export async function POST(req: Request) {
   try {
     const data = sanitizePartner(await req.json());
     if (data.name.length < 2) return NextResponse.json({ error: "Informe o nome do parceiro." }, { status: 400 });
-    const [created] = await db.insert(partners).values(data).returning();
-    await db.insert(activities).values({
+    const [created] = await (await getDb()).insert(partners).values(data).returning();
+    await (await getDb()).insert(activities).values({
       entity: "sistema",
       entityId: null,
       kind: "created",

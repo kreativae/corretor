@@ -1,4 +1,4 @@
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { propertyImages } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
 import { blobToken } from "@/lib/blob";
@@ -10,7 +10,7 @@ import sharp from "sharp";
 /** Foto de exemplo: a primeira foto cadastrada ou, sem fotos, um céu/fachada desenhado. */
 async function sampleImage(): Promise<Buffer> {
   try {
-    const [img] = await db.select({ url: propertyImages.url }).from(propertyImages).limit(1);
+    const [img] = await (await getDb()).select({ url: propertyImages.url }).from(propertyImages).limit(1);
     const path = img?.url.split("/api/media/")[1]?.split("?")[0];
     const token = blobToken();
     if (path && token) {

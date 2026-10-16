@@ -7,6 +7,7 @@ import { brandShortName, getWhiteLabel } from "@/lib/queries";
 import { getSiteContent } from "@/lib/site-content";
 import { hexToRgbTriplet, onAccentColor } from "@/lib/utils";
 import "./globals.css";
+import { siteBaseUrl } from "@/lib/tenant";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const jetbrains = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains" });
@@ -15,7 +16,7 @@ const montserrat = Montserrat({ subsets: ["latin"], variable: "--font-montserrat
 
 export async function generateMetadata(): Promise<Metadata> {
   const [wl, content] = await Promise.all([getWhiteLabel(), getSiteContent()]);
-  const base = process.env.NEXT_PUBLIC_SITE_URL ?? `https://${wl.domain}`;
+  const base = await siteBaseUrl(wl.domain);
   return {
     metadataBase: new URL(base),
     title: { default: content.seo.title, template: `%s · ${wl.orgName}` },

@@ -1,11 +1,12 @@
 import { getWhiteLabel, listPublishedProperties } from "@/lib/queries";
 import type { MetadataRoute } from "next";
+import { siteBaseUrl } from "@/lib/tenant";
 
 export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const wl = await getWhiteLabel();
-  const base = process.env.NEXT_PUBLIC_SITE_URL ?? `https://${wl.domain}`;
+  const base = await siteBaseUrl(wl.domain);
 
   let properties: Awaited<ReturnType<typeof listPublishedProperties>> = [];
   try {

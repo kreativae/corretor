@@ -7,7 +7,7 @@ export const RUNTIME_MIGRATIONS = [
   `DO $$ BEGIN
      IF NOT EXISTS (
        SELECT 1 FROM information_schema.columns
-       WHERE table_name = 'properties' AND column_name = 'rural'
+       WHERE table_schema = current_schema() AND table_name = 'properties' AND column_name = 'rural'
      ) THEN
        ALTER TABLE properties ADD COLUMN rural jsonb;
      END IF;
@@ -43,7 +43,7 @@ export const RUNTIME_MIGRATIONS = [
   `DO $$ BEGIN
      IF NOT EXISTS (
        SELECT 1 FROM information_schema.columns
-       WHERE table_name = 'properties' AND column_name = 'partner_id'
+       WHERE table_schema = current_schema() AND table_name = 'properties' AND column_name = 'partner_id'
      ) THEN
        ALTER TABLE properties
          ADD COLUMN partner_id uuid REFERENCES partners(id) ON DELETE SET NULL,
@@ -126,4 +126,22 @@ export const RUNTIME_MIGRATIONS = [
      lng real,
      updated_at timestamptz NOT NULL DEFAULT now()
    );`,
+];
+
+/** Só no banco principal (esquema public): cadastro de empresas da gerência */
+export const CONTROL_MIGRATIONS: string[] = [
+  `CREATE TABLE IF NOT EXISTS tenants (
+     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+     slug text NOT NULL UNIQUE,
+     name text NOT NULL,
+     schema_name text NOT NULL UNIQUE,
+     db_user text,
+     db_password text,
+     domains jsonb NOT NULL DEFAULT '[]'::jsonb,
+     created_at timestamptz NOT NULL DEFAULT now()
+   );`,
+  // A empresa que já existia vira a principal (esquema public)
+  `INSERT INTO tenants (slug, name, schema_name)
+   SELECT 'principal', COALESCE((SELECT value->>'orgName' FROM settings WHERE key = 'whiteLabel'), 'Empresa principal'), 'public'
+   ON CONFLICT DO NOTHING;`,
 ];

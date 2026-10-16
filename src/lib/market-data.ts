@@ -1,5 +1,5 @@
 import "server-only";
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { deals, marketSamples, properties, regionGeo } from "@/db/schema";
 import { crmPropertyPath, isRuralType, normalizeRural, alqToM2 } from "@/lib/rural";
 import { median, regionKey, unitValue, type MarketSample } from "@/lib/market";
@@ -17,7 +17,7 @@ function areaOf(p: { type: string; area: number; rural: unknown }) {
 /** Todas as amostras: anúncios da carteira, negócios fechados e amostras de mercado. */
 export async function loadMarketSamples(): Promise<MarketSample[]> {
   const [props, closed, manual] = await Promise.all([
-    db
+    (await getDb())
       .select({
         id: properties.id,
         code: properties.code,
@@ -35,11 +35,11 @@ export async function loadMarketSamples(): Promise<MarketSample[]> {
         createdAt: properties.createdAt,
       })
       .from(properties),
-    db
+    (await getDb())
       .select({ propertyId: deals.propertyId, value: deals.value, updatedAt: deals.updatedAt })
       .from(deals)
       .where(eq(deals.stage, "fechado")),
-    db.select().from(marketSamples).orderBy(desc(marketSamples.sampledAt)),
+    (await getDb()).select().from(marketSamples).orderBy(desc(marketSamples.sampledAt)),
   ]);
 
   const byId = new Map(props.map((p) => [p.id, p]));
@@ -113,7 +113,7 @@ export async function loadMarketSamples(): Promise<MarketSample[]> {
 /** Centros já localizados (chave da região → lat/lng; null = não encontrado) */
 export async function loadRegionGeo(keys: string[]) {
   if (!keys.length) return {};
-  const rows = await db.select().from(regionGeo).where(inArray(regionGeo.key, keys));
+  const rows = await (await getDb()).select().from(regionGeo).where(inArray(regionGeo.key, keys));
   return Object.fromEntries(rows.map((r) => [r.key, r.lat != null && r.lng != null ? [r.lat, r.lng] : null])) as Record<
     string,
     [number, number] | null

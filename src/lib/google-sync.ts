@@ -1,6 +1,6 @@
 import "server-only";
 
-import { db } from "@/db";
+import { getDb } from "@/db";
 import {
   activities,
   contacts,
@@ -148,14 +148,14 @@ async function listGooglePeople(integration: Integration) {
  */
 async function removeDeletedGoogleContact(local: Contact, syncedAt: Date) {
   const [[d], [v]] = await Promise.all([
-    db.select({ n: count() }).from(deals).where(eq(deals.contactId, local.id)),
-    db.select({ n: count() }).from(visits).where(eq(visits.contactId, local.id)),
+    (await getDb()).select({ n: count() }).from(deals).where(eq(deals.contactId, local.id)),
+    (await getDb()).select({ n: count() }).from(visits).where(eq(visits.contactId, local.id)),
   ]);
   if (!d.n && !v.n) {
-    await db.delete(contacts).where(eq(contacts.id, local.id));
+    await (await getDb()).delete(contacts).where(eq(contacts.id, local.id));
     return true;
   }
-  await db
+  await (await getDb())
     .update(contacts)
     .set({
       googleResourceName: null,
@@ -180,7 +180,7 @@ export async function syncGoogleContacts(
     errors: [],
   };
   const startedAt = new Date();
-  const locals = await db.select().from(contacts);
+  const locals = await (await getDb()).select().from(contacts);
   const byResource = new Map(
     locals
       .filter((c) => c.googleResourceName)
@@ -225,7 +225,7 @@ export async function syncGoogleContacts(
       const remoteEtag = source?.etag || person.etag || null;
 
       if (!local) {
-        const [created] = await db
+        const [created] = await (await getDb())
           .insert(contacts)
           .values({
             name: values.name,
@@ -262,7 +262,7 @@ export async function syncGoogleContacts(
           },
         );
         const newSource = personSource(updated);
-        await db
+        await (await getDb())
           .update(contacts)
           .set({
             googleResourceName: updated.resourceName ?? person.resourceName,
@@ -276,7 +276,7 @@ export async function syncGoogleContacts(
         result.pushed += 1;
       } else if (remoteChanged) {
         // Google mais recente: atualiza o CRM.
-        await db
+        await (await getDb())
           .update(contacts)
           .set({
             name: values.name,
@@ -291,7 +291,7 @@ export async function syncGoogleContacts(
           .where(eq(contacts.id, local.id));
         result.pulled += 1;
       } else {
-        await db
+        await (await getDb())
           .update(contacts)
           .set({
             googleResourceName: person.resourceName,
@@ -341,7 +341,7 @@ export async function syncGoogleContacts(
           },
         );
         const source = personSource(updated);
-        await db
+        await (await getDb())
           .update(contacts)
           .set({
             googleEtag: source?.etag || updated.etag || local.googleEtag,
@@ -361,7 +361,7 @@ export async function syncGoogleContacts(
         { method: "POST", body: JSON.stringify(googlePersonBody(local)) },
       );
       const source = personSource(created);
-      await db
+      await (await getDb())
         .update(contacts)
         .set({
           googleResourceName: created.resourceName,
@@ -379,7 +379,7 @@ export async function syncGoogleContacts(
   }
 
   const processed = result.pulled + result.pushed + result.unchanged;
-  await db
+  await (await getDb())
     .update(integrations)
     .set({
       syncCursor: nextSyncToken ?? integration.syncCursor,
@@ -389,7 +389,7 @@ export async function syncGoogleContacts(
     })
     .where(eq(integrations.id, integration.id));
 
-  await db.insert(activities).values({
+  await (await getDb()).insert(activities).values({
     entity: "sistema",
     entityId: null,
     kind: "sync",
@@ -445,7 +445,7 @@ export async function syncGoogleCalendar(
     errors: [],
   };
   const startedAt = new Date();
-  const rows = await db
+  const rows = await (await getDb())
     .select({ visit: visits, contact: contacts, property: properties })
     .from(visits)
     .innerJoin(contacts, eq(visits.contactId, contacts.id))
@@ -468,7 +468,7 @@ export async function syncGoogleCalendar(
             body: JSON.stringify(calendarEventBody(visit, contact, property)),
           },
         );
-        await db
+        await (await getDb())
           .update(visits)
           .set({
             googleEventId: created.id,
@@ -497,7 +497,7 @@ export async function syncGoogleCalendar(
                 body: JSON.stringify(calendarEventBody(visit, contact, property)),
               },
             );
-            await db
+            await (await getDb())
               .update(visits)
               .set({
                 googleEventId: created.id,
@@ -525,7 +525,7 @@ export async function syncGoogleCalendar(
             `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${encodeURIComponent(visit.googleEventId)}?sendUpdates=all`,
             { method: "DELETE" },
           );
-          await db
+          await (await getDb())
             .update(visits)
             .set({ googleSyncedAt: startedAt })
             .where(eq(visits.id, visit.id));
@@ -539,7 +539,7 @@ export async function syncGoogleCalendar(
               headers: remote.etag ? { "If-Match": remote.etag } : undefined,
             },
           );
-          await db
+          await (await getDb())
             .update(visits)
             .set({
               googleEtag: updated.etag,
@@ -552,7 +552,7 @@ export async function syncGoogleCalendar(
         const remoteStart = remote.start?.dateTime
           ? new Date(remote.start.dateTime)
           : null;
-        await db
+        await (await getDb())
           .update(visits)
           .set({
             ...(remoteStart && !Number.isNaN(remoteStart.getTime())
@@ -565,7 +565,7 @@ export async function syncGoogleCalendar(
           .where(eq(visits.id, visit.id));
         result.pulled += 1;
       } else {
-        await db
+        await (await getDb())
           .update(visits)
           .set({ googleEtag: remote.etag, googleSyncedAt: startedAt })
           .where(eq(visits.id, visit.id));
@@ -577,7 +577,7 @@ export async function syncGoogleCalendar(
   }
 
   const processed = result.pulled + result.pushed + result.unchanged;
-  await db
+  await (await getDb())
     .update(integrations)
     .set({
       lastSyncAt: startedAt,
@@ -585,7 +585,7 @@ export async function syncGoogleCalendar(
       statusMessage: `${result.pulled} recebidos · ${result.pushed} enviados${result.errors.length ? ` · ${result.errors.length} erros` : ""}.`,
     })
     .where(eq(integrations.id, integration.id));
-  await db.insert(activities).values({
+  await (await getDb()).insert(activities).values({
     entity: "sistema",
     entityId: null,
     kind: "sync",

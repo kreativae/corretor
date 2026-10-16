@@ -1,4 +1,4 @@
-import { db } from "@/db";
+import { controlDb } from "@/db";
 import { users } from "@/db/schema";
 import { getSuperadmin, hashPassword } from "@/lib/auth";
 import { eq } from "drizzle-orm";
@@ -15,11 +15,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Informe nome e e-mail válidos." }, { status: 400 });
   }
   if (password.length < 8) return NextResponse.json({ error: "A senha deve ter ao menos 8 caracteres." }, { status: 400 });
-  const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email));
+  const [existing] = await controlDb.select({ id: users.id }).from(users).where(eq(users.email, email));
   if (existing) {
-    await db.update(users).set({ role: "superadmin", name, passwordHash: hashPassword(password), active: true }).where(eq(users.id, existing.id));
+    await controlDb.update(users).set({ role: "superadmin", name, passwordHash: hashPassword(password), active: true }).where(eq(users.id, existing.id));
   } else {
-    await db.insert(users).values({ name, email, role: "superadmin", passwordHash: hashPassword(password) });
+    await controlDb.insert(users).values({ name, email, role: "superadmin", passwordHash: hashPassword(password) });
   }
   return NextResponse.json({ ok: true });
 }

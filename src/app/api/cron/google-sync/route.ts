@@ -1,4 +1,5 @@
-import { db } from "@/db";
+import { getDb, withTenant } from "@/db";
+import { connOf, listTenants } from "@/lib/tenant";
 import { integrations } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
 import { syncGoogleIntegration } from "@/lib/google-sync";
@@ -20,7 +21,16 @@ export async function POST(req: Request) {
     await requireAdmin();
   }
 
-  const candidates = (await db.select().from(integrations)).filter(
+  // Cada empresa tem as próprias integrações
+  const report = [];
+  for (const tenant of await listTenants(true)) {
+    report.push({ empresa: tenant.slug, ...(await withTenant(connOf(tenant), syncDue)) });
+  }
+  return NextResponse.json({ empresas: report });
+}
+
+async function syncDue() {
+  const candidates = (await (await getDb()).select().from(integrations)).filter(
     (item) => item.category === "google" && item.connected && item.autoSync,
   );
   const now = Date.now();
@@ -57,11 +67,7 @@ export async function POST(req: Request) {
     }
   }
 
-  return NextResponse.json({
-    checked: candidates.length,
-    synced: due.length,
-    results,
-  });
+  return { checked: candidates.length, synced: due.length, results };
 }
 
 export async function GET(req: Request) {

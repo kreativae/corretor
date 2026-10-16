@@ -1,4 +1,4 @@
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { activities, apiKeys } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
 import { eq } from "drizzle-orm";
@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     const secret = randomBytes(24).toString("hex");
     const prefix = `imob_${scope === "total" ? "live" : "ro"}_${secret.slice(0, 6)}`;
 
-    const [created] = await db
+    const [created] = await (await getDb())
       .insert(apiKeys)
       .values({
         label: label.trim(),
@@ -25,7 +25,7 @@ export async function POST(req: Request) {
       })
       .returning();
 
-    await db.insert(activities).values({
+    await (await getDb()).insert(activities).values({
       entity: "sistema",
       entityId: null,
       kind: "created",
@@ -47,7 +47,7 @@ export async function DELETE(req: Request) {
   await requireAdmin();
   try {
     const { id } = await req.json();
-    const [revoked] = await db
+    const [revoked] = await (await getDb())
       .update(apiKeys)
       .set({ revoked: true })
       .where(eq(apiKeys.id, id))
@@ -55,7 +55,7 @@ export async function DELETE(req: Request) {
     if (!revoked) {
       return NextResponse.json({ error: "Chave não encontrada" }, { status: 404 });
     }
-    await db.insert(activities).values({
+    await (await getDb()).insert(activities).values({
       entity: "sistema",
       entityId: null,
       kind: "updated",

@@ -1,5 +1,5 @@
 import { apiUser, unauthorized } from "@/lib/api-auth";
-import { db } from "@/db";
+import { getDb } from "@/db";
 import {
   activities,
   deals,
@@ -25,12 +25,12 @@ export async function PATCH(req: Request, { params }: Params) {
     const body = await req.json();
 
     if (Object.keys(body).length === 1 && typeof body.published === "boolean") {
-      const [updated] = await db
+      const [updated] = await (await getDb())
         .update(properties)
         .set({ published: body.published, updatedAt: new Date() })
         .where(eq(properties.id, id))
         .returning();
-      await db.insert(activities).values({
+      await (await getDb()).insert(activities).values({
         entity: "imovel",
         entityId: id,
         kind: "updated",
@@ -65,7 +65,7 @@ export async function PATCH(req: Request, { params }: Params) {
       data.videoUrl = parseYouTubeUrl(v) ? v.slice(0, 300) : null;
     }
 
-    const [updated] = await db
+    const [updated] = await (await getDb())
       .update(properties)
       .set({ ...data, updatedAt: new Date() })
       .where(eq(properties.id, id))
@@ -76,9 +76,9 @@ export async function PATCH(req: Request, { params }: Params) {
     }
 
     if (Array.isArray(images)) {
-      await db.delete(propertyImages).where(eq(propertyImages.propertyId, id));
+      await (await getDb()).delete(propertyImages).where(eq(propertyImages.propertyId, id));
       if (images.length) {
-        await db.insert(propertyImages).values(
+        await (await getDb()).insert(propertyImages).values(
           images
             .filter((u: unknown) => typeof u === "string" && (u as string).startsWith("http"))
             .map((url: string, i: number) => ({ propertyId: id, url, position: i })),
@@ -86,7 +86,7 @@ export async function PATCH(req: Request, { params }: Params) {
       }
     }
 
-    await db.insert(activities).values({
+    await (await getDb()).insert(activities).values({
       entity: "imovel",
       entityId: id,
       kind: "updated",
@@ -104,7 +104,7 @@ export async function DELETE(_req: Request, { params }: Params) {
   if (!(await apiUser())) return unauthorized();
   try {
     const { id } = await params;
-    const [prop] = await db
+    const [prop] = await (await getDb())
       .select({ code: properties.code })
       .from(properties)
       .where(eq(properties.id, id));
@@ -112,7 +112,7 @@ export async function DELETE(_req: Request, { params }: Params) {
       return NextResponse.json({ error: "Imóvel não encontrado" }, { status: 404 });
     }
     // Documentos internos: apaga os arquivos do Blob (as linhas saem em cascata)
-    const docs = await db
+    const docs = await (await getDb())
       .select({ pathname: propertyDocuments.pathname, url: propertyDocuments.url })
       .from(propertyDocuments)
       .where(eq(propertyDocuments.propertyId, id))
@@ -121,10 +121,10 @@ export async function DELETE(_req: Request, { params }: Params) {
     if (docs.length && token) {
       await del(docs.map((d) => d.url || d.pathname), { token }).catch((e) => console.error(e));
     }
-    await db.delete(visits).where(eq(visits.propertyId, id));
-    await db.delete(deals).where(eq(deals.propertyId, id));
-    await db.delete(properties).where(eq(properties.id, id));
-    await db.insert(activities).values({
+    await (await getDb()).delete(visits).where(eq(visits.propertyId, id));
+    await (await getDb()).delete(deals).where(eq(deals.propertyId, id));
+    await (await getDb()).delete(properties).where(eq(properties.id, id));
+    await (await getDb()).insert(activities).values({
       entity: "sistema",
       entityId: null,
       kind: "updated",

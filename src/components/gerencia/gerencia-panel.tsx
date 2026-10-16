@@ -5,7 +5,9 @@ import { MODULES, type Account } from "@/lib/modules";
 import { roleLabel } from "@/lib/roles";
 import { cn, formatNumber, timeAgo } from "@/lib/utils";
 import {
+  ArrowLeft,
   Building2,
+  Globe,
   Crown,
   ExternalLink,
   LayoutDashboard,
@@ -25,6 +27,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
+type Company = { slug: string; name: string; label: string; main: boolean; domains: string[] };
 type Usage = {
   activeUsers: number;
   properties: number;
@@ -35,30 +38,25 @@ type Usage = {
   openDeals: number;
   closedDeals: number;
   lastActivity: string | null;
-  whatsapp: string | null;
-  email: boolean;
 };
 type Member = { id: string; name: string; email: string; role?: string; active?: boolean; lastLoginAt: string | null };
 
 const card = "rounded-2xl border border-hairline bg-card p-5 sm:p-6";
 const h2 = "font-display text-base font-semibold tracking-tight";
 
-/** Painel da gerência: conta, plano, limites, módulos, uso e acessos de gerência */
+/** Gerência de uma empresa: situação, plano, limites, módulos, uso, domínios e exclusão */
 export function GerenciaPanel({
-  me,
-  client,
+  company,
   initial,
   usage,
   team,
-  managers,
 }: {
-  me: { id: string; name: string };
-  client: string;
+  company: Company;
   initial: Account;
   usage: Usage;
   team: Member[];
-  managers: Member[];
 }) {
+  const client = company.name;
   const router = useRouter();
   const [acct, setAcct] = useState(initial);
   const [saved, setSaved] = useState(initial);
@@ -69,7 +67,7 @@ export function GerenciaPanel({
   async function save(next = acct) {
     setSaving(true);
     try {
-      const res = await fetch("/api/gerencia/account", {
+      const res = await fetch(`/api/gerencia/empresas/${company.slug}/account`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(next),
@@ -93,38 +91,56 @@ export function GerenciaPanel({
     await save({ ...acct, status: suspend ? "suspenso" : "ativo" });
   }
 
-  /* ── Acessos de gerência ── */
-  const [adding, setAdding] = useState(false);
-  const [mf, setMf] = useState({ name: "", email: "", password: "" });
+  /* ── Entrar na empresa (CRM, admin e site) ── */
   const [busy, setBusy] = useState(false);
 
-  async function addManager() {
+  async function enter(path: string, newTab = false) {
+    const res = await fetch(`/api/gerencia/empresas/${company.slug}/entrar`, { method: "POST" });
+    if (!res.ok) return toast.error("Não foi possível abrir a empresa.");
+    if (newTab) window.open(path, "_blank");
+    else window.location.href = path;
+  }
+
+  /* ── Cadastro: nome interno e domínios ── */
+  const [label, setLabel] = useState(company.label);
+  const [domains, setDomains] = useState(company.domains.join(", "));
+
+  async function saveInfo() {
     setBusy(true);
     try {
-      const res = await fetch("/api/gerencia/managers", {
-        method: "POST",
+      const res = await fetch(`/api/gerencia/empresas/${company.slug}`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(mf),
+        body: JSON.stringify({ name: label, domains: domains.split(/[,\s]+/).filter(Boolean) }),
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error);
-      toast.success("Acesso de gerência criado.");
-      setAdding(false);
-      setMf({ name: "", email: "", password: "" });
+      toast.success("Cadastro salvo.");
       router.refresh();
     } catch (e) {
-      toast.error(e instanceof Error && e.message ? e.message : "Não foi possível criar.");
+      toast.error(e instanceof Error && e.message ? e.message : "Não foi possível salvar.");
     } finally {
       setBusy(false);
     }
   }
 
-  async function removeManager(m: Member) {
-    if (!confirm(`Remover o acesso de gerência de ${m.name}?`)) return;
-    const res = await fetch(`/api/gerencia/managers/${m.id}`, { method: "DELETE" });
+  async function remove() {
+    const typed = prompt(
+      `Excluir ${client} e TODOS os dados (imóveis, contatos, fotos cadastradas, histórico)? Não dá para desfazer.\n\nDigite o identificador "${company.slug}" para confirmar:`,
+    );
+    if (typed !== company.slug) {
+      if (typed !== null) toast.error("Identificador não confere. Nada foi excluído.");
+      return;
+    }
+    const res = await fetch(`/api/gerencia/empresas/${company.slug}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ confirm: typed }),
+    });
     const d = await res.json().catch(() => ({}));
-    if (!res.ok) return toast.error(d.error || "Não foi possível remover.");
-    toast.success("Acesso removido.");
+    if (!res.ok) return toast.error(d.error || "Não foi possível excluir.");
+    toast.success("Empresa excluída.");
+    router.push("/gerencia");
     router.refresh();
   }
 
@@ -140,26 +156,32 @@ export function GerenciaPanel({
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10">
       {/* Topo */}
-      <header className="flex flex-wrap items-center gap-3">
+      <Link href="/gerencia" className="inline-flex items-center gap-1 text-xs text-subtle hover:text-ink">
+        <ArrowLeft className="size-3.5" /> Empresas
+      </Link>
+      <header className="mt-3 flex flex-wrap items-center gap-3">
         <span className="grid size-11 place-items-center rounded-2xl bg-ink text-canvas">
           <Crown className="size-5" />
         </span>
         <div className="min-w-0 flex-1 basis-[calc(100%-4rem)] sm:basis-0">
-          <p className="font-mono text-[10.5px] uppercase tracking-[0.22em] text-subtle">Gerência</p>
+          <p className="font-mono text-[10.5px] uppercase tracking-[0.22em] text-subtle">
+            Gerência · {company.slug}
+            {company.main ? " · principal" : ""}
+          </p>
           <h1 className="truncate font-display text-2xl font-semibold tracking-tight">{client}</h1>
         </div>
-        <Link href="/crm">
-          <Button variant="outline" size="sm">
-            <LayoutDashboard className="size-4" />
-            Abrir CRM
-          </Button>
-        </Link>
-        <Link href="/admin">
-          <Button variant="outline" size="sm">
-            <ShieldCheck className="size-4" />
-            Administração
-          </Button>
-        </Link>
+        <Button variant="outline" size="sm" onClick={() => enter("/crm")}>
+          <LayoutDashboard className="size-4" />
+          Abrir CRM
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => enter("/admin")}>
+          <ShieldCheck className="size-4" />
+          Administração
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => enter("/", true)}>
+          <Globe className="size-4" />
+          Site
+        </Button>
         <Button variant="ghost" size="sm" onClick={logout} aria-label="Sair">
           <LogOut className="size-4" />
         </Button>
@@ -297,16 +319,6 @@ export function GerenciaPanel({
                 </div>
               ))}
             </dl>
-            <div className="mt-4 space-y-2 border-t border-hairline pt-4 text-xs">
-              <p className="flex items-center gap-2">
-                <MessageCircle className="size-3.5 text-subtle" />
-                WhatsApp: <span className="font-medium">{usage.whatsapp ?? "não configurado"}</span>
-              </p>
-              <p className="flex items-center gap-2">
-                <Mail className="size-3.5 text-subtle" />
-                E-mail (Resend): <span className="font-medium">{usage.email ? "configurado" : "não configurado"}</span>
-              </p>
-            </div>
           </section>
 
           <section className={card}>
@@ -330,63 +342,34 @@ export function GerenciaPanel({
           </section>
 
           <section className={card}>
-            <div className="flex items-center justify-between">
-              <h2 className={h2}>Acessos de gerência</h2>
-              <Button variant="ghost" size="sm" onClick={() => setAdding(true)}>
-                <Plus className="size-4" />
-                Novo
+            <h2 className={h2}>Cadastro</h2>
+            <div className="mt-3 space-y-3">
+              <Field label="Nome interno">
+                <Input value={label} onChange={(e) => setLabel(e.target.value)} />
+              </Field>
+              <Field label="Domínios do site" hint="Separados por vírgula. Aponte o domínio para a Vercel e adicione no projeto.">
+                <Input value={domains} onChange={(e) => setDomains(e.target.value)} placeholder="silvaimoveis.com.br" className="font-mono text-xs" />
+              </Field>
+              <Button variant="outline" size="sm" onClick={saveInfo} loading={busy}>
+                <Save className="size-4" />
+                Salvar cadastro
               </Button>
             </div>
-            <ul className="mt-3 space-y-2.5 text-sm">
-              {managers.map((m) => (
-                <li key={m.id} className="flex items-center gap-2">
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-medium">
-                      {m.name}
-                      {m.id === me.id && <span className="ml-1 text-[11px] font-normal text-subtle">(você)</span>}
-                    </span>
-                    <span className="block truncate text-[11px] text-subtle">{m.email}</span>
-                  </span>
-                  {m.id !== me.id && (
-                    <Button variant="ghost" size="icon" onClick={() => removeManager(m)} aria-label={`Remover ${m.name}`}>
-                      <Trash2 className="size-4" />
-                    </Button>
-                  )}
-                </li>
-              ))}
-            </ul>
-            <p className="mt-3 text-[11px] text-subtle">Contas de gerência não aparecem na equipe do cliente.</p>
           </section>
+
+          {!company.main && (
+            <section className={cn(card, "border-red-500/30")}>
+              <h2 className={h2}>Excluir empresa</h2>
+              <p className="mt-1 text-xs text-subtle">Apaga a empresa e todos os dados dela. Não dá para desfazer.</p>
+              <Button variant="danger" size="sm" className="mt-3" onClick={remove}>
+                <Trash2 className="size-4" />
+                Excluir empresa
+              </Button>
+            </section>
+          )}
         </aside>
       </div>
 
-      <Modal open={adding} onClose={() => !busy && setAdding(false)} title="Novo acesso de gerência">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            addManager();
-          }}
-          className="space-y-4"
-        >
-          <Field label="Nome">
-            <Input value={mf.name} onChange={(e) => setMf({ ...mf, name: e.target.value })} />
-          </Field>
-          <Field label="E-mail">
-            <Input type="email" value={mf.email} onChange={(e) => setMf({ ...mf, email: e.target.value })} />
-          </Field>
-          <Field label="Senha (mín. 8)">
-            <Input type="password" value={mf.password} onChange={(e) => setMf({ ...mf, password: e.target.value })} autoComplete="new-password" />
-          </Field>
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setAdding(false)} disabled={busy}>
-              Cancelar
-            </Button>
-            <Button type="submit" variant="accent" loading={busy}>
-              Criar acesso
-            </Button>
-          </div>
-        </form>
-      </Modal>
     </div>
   );
 }

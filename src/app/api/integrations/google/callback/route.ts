@@ -1,4 +1,4 @@
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { activities, integrations } from "@/db/schema";
 import {
   exchangeGoogleCode,
@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
     ) as { state: string; integrationId: string };
     if (saved.state !== state) return fail("invalid_state");
 
-    const [integration] = await db
+    const [integration] = await (await getDb())
       .select()
       .from(integrations)
       .where(eq(integrations.id, saved.integrationId));
@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
     const email = await getGoogleUserEmail(token.access_token);
     const expiresAt = new Date(Date.now() + token.expires_in * 1000);
 
-    await db
+    await (await getDb())
       .update(integrations)
       .set({
         connected: true,
@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
       })
       .where(eq(integrations.id, integration.id));
 
-    await db.insert(activities).values({
+    await (await getDb()).insert(activities).values({
       entity: "sistema",
       entityId: null,
       kind: "sync",
