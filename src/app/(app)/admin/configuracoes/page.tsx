@@ -55,7 +55,16 @@ export default async function ConfiguracoesPage() {
       <FeaturesCard initial={features} />
       <StatCardsCard initial={statCards} />
       <MapOptionsCard initial={mapOptions} />
-      <WatermarkCard initial={watermark} />
+      <WatermarkCard
+        initial={watermark}
+        logoHint={
+          wl.logoDarkUrl || wl.logoUrl || wl.iconUrl
+            ? "Logo da empresa (White label)"
+            : wl.showMark
+              ? "Símbolo padrão · Carlos Amâncio Imóveis"
+              : "Sem logo: envie no White label (até lá, só as linhas)"
+        }
+      />
       <NotificationsCard
         initialEmails={notify.leadEmails}
         initialEnabled={notify.enabled}

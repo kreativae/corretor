@@ -72,7 +72,14 @@ function Row({
 }
 
 /** Configurações › Marca d'água das fotos do site, com prévia real. */
-export function WatermarkCard({ initial }: { initial: WatermarkSettings }) {
+export function WatermarkCard({
+  initial,
+  logoHint = "Carlos Amâncio · Imóveis",
+}: {
+  initial: WatermarkSettings;
+  /** De onde vem o logo da marca d'água nesta empresa */
+  logoHint?: string;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [wm, setWm] = useState(initial);
@@ -159,7 +166,7 @@ export function WatermarkCard({ initial }: { initial: WatermarkSettings }) {
               <div className="space-y-4 rounded-xl border border-hairline p-4">
                 <Row
                   title="Logotipo ao centro"
-                  hint="Carlos Amâncio · Imóveis"
+                  hint={logoHint}
                   checked={wm.logo}
                   disabled={off}
                   onChange={(v) => set({ logo: v })}

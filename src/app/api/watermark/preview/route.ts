@@ -2,7 +2,7 @@ import { getDb } from "@/db";
 import { propertyImages } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
 import { getFile } from "@/lib/blob";
-import { watermark } from "@/lib/watermark";
+import { getWatermarkLogo, watermark } from "@/lib/watermark";
 import { sanitizeWatermark } from "@/lib/watermark-settings";
 import sharp from "sharp";
 
@@ -32,7 +32,7 @@ export async function GET(req: Request) {
   const parsed: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(q)) parsed[k] = v === "1" ? true : v === "0" ? false : v;
   const s = { ...sanitizeWatermark(parsed), enabled: true };
-  const { data, type } = await watermark(await sampleImage(), s);
+  const { data, type } = await watermark(await sampleImage(), s, await getWatermarkLogo());
   return new Response(new Uint8Array(data), {
     headers: { "Content-Type": type, "Cache-Control": "private, no-store" },
   });

@@ -1,6 +1,6 @@
 import { getFile, isMediaPath } from "@/lib/blob";
 import { getWatermarkSettings } from "@/lib/features";
-import { watermark } from "@/lib/watermark";
+import { getWatermarkLogo, watermark } from "@/lib/watermark";
 
 /**
  * Serve fotos e logos de um Blob Store privado ou do disco do servidor. Os nomes têm sufixo aleatório e
@@ -36,7 +36,7 @@ export async function GET(
   if (wm?.enabled && (wm.logo || wm.lines)) {
     try {
       const buf = Buffer.from(await new Response(result.stream).arrayBuffer());
-      const { data, type } = await watermark(buf, wm);
+      const { data, type } = await watermark(buf, wm, await getWatermarkLogo());
       return new Response(new Uint8Array(data), {
         headers: {
           "Content-Type": type,
