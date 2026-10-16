@@ -2,13 +2,14 @@ import "server-only";
 import sharp from "sharp";
 import { currentConn } from "@/db";
 import { getFile } from "@/lib/blob";
-import { getWhiteLabel } from "@/lib/queries";
+import { brandShortName, getWhiteLabel } from "@/lib/queries";
+import path from "node:path";
 import { WATERMARK_DEFAULTS, type WatermarkSettings } from "@/lib/watermark-settings";
 
 /**
- * Marca d'água das fotos do site: o logo da empresa (Configurações › Marca) ou,
- * na empresa que usa o símbolo padrão, o logotipo Carlos Amâncio (vetor do
- * manual, texto já em curvas — não depende de fontes no servidor), em branco
+ * Marca d'água das fotos do site: o logo da empresa (Configurações › Marca), o
+ * logotipo Carlos Amâncio na empresa que usa o símbolo padrão (vetor do manual,
+ * texto já em curvas) ou, sem logo, o nome da marca como no menu, em branco
  * translúcido, centralizado, com sombra leve para aparecer em céu claro, e
  * linhas diagonais finas (estilo banco de imagens). Ajustes em Configurações.
  */
@@ -60,6 +61,53 @@ async function readLogo(url: string): Promise<Buffer | null> {
   return Buffer.from(await res.arrayBuffer());
 }
 
+/* Nome da marca como no menu (Wordmark): primeiro nome fino, resto pesado e o
+ * subtítulo espaçado. Montserrat vem em public/fonts (o servidor não tem fontes). */
+const FONT_DIR = path.join(process.cwd(), "public", "fonts", "montserrat");
+const FONTS = ["Montserrat_200ExtraLight.ttf", "Montserrat_500Medium.ttf", "Montserrat_800ExtraBold.ttf"];
+let fontsReady: Promise<void> | null = null;
+
+/** Registra as três espessuras no fontconfig do processo (o libvips guarda o arquivo) */
+function loadFonts() {
+  fontsReady ??= (async () => {
+    for (const f of FONTS) {
+      await sharp({ text: { text: ".", font: "Montserrat", fontfile: path.join(FONT_DIR, f) } }).png().toBuffer();
+    }
+  })().catch((e) => {
+    fontsReady = null;
+    throw e;
+  });
+  return fontsReady;
+}
+
+const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+async function wordmarkPng(name: string, sub: string) {
+  const [first, ...rest] = name.trim().toLocaleUpperCase("pt-BR").split(/\s+/);
+  if (!first) return null;
+  await loadFonts();
+  const subtitle = sub.trim().toLocaleUpperCase("pt-BR");
+  const markup =
+    `<span foreground="#ffffff"><span weight="200">${esc(first)}</span>` +
+    (rest.length ? ` <span weight="800">${esc(rest.join(" "))}</span>` : "") +
+    (subtitle ? `\n<span size="38%" weight="500" letter_spacing="6000">${esc(subtitle)}</span>` : "") +
+    `</span>`;
+  const { data, info } = await sharp({
+    text: {
+      text: markup,
+      font: "Montserrat 48",
+      fontfile: path.join(FONT_DIR, FONTS[2]),
+      dpi: 150,
+      rgba: true,
+      align: "centre",
+      spacing: 6,
+    },
+  })
+    .png()
+    .toBuffer({ resolveWithObject: true });
+  return { png: data, ratio: info.height / info.width };
+}
+
 const logoCache = new Map<string, { at: number; value: WatermarkLogo }>();
 
 /** Logo da empresa atual para a marca d'água (cache de 1 min por empresa) */
@@ -83,6 +131,15 @@ export async function getWatermarkLogo(): Promise<WatermarkLogo> {
       }
     } catch (e) {
       console.error("[marca d'água] logo da empresa", e);
+    }
+  }
+  // Sem logo nem símbolo padrão: o nome da marca, como aparece no menu
+  if (!value) {
+    try {
+      const mark = await wordmarkPng(brandShortName(wl), wl.brandSub);
+      if (mark) value = { kind: "empresa", ...mark };
+    } catch (e) {
+      console.error("[marca d'água] nome da marca", e);
     }
   }
   logoCache.set(key, { at: Date.now(), value });

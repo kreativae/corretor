@@ -62,7 +62,7 @@ export default async function ConfiguracoesPage() {
             ? "Logo da empresa (White label)"
             : wl.showMark
               ? "Símbolo padrão · Carlos Amâncio Imóveis"
-              : "Sem logo: envie no White label (até lá, só as linhas)"
+              : "Nome da marca, como no menu (envie um logo no White label para trocar)"
         }
       />
       <NotificationsCard
