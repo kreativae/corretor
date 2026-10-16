@@ -118,6 +118,8 @@ export function WhatsAppInbox({
   // Mensagem enviada com os dados abertos (enviada / entregue / lida)
   const [infoId, setInfoId] = useState<string | null>(null);
   const [toDelete, setToDelete] = useState<WaMessage | null>(null);
+  const [confirmThread, setConfirmThread] = useState(false);
+  const [deletingThread, setDeletingThread] = useState(false);
   const [deleting, setDeleting] = useState<"all" | "me" | null>(null);
   const canDelete = (m: WaMessage) =>
     m.type !== "deleted" && (isAdmin || (m.direction === "out" && !!m.sentBy && m.sentBy === userName));
@@ -312,6 +314,25 @@ export function WhatsAppInbox({
     }
   }
 
+  async function deleteThread() {
+    if (!active) return;
+    setDeletingThread(true);
+    try {
+      const res = await fetch(`/api/whatsapp/threads/${active}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Falha ao apagar a conversa.");
+      toast.success("Conversa apagada do CRM.");
+      setConfirmThread(false);
+      setActive(null);
+      setMessages([]);
+      loadThreads();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao apagar a conversa.");
+    } finally {
+      setDeletingThread(false);
+    }
+  }
+
   async function toggleArchive() {
     if (!active || !thread) return;
     await fetch(`/api/whatsapp/threads/${active}`, {
@@ -489,6 +510,11 @@ export function WhatsAppInbox({
                 <Button variant="ghost" size="sm" onClick={toggleArchive} aria-label={thread.archived ? "Desarquivar" : "Arquivar"} title={thread.archived ? "Desarquivar" : "Arquivar"}>
                   {thread.archived ? <ArchiveRestore className="size-4" /> : <Archive className="size-4" />}
                 </Button>
+                {isAdmin && (
+                  <Button variant="ghost" size="sm" onClick={() => setConfirmThread(true)} aria-label="Apagar conversa" title="Apagar conversa">
+                    <Trash2 className="size-4" />
+                  </Button>
+                )}
               </header>
 
               <div className="min-h-0 flex-1 space-y-2 overflow-y-auto bg-soft/40 px-3 py-4 sm:px-6" data-lenis-prevent>
@@ -667,6 +693,25 @@ export function WhatsAppInbox({
           )}
         </section>
       </div>
+
+      <Modal open={confirmThread} onClose={() => !deletingThread && setConfirmThread(false)} title="Apagar conversa">
+        <div className="space-y-4">
+          <p className="text-sm text-subtle">
+            Apaga do CRM todas as mensagens desta conversa{thread ? ` com ${thread.contactName || thread.profileName || formatPhone(national(thread.phone))}` : ""}.
+            No WhatsApp do contato nada muda: o WhatsApp não permite apagar a conversa do outro lado. O contato no CRM
+            (se houver) continua salvo. Não dá para desfazer.
+          </p>
+          <div className="flex justify-end gap-2 pt-1">
+            <Button type="button" variant="outline" onClick={() => setConfirmThread(false)} disabled={deletingThread}>
+              Cancelar
+            </Button>
+            <Button type="button" variant="accent" onClick={deleteThread} loading={deletingThread}>
+              <Trash2 className="size-4" />
+              Apagar conversa
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal open={!!toDelete} onClose={() => !deleting && setToDelete(null)} title="Apagar mensagem">
         {toDelete && (

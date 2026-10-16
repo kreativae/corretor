@@ -1,6 +1,7 @@
 import { getDb } from "@/db";
 import { waMessages, waThreads } from "@/db/schema";
 import { apiUser, unauthorized } from "@/lib/api-auth";
+import { isAdmin } from "@/lib/roles";
 import { linkThreadContact } from "@/lib/whatsapp";
 import { asc, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
@@ -19,6 +20,21 @@ export async function GET(_req: Request, { params }: Params) {
     .limit(500);
   await (await getDb()).update(waThreads).set({ unread: 0 }).where(eq(waThreads.phone, phone));
   return NextResponse.json(messages);
+}
+
+/**
+ * Apaga a conversa do CRM (mensagens e a conversa na lista). No WhatsApp do contato
+ * nada muda: o WhatsApp não permite apagar a conversa do outro lado. Só administrador.
+ */
+export async function DELETE(_req: Request, { params }: Params) {
+  const user = await apiUser();
+  if (!user) return unauthorized();
+  if (!isAdmin(user)) return NextResponse.json({ error: "Só administradores apagam conversas." }, { status: 403 });
+  const phone = (await params).phone.replace(/\D/g, "");
+  if (!phone) return NextResponse.json({ error: "Conversa inválida." }, { status: 400 });
+  const removed = await (await getDb()).delete(waMessages).where(eq(waMessages.phone, phone)).returning({ id: waMessages.id });
+  await (await getDb()).delete(waThreads).where(eq(waThreads.phone, phone));
+  return NextResponse.json({ ok: true, messages: removed.length });
 }
 
 /** { action: "lead" | "contato" } cria/vincula o contato · { archived: boolean } arquiva */
