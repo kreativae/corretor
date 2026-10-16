@@ -1,9 +1,10 @@
 import { getDb } from "@/db";
 import { activities, properties, propertyDocuments } from "@/db/schema";
 import { apiUser, unauthorized } from "@/lib/api-auth";
-import { blobToken } from "@/lib/blob";
+import { headFile, isLocalStorage, putFile, STORAGE_MISSING, storageReady } from "@/lib/blob";
 import {
   DOC_CATEGORIES,
+  DOC_DIRECT_MAX_BYTES,
   DOC_EXTENSIONS,
   DOC_MAX_BYTES,
   docExtension,
@@ -11,7 +12,6 @@ import {
   type DocCategory,
 } from "@/lib/documents";
 import { listPropertyDocuments } from "@/lib/queries";
-import { head, put } from "@vercel/blob";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
@@ -28,13 +28,7 @@ export async function GET(_req: Request, { params }: Params) {
 export async function POST(req: Request, { params }: Params) {
   const user = await apiUser();
   if (!user) return unauthorized();
-  const token = blobToken();
-  if (!token) {
-    return NextResponse.json(
-      { error: "Token do Vercel Blob não encontrado. Conecte o Blob Store e faça um novo deploy." },
-      { status: 500 },
-    );
-  }
+  if (!storageReady()) return NextResponse.json({ error: STORAGE_MISSING }, { status: 500 });
   try {
     const { id } = await params;
     const [prop] = await (await getDb())
@@ -56,9 +50,7 @@ export async function POST(req: Request, { params }: Params) {
       if (!pathname.startsWith(`documentos/${id}/`) || pathname.includes("..")) {
         return NextResponse.json({ error: "Arquivo inválido." }, { status: 400 });
       }
-      const info = await head(body.public && body.url ? body.url : pathname, { token }).catch(
-        () => null,
-      );
+      const info = await headFile(body.public && body.url ? body.url : pathname);
       if (!info) {
         return NextResponse.json({ error: "Arquivo não encontrado no armazenamento." }, { status: 400 });
       }
@@ -92,9 +84,11 @@ export async function POST(req: Request, { params }: Params) {
         { status: 400 },
       );
     }
-    if (file.size > DOC_MAX_BYTES) {
+    // No servidor não há o limite de corpo das funções da Vercel
+    const max = isLocalStorage() ? DOC_DIRECT_MAX_BYTES : DOC_MAX_BYTES;
+    if (file.size > max) {
       return NextResponse.json(
-        { error: "Arquivo acima de 4 MB. Comprima o PDF ou divida em partes." },
+        { error: `Arquivo acima de ${max / 1024 / 1024} MB. Comprima o PDF ou divida em partes.` },
         { status: 413 },
       );
     }
@@ -103,20 +97,12 @@ export async function POST(req: Request, { params }: Params) {
     const name = file.name.slice(0, 200);
     const safe = safeDocName(name);
 
-    const options = { token, addRandomSuffix: true, contentType } as const;
-    let pathname: string;
-    let url = "";
-    try {
-      // Privado: só sai pelo proxy autenticado deste módulo
-      const blob = await put(`documentos/${id}/${safe}`, file, { ...options, access: "private" });
-      pathname = blob.pathname;
-    } catch (e) {
-      // Store público: o arquivo fica num endereço aleatório, não listado em lugar nenhum
-      if (!(e instanceof Error && /public/i.test(e.message))) throw e;
-      const blob = await put(`documentos/${id}/${safe}`, file, { ...options, access: "public" });
-      pathname = blob.pathname;
-      url = blob.url;
-    }
+    // Privado: só sai pelo proxy autenticado deste módulo. Num store público do Blob,
+    // o arquivo fica num endereço aleatório, não listado em lugar nenhum.
+    const { pathname, url } = await putFile(`documentos/${id}/${safe}`, file, {
+      contentType,
+      prefer: "private",
+    });
 
     return NextResponse.json(
       await register({ id, name, category, pathname, url, size: file.size, contentType, user: user.name }),

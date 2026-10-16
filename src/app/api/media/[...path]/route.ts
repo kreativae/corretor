@@ -1,10 +1,9 @@
-import { blobToken, isMediaPath } from "@/lib/blob";
-import { get } from "@vercel/blob";
+import { getFile, isMediaPath } from "@/lib/blob";
 import { getWatermarkSettings } from "@/lib/features";
 import { watermark } from "@/lib/watermark";
 
 /**
- * Serve fotos e logos de um Blob Store privado. Os nomes têm sufixo aleatório e
+ * Serve fotos e logos de um Blob Store privado ou do disco do servidor. Os nomes têm sufixo aleatório e
  * nunca mudam, então a resposta é cacheada por 1 ano no navegador e na CDN.
  */
 export async function GET(
@@ -16,13 +15,8 @@ export async function GET(
   if (!isMediaPath(pathname)) {
     return new Response("Not found", { status: 404 });
   }
-  const token = blobToken();
-  if (!token) return new Response("Storage not configured", { status: 500 });
-
-  const result = await get(pathname, { access: "private", token }).catch(() => null);
-  if (!result || result.statusCode !== 200) {
-    return new Response("Not found", { status: 404 });
-  }
+  const result = await getFile(pathname);
+  if (!result) return new Response("Not found", { status: 404 });
   // ?wm=padrao|logo|linhas (ou 1): fotos de imóveis exibidas no site saem com marca
   // d'água. O modo vem na URL (definido pelo parceiro dono do imóvel) — assim a
   // mesma foto usada em dois anúncios respeita o modo de cada um.
@@ -30,7 +24,7 @@ export async function GET(
   const wantsMark =
     ["1", "padrao", "logo", "linhas"].includes(mode) &&
     pathname.startsWith("imoveis/") &&
-    /^image\/(jpeg|png|webp)/.test(result.blob.contentType ?? "");
+    /^image\/(jpeg|png|webp)/.test(result.contentType);
   const base = wantsMark ? await getWatermarkSettings() : null;
   const wm = !base
     ? null
@@ -54,20 +48,20 @@ export async function GET(
     } catch (e) {
       console.error("[marca d'água]", e);
       // Falhou: cai para a foto original abaixo (busca de novo, o stream já foi lido)
-      const again = await get(pathname, { access: "private", token }).catch(() => null);
-      if (!again || again.statusCode !== 200) return new Response("Not found", { status: 404 });
+      const again = await getFile(pathname);
+      if (!again) return new Response("Not found", { status: 404 });
       return new Response(again.stream, {
-        headers: { "Content-Type": again.blob.contentType, "Cache-Control": "public, max-age=3600" },
+        headers: { "Content-Type": again.contentType, "Cache-Control": "public, max-age=3600" },
       });
     }
   }
 
   return new Response(result.stream, {
     headers: {
-      "Content-Type": result.blob.contentType,
+      "Content-Type": result.contentType,
       // Sem content-length quando o Blob responde compactado (size = 0): repassar
       // "0" faria o navegador descartar o corpo — o KMZ chegava vazio.
-      ...(result.blob.size > 0 ? { "Content-Length": String(result.blob.size) } : {}),
+      ...(result.size > 0 ? { "Content-Length": String(result.size) } : {}),
       // ?wm=1 servido sem marca (desligada): cache curto para religar sem esperar
       "Cache-Control": wantsMark
         ? "public, max-age=600, s-maxage=3600"

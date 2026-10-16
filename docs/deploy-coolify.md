@@ -4,8 +4,8 @@ O CRM roda como imagem Docker (`Dockerfile` na raiz) no Coolify, e a Evolution A
 (WhatsApp) roda no **mesmo servidor**, sem precisar de VM extra. A Vercel continua
 funcionando em paralelo: o `Dockerfile` e o `output: "standalone"` não mudam nada lá.
 
-Banco (Neon) e fotos (Vercel Blob) continuam onde estão; o app no Coolify só aponta
-para eles com as mesmas variáveis.
+Banco e arquivos podem continuar no Neon e no Vercel Blob (mesmas variáveis) ou vir
+para o servidor: veja as seções 5 (banco) e 6 (arquivos).
 
 ---
 
@@ -83,3 +83,22 @@ dois lados, para a sincronização não rodar em dobro.
 
 Enquanto a Vercel estiver no ar ela continua gravando no Neon: faça a cópia final
 no momento da troca de domínio, com a Vercel já desligada, para não perder dados.
+
+## 6. Trazer os arquivos do Vercel Blob para o servidor (opcional)
+
+Com `UPLOAD_DIR` definido, fotos, logos, KMZ, documentos internos e PDFs da negociação
+são gravados no disco em vez do Blob (sem `UPLOAD_DIR`, tudo segue no Blob, como na Vercel).
+
+1. App do CRM › **Persistent Storage** › **+ Add** › **Volume**: destino `/app/storage`.
+2. **Environment Variables**: `UPLOAD_DIR=/app/storage`. Mantenha o `BLOB_READ_WRITE_TOKEN`
+   até terminar a cópia. **Redeploy**.
+3. **Terminal** do app:
+   `node scripts/migrate-blob.mjs https://dominio-do-crm`
+   Copia todos os arquivos do Blob para o volume e troca, no banco (empresa principal e
+   demais empresas), os endereços antigos pelo `/api/media` do domínio informado. Pode
+   repetir: pula o que já foi copiado.
+4. Confira fotos, logo, KMZ e documentos. Depois remova `BLOB_READ_WRITE_TOKEN`.
+
+Os arquivos ficam no volume do servidor: ative os **Backups** da Hetzner (cópia diária
+do servidor inteiro) ou copie `/app/storage` para um S3. No dia da troca de domínio, rode
+o script de novo com o domínio definitivo (depois de copiar o banco, seção 5).

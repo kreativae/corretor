@@ -13,6 +13,9 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   // Gera .next/standalone para a imagem Docker (Coolify); a Vercel ignora.
   output: "standalone",
+  // Fora do bundle: assim o pacote vai para .next/standalone/node_modules e
+  // scripts/migrate-blob.mjs consegue importá-lo dentro da imagem.
+  serverExternalPackages: ["@vercel/blob"],
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "images.pexels.com" },

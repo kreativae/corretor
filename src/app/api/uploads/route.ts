@@ -1,20 +1,13 @@
 import { getCurrentUser } from "@/lib/auth";
-import { blobToken, MEDIA_FOLDERS, type MediaFolder } from "@/lib/blob";
+import { MEDIA_FOLDERS, putFile, STORAGE_MISSING, storageReady, type MediaFolder } from "@/lib/blob";
 import { requestPublicOrigin } from "@/lib/google";
-import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 
 /** Diagnóstico: o armazenamento está configurado e o usuário está logado? */
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ ok: false, error: "Faça login para enviar arquivos." });
-  if (!blobToken()) {
-    return NextResponse.json({
-      ok: false,
-      error:
-        "Token do Vercel Blob não encontrado. Conecte o Blob Store ao projeto e faça um novo deploy.",
-    });
-  }
+  if (!storageReady()) return NextResponse.json({ ok: false, error: STORAGE_MISSING });
   return NextResponse.json({ ok: true });
 }
 
@@ -27,13 +20,7 @@ export async function POST(req: Request) {
   if (!(await getCurrentUser())) {
     return NextResponse.json({ error: "Faça login para enviar arquivos." }, { status: 401 });
   }
-  const token = blobToken();
-  if (!token) {
-    return NextResponse.json(
-      { error: "Token do Vercel Blob não encontrado. Conecte o Blob Store e faça um novo deploy." },
-      { status: 500 },
-    );
-  }
+  if (!storageReady()) return NextResponse.json({ error: STORAGE_MISSING }, { status: 500 });
   try {
     const form = await req.formData();
     const file = form.get("file");
@@ -66,18 +53,11 @@ export async function POST(req: Request) {
     if (file.size > MAX_BYTES) {
       return NextResponse.json({ error: "Arquivo acima de 4 MB." }, { status: 413 });
     }
-    const options = { token, addRandomSuffix: true, contentType } as const;
-    try {
-      const blob = await put(pathname, file, { ...options, access: "public" });
-      return NextResponse.json({ url: blob.url });
-    } catch (e) {
-      // Store privado: grava privado e serve pelo proxy /api/media (com cache de CDN)
-      if (!(e instanceof Error && /private/i.test(e.message))) throw e;
-      const blob = await put(pathname, file, { ...options, access: "private" });
-      return NextResponse.json({
-        url: `${requestPublicOrigin(req)}/api/media/${blob.pathname}`,
-      });
-    }
+    // Blob público: endereço direto. Privado ou disco: proxy /api/media (com cache de CDN)
+    const saved = await putFile(pathname, file, { contentType, prefer: "public" });
+    return NextResponse.json({
+      url: saved.url || `${requestPublicOrigin(req)}/api/media/${saved.pathname}`,
+    });
   } catch (e) {
     console.error(e);
     const message = e instanceof Error ? e.message : "Falha no upload";

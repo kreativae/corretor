@@ -1,13 +1,12 @@
 import { getDb } from "@/db";
 import { activities, contacts, propertySends, type SentAttachment } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
-import { blobToken } from "@/lib/blob";
+import { getFile } from "@/lib/blob";
 import { requestPublicOrigin } from "@/lib/google";
 import { emailConfigured, sendEmail, type EmailAttachment } from "@/lib/notify";
 import { getWhiteLabel, listProperties } from "@/lib/queries";
 import { getMessages } from "@/lib/features";
 import { selectionEmailHtml } from "@/lib/selection-email";
-import { get } from "@vercel/blob";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
@@ -16,9 +15,9 @@ export const maxDuration = 60;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_PROPS = 12;
 
-async function readAttachment(a: SentAttachment, token: string): Promise<EmailAttachment | null> {
-  const r = await get(a.pathname, { access: a.access ?? "private", token }).catch(() => null);
-  if (!r || r.statusCode !== 200) return null;
+async function readAttachment(a: SentAttachment): Promise<EmailAttachment | null> {
+  const r = await getFile(a.pathname, a.access ?? "private");
+  if (!r) return null;
   const buf = Buffer.from(await new Response(r.stream).arrayBuffer());
   return { filename: a.name, content: buf.toString("base64") };
 }
@@ -68,8 +67,7 @@ export async function POST(req: Request) {
   }
 
   const [wl, msgs] = await Promise.all([getWhiteLabel(), getMessages()]);
-  const token = blobToken();
-  const files = token ? (await Promise.all(attachments.map((a) => readAttachment(a, token)))).filter((f) => !!f) : [];
+  const files = (await Promise.all(attachments.map(readAttachment))).filter((f) => !!f);
 
   const snapshot = props.map((p) => ({ id: p.id, code: p.code, title: p.title, price: p.price, city: p.city }));
   const base = {

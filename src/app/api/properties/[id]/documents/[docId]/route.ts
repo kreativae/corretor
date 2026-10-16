@@ -1,8 +1,7 @@
 import { getDb } from "@/db";
 import { activities, propertyDocuments } from "@/db/schema";
 import { apiUser, unauthorized } from "@/lib/api-auth";
-import { blobToken } from "@/lib/blob";
-import { del, get } from "@vercel/blob";
+import { deleteFiles, getFile, isLocalStorage, storageReady } from "@/lib/blob";
 import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
@@ -32,25 +31,24 @@ export async function GET(req: Request, { params }: Params) {
     "X-Content-Type-Options": "nosniff",
   };
 
-  const token = blobToken();
-  if (!token) return new Response("Storage not configured", { status: 500 });
-  if (doc.url) {
+  if (!storageReady()) return new Response("Storage not configured", { status: 500 });
+  if (doc.url && !isLocalStorage()) {
     // Store público: repassa o conteúdo sem expor o endereço
     const res = await fetch(doc.url);
     if (!res.ok || !res.body) return new Response("Not found", { status: 404 });
     return new Response(res.body, { headers });
   }
-  const result = await get(doc.pathname, { access: "private", token }).catch(() => null);
-  if (!result || result.statusCode !== 200) return new Response("Not found", { status: 404 });
+  const result = await getFile(doc.pathname);
+  if (!result) return new Response("Not found", { status: 404 });
   return new Response(result.stream, {
     headers: {
       ...headers,
-      ...(result.blob.size > 0 ? { "Content-Length": String(result.blob.size) } : {}),
+      ...(result.size > 0 ? { "Content-Length": String(result.size) } : {}),
     },
   });
 }
 
-/** Remove o documento do Blob e do banco. */
+/** Remove o documento do armazenamento e do banco. */
 export async function DELETE(_req: Request, { params }: Params) {
   const user = await apiUser();
   if (!user) return unauthorized();
@@ -58,8 +56,7 @@ export async function DELETE(_req: Request, { params }: Params) {
     const { id, docId } = await params;
     const doc = await findDoc(id, docId);
     if (!doc) return NextResponse.json({ error: "Documento não encontrado" }, { status: 404 });
-    const token = blobToken();
-    if (token) await del(doc.url || doc.pathname, { token }).catch((e) => console.error(e));
+    await deleteFiles([doc.url || doc.pathname]);
     await (await getDb()).delete(propertyDocuments).where(eq(propertyDocuments.id, doc.id));
     await (await getDb()).insert(activities).values({
       entity: "imovel",

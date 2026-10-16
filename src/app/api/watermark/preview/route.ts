@@ -1,10 +1,9 @@
 import { getDb } from "@/db";
 import { propertyImages } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
-import { blobToken } from "@/lib/blob";
+import { getFile } from "@/lib/blob";
 import { watermark } from "@/lib/watermark";
 import { sanitizeWatermark } from "@/lib/watermark-settings";
-import { get } from "@vercel/blob";
 import sharp from "sharp";
 
 /** Foto de exemplo: a primeira foto cadastrada ou, sem fotos, um céu/fachada desenhado. */
@@ -12,13 +11,10 @@ async function sampleImage(): Promise<Buffer> {
   try {
     const [img] = await (await getDb()).select({ url: propertyImages.url }).from(propertyImages).limit(1);
     const path = img?.url.split("/api/media/")[1]?.split("?")[0];
-    const token = blobToken();
-    if (path && token) {
-      const r = await get(decodeURIComponent(path), { access: "private", token });
-      if (r?.statusCode === 200) {
-        const buf = Buffer.from(await new Response(r.stream).arrayBuffer());
-        return await sharp(buf).rotate().resize({ width: 1200, withoutEnlargement: true }).jpeg().toBuffer();
-      }
+    const r = path ? await getFile(decodeURIComponent(path)) : null;
+    if (r) {
+      const buf = Buffer.from(await new Response(r.stream).arrayBuffer());
+      return await sharp(buf).rotate().resize({ width: 1200, withoutEnlargement: true }).jpeg().toBuffer();
     }
   } catch {}
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800">

@@ -1,8 +1,7 @@
 import { getDb } from "@/db";
 import { propertySends } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
-import { blobToken } from "@/lib/blob";
-import { del } from "@vercel/blob";
+import { deleteFiles } from "@/lib/blob";
 import { inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
@@ -18,8 +17,7 @@ export async function DELETE(req: Request) {
 
     const rows = await (await getDb()).select().from(propertySends).where(inArray(propertySends.id, ids));
     const files = rows.flatMap((r) => r.attachments.map((a) => a.pathname)).filter((p) => p.startsWith("envios/"));
-    const token = blobToken();
-    if (files.length && token) await del(files, { token }).catch((e) => console.error(e));
+    await deleteFiles(files);
     await (await getDb()).delete(propertySends).where(inArray(propertySends.id, ids));
     return NextResponse.json({ deleted: rows.length });
   } catch (e) {

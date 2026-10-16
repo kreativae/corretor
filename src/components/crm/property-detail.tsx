@@ -17,6 +17,7 @@ import { DuplicatePropertyButton } from "@/components/crm/duplicate-property-but
 import { MobileSection } from "@/components/crm/mobile-section";
 import { PortalPanel } from "@/components/crm/portal-panel";
 import { PropertyDocuments } from "@/components/crm/property-documents";
+import { isLocalStorage } from "@/lib/blob";
 import { Timeline } from "@/components/crm/timeline";
 import { Badge, Button } from "@/components/ui";
 import { getPropertyViewStats, getWhiteLabel, getPartner } from "@/lib/queries";
@@ -320,7 +321,7 @@ export async function PropertyDetail({
 
           {/* Documentos internos */}
           <div className="order-5 lg:order-none">
-            <PropertyDocuments propertyId={p.id} initial={documents} />
+            <PropertyDocuments propertyId={p.id} initial={documents} directUpload={!isLocalStorage()} />
           </div>
 
           {/* Visitas */}

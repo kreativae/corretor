@@ -8,8 +8,7 @@ import {
   propertyImages,
   visits,
 } from "@/db/schema";
-import { blobToken } from "@/lib/blob";
-import { del } from "@vercel/blob";
+import { deleteFiles } from "@/lib/blob";
 import { eq } from "drizzle-orm";
 import { alqToM2, isRuralType, kmzOnly, sanitizeRural } from "@/lib/rural";
 import { sanitizePropertyPartnerFields } from "@/lib/partners";
@@ -111,16 +110,13 @@ export async function DELETE(_req: Request, { params }: Params) {
     if (!prop) {
       return NextResponse.json({ error: "Imóvel não encontrado" }, { status: 404 });
     }
-    // Documentos internos: apaga os arquivos do Blob (as linhas saem em cascata)
+    // Documentos internos: apaga os arquivos (as linhas saem em cascata)
     const docs = await (await getDb())
       .select({ pathname: propertyDocuments.pathname, url: propertyDocuments.url })
       .from(propertyDocuments)
       .where(eq(propertyDocuments.propertyId, id))
       .catch(() => []);
-    const token = blobToken();
-    if (docs.length && token) {
-      await del(docs.map((d) => d.url || d.pathname), { token }).catch((e) => console.error(e));
-    }
+    await deleteFiles(docs.map((d) => d.url || d.pathname));
     await (await getDb()).delete(visits).where(eq(visits.propertyId, id));
     await (await getDb()).delete(deals).where(eq(deals.propertyId, id));
     await (await getDb()).delete(properties).where(eq(properties.id, id));

@@ -32,6 +32,10 @@ RUN addgroup -S -g 1001 nodejs && adduser -S -u 1001 -G nodejs nextjs
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# Scripts de manutenção (ex.: migrate-blob.mjs) e a pasta dos uploads
+# (monte um volume persistente em /app/storage e defina UPLOAD_DIR=/app/storage)
+COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
+RUN mkdir -p /app/storage && chown nextjs:nodejs /app/storage
 USER nextjs
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \

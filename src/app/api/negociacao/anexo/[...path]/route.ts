@@ -1,6 +1,5 @@
 import { getCurrentUser } from "@/lib/auth";
-import { blobToken } from "@/lib/blob";
-import { get } from "@vercel/blob";
+import { getFile } from "@/lib/blob";
 
 /** Baixa um PDF enviado (histórico da Negociação) — só para quem está logado. */
 export async function GET(req: Request, { params }: { params: Promise<{ path: string[] }> }) {
@@ -8,11 +7,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ path: st
   const { path } = await params;
   const pathname = path.map(decodeURIComponent).join("/");
   if (!pathname.startsWith("envios/") || pathname.includes("..")) return new Response("Not found", { status: 404 });
-  const token = blobToken();
-  if (!token) return new Response("Storage not configured", { status: 500 });
   const access = new URL(req.url).searchParams.get("a") === "public" ? "public" : "private";
-  const result = await get(pathname, { access, token }).catch(() => null);
-  if (!result || result.statusCode !== 200) return new Response("Not found", { status: 404 });
+  const result = await getFile(pathname, access);
+  if (!result) return new Response("Not found", { status: 404 });
   return new Response(result.stream, {
     headers: {
       "Content-Type": "application/pdf",

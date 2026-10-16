@@ -117,8 +117,11 @@ async function uploadDirect(
 export function PropertyDocuments({
   propertyId,
   initial,
+  directUpload = true,
 }: {
   propertyId: string;
+  /** Arquivos grandes vão direto ao Vercel Blob; no servidor (disco) passam pela API */
+  directUpload?: boolean;
   initial: PropertyDocument[];
 }) {
   const router = useRouter();
@@ -149,7 +152,7 @@ export function PropertyDocuments({
         setProgress({ name: file.name, pct: 0 });
         const onProgress = (pct: number) => setProgress({ name: file.name, pct });
         const doc =
-          file.size > DOC_MAX_BYTES
+          directUpload && file.size > DOC_MAX_BYTES
             ? await uploadDirect(propertyId, file, category, onProgress)
             : await upload(propertyId, file, category, onProgress);
         setDocs((arr) => [doc, ...arr]);
