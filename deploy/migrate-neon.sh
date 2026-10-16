@@ -54,6 +54,10 @@ SQL
 echo "== Copiando dados (pode levar alguns minutos)"
 pg_dump "$SRC" --no-subscriptions --no-publications -f /tmp/neon.sql
 psql "$DST" -q -f /tmp/neon.sql > /dev/null 2> /tmp/erros.log || true
+# O esquema public foi recriado pelo usuário do Coolify: devolve ao dono do Neon.
+# Sem isso, as chaves estrangeiras (checadas como o dono das tabelas) falham com
+# "permission denied for schema public".
+psql "$DST" -q -v ON_ERROR_STOP=1 -c "ALTER SCHEMA public OWNER TO \"$OWNER\"" -c "GRANT USAGE ON SCHEMA public TO PUBLIC"
 
 echo "== Conferindo"
 psql "$SRC" -At -c "select count(*) from tenants" > /tmp/a
