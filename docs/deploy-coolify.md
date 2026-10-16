@@ -110,3 +110,8 @@ App do CRM › **Webhooks** › **Manual Git webhooks › GitHub**: copie a **We
 `Settings › Webhooks › Add webhook` com essa URL, `application/json`, o mesmo secret e
 "Just the push event". Com **Auto Deploy** ligado (Advanced), cada push na branch do app
 dispara o deploy, e o resultado chega pelas notificações do Coolify (Telegram).
+
+Use a URL da seção **GitHub** (`/source/github/`), não a de baixo (GitLab): com a do
+GitLab, o GitHub recebe 200 mas o corpo diz "Only push and merge_request events are
+allowed" e nada é publicado. Para testar depois de corrigir, faça um push novo: o
+"Redeliver" do GitHub reenvia para o endereço antigo.
