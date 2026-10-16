@@ -11,11 +11,12 @@ para eles com as mesmas variáveis.
 
 ## 1. Evolution API (WhatsApp)
 
-1. **DNS:** registro `A` de `evolution.SEU-DOMINIO` → IP do servidor.
+1. **DNS:** registro `A` de `evolution.SEU-DOMINIO` (ex.: `whatsapp.kreativ.ae`) → IP do servidor.
 2. Coolify › projeto › **+ New › Docker Compose Empty** → cole
    [`deploy/evolution/docker-compose.coolify.yml`](../deploy/evolution/docker-compose.coolify.yml).
-3. No serviço **evolution**, em **Domains**: `https://evolution.SEU-DOMINIO:8080`
-   (o `:8080` diz ao Coolify a porta interna; o acesso público fica em HTTPS normal).
+3. No serviço **evolution**, em **Domains** › **Add Domain**: protocolo `https`,
+   domínio `evolution.SEU-DOMINIO` (sem `https://`), porta `8080`. Apague o domínio
+   `sslip.io` gerado e ajuste `SERVER_URL` no compose para o mesmo endereço com `https://`.
 4. **Deploy**. Teste: `https://evolution.SEU-DOMINIO/` mostra a mensagem de boas-vindas.
 5. A **Chave da API** é a variável `SERVICE_PASSWORD_64_EVOLUTION`, na aba
    **Environment Variables** do serviço (gerada pelo Coolify).

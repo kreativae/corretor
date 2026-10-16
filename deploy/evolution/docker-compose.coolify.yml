@@ -8,7 +8,8 @@ services:
     restart: always
     environment:
       - SERVICE_FQDN_EVOLUTION_8080
-      - SERVER_URL=$SERVICE_FQDN_EVOLUTION
+      # Endereço público com https:// (o mesmo de Domains). Usado nos links de mídia.
+      - SERVER_URL=https://whatsapp.kreativ.ae
       # "Chave da API" que vai no CRM (Admin › Configurações › WhatsApp)
       - AUTHENTICATION_API_KEY=$SERVICE_PASSWORD_64_EVOLUTION
       - DATABASE_ENABLED=true
