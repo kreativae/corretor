@@ -1,7 +1,8 @@
 import "server-only";
 import { getDb } from "@/db";
 import { contacts, mailMessages, users, type MailAttachment, type MailMessage } from "@/db/schema";
-import { getEmailConfig, esc, sendEmail } from "@/lib/notify";
+import { getFile } from "@/lib/blob";
+import { getEmailConfig, esc, sendEmail, type EmailAttachment } from "@/lib/notify";
 import { and, eq, isNotNull, sql } from "drizzle-orm";
 import { createHmac, timingSafeEqual } from "node:crypto";
 
@@ -176,6 +177,35 @@ export async function ingestReceivedEmail(emailId: string) {
 
 /* ───────────────────────── Envio ───────────────────────── */
 
+/** Por arquivo e no total do e-mail (o Resend aceita até 40 MB já em base64) */
+export const MAIL_ATTACHMENT_MAX = 10 * 1024 * 1024;
+export const MAIL_ATTACHMENTS_TOTAL_MAX = 25 * 1024 * 1024;
+
+/** Só anexos que o próprio usuário subiu (email/<id do usuário>/…) */
+export function ownAttachments(userId: string, raw: unknown): MailAttachment[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter(
+      (a) =>
+        typeof a?.id === "string" && a.id.startsWith(`email/${userId}/`) && !a.id.includes(".."),
+    )
+    .slice(0, 10)
+    .map((a) => ({
+      id: a.id,
+      filename: String(a.filename || "anexo").slice(0, 150),
+      size: Number(a.size) || 0,
+      contentType: String(a.contentType || "application/octet-stream").slice(0, 100),
+      access: a.access === "public" ? "public" : "private",
+    }));
+}
+
+async function readAttachment(a: MailAttachment): Promise<EmailAttachment> {
+  const r = await getFile(a.id, a.access ?? "private");
+  if (!r) throw new Error(`Anexo "${a.filename}" não encontrado. Anexe de novo.`);
+  const buf = Buffer.from(await new Response(r.stream).arrayBuffer());
+  return { filename: a.filename, content: buf.toString("base64") };
+}
+
 /** Texto simples → HTML do e-mail (parágrafos e quebras de linha) */
 function textToHtml(text: string) {
   return `<!doctype html><html><body style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:14px;line-height:1.55;color:#18181b">${esc(
@@ -190,6 +220,7 @@ export type OutgoingMail = {
   text: string;
   /** Mensagem respondida (mesma conversa no cliente de e-mail de quem recebe) */
   replyTo?: MailMessage | null;
+  attachments?: MailAttachment[];
 };
 
 /** Envia do endereço do usuário e grava em "Enviados" */
@@ -219,6 +250,11 @@ export async function sendFromMailbox(
     }
   }
   const body = mail.text + quoted;
+  const attachments = mail.attachments ?? [];
+  if (attachments.reduce((n, a) => n + a.size, 0) > MAIL_ATTACHMENTS_TOTAL_MAX) {
+    throw new Error("Os anexos passam de 25 MB no total.");
+  }
+  const files = await Promise.all(attachments.map(readAttachment));
 
   const providerId = await sendEmail(mail.to, mail.subject, textToHtml(body), {
     fromName: user.name,
@@ -226,6 +262,7 @@ export async function sendFromMailbox(
     cc: mail.cc,
     text: body,
     headers: Object.keys(headers).length ? headers : undefined,
+    attachments: files,
   });
 
   const db = await getDb();
@@ -244,6 +281,7 @@ export async function sendFromMailbox(
       ccAddrs: mail.cc,
       subject: mail.subject,
       text: body,
+      attachments,
       inReplyTo: mail.replyTo?.messageId ?? null,
       providerId,
       contactId: contact?.id ?? null,

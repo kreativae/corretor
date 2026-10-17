@@ -1,7 +1,7 @@
 import { getDb } from "@/db";
 import { mailMessages } from "@/db/schema";
 import { emailConfigured } from "@/lib/notify";
-import { mailAddress, mailDomain, parseAddress, sendFromMailbox } from "@/lib/mail";
+import { mailAddress, mailDomain, ownAttachments, parseAddress, sendFromMailbox } from "@/lib/mail";
 import { findVisibleMessage, mailUser } from "@/lib/mail-access";
 import { and, count, desc, eq, ilike, isNull, or, type SQL } from "drizzle-orm";
 import { NextResponse } from "next/server";
@@ -107,7 +107,8 @@ export async function POST(req: Request) {
 
   const replyTo = body.replyToId ? await findVisibleMessage(u, String(body.replyToId)) : null;
   try {
-    const row = await sendFromMailbox(u, { to, cc, subject, text, replyTo });
+    const attachments = ownAttachments(u.id, body.attachments);
+    const row = await sendFromMailbox(u, { to, cc, subject, text, replyTo, attachments });
     return NextResponse.json({ id: row.id });
   } catch (e) {
     console.error("[e-mail enviado]", e);

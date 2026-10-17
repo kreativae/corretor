@@ -467,7 +467,14 @@ export const mailMessages = pgTable("mail_messages", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export type MailAttachment = { id: string; filename: string; size: number; contentType: string };
+/** Recebido: id do anexo no Resend. Enviado: caminho no armazenamento (id) e o acesso. */
+export type MailAttachment = {
+  id: string;
+  filename: string;
+  size: number;
+  contentType: string;
+  access?: "public" | "private";
+};
 
 /* ─────────────────────────── Tipos ─────────────────────────── */
 

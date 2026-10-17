@@ -16,6 +16,7 @@ import {
   Trash2,
   ArrowLeft,
   UserRound,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -45,8 +46,17 @@ type FullMessage = Omit<ListItem, "preview" | "hasAttachments"> & {
   sentBy: string | null;
 };
 
-type Draft = { to: string; cc: string; subject: string; text: string; replyToId?: string };
-const EMPTY_DRAFT: Draft = { to: "", cc: "", subject: "", text: "" };
+type DraftFile = { id: string; filename: string; size: number; contentType: string; access: "public" | "private" };
+type Draft = {
+  to: string;
+  cc: string;
+  subject: string;
+  text: string;
+  replyToId?: string;
+  attachments: DraftFile[];
+};
+const EMPTY_DRAFT: Draft = { to: "", cc: "", subject: "", text: "", attachments: [] };
+const FILE_MAX = 10 * 1024 * 1024;
 
 const FOLDERS: { key: Folder; label: string; admin?: boolean }[] = [
   { key: "entrada", label: "Entrada" },
@@ -83,6 +93,7 @@ export function EmailInbox({
   const [reload, setReload] = useState(0);
   const [draft, setDraft] = useState<Draft | null>(initialTo ? { ...EMPTY_DRAFT, to: initialTo } : null);
   const [sending, setSending] = useState(false);
+  const [uploading, setUploading] = useState(0);
 
   // Lista da pasta (busca com atraso enquanto digita; volta a checar a cada minuto)
   useEffect(() => {
@@ -131,7 +142,30 @@ export function EmailInbox({
   function reply(m: FullMessage) {
     const to = m.direction === "in" ? m.fromAddr : m.toAddrs.join(", ");
     const subject = /^re:/i.test(m.subject) ? m.subject : `Re: ${m.subject}`;
-    setDraft({ to, cc: "", subject, text: "", replyToId: m.id });
+    setDraft({ to, cc: "", subject, text: "", replyToId: m.id, attachments: [] });
+  }
+
+  /** Sobe cada arquivo escolhido e junta ao rascunho */
+  async function attach(files: FileList | null) {
+    for (const file of Array.from(files ?? [])) {
+      if (file.size > FILE_MAX) {
+        toast.error(`"${file.name}" passa de 10 MB.`);
+        continue;
+      }
+      setUploading((n) => n + 1);
+      try {
+        const form = new FormData();
+        form.append("file", file);
+        const res = await fetch("/api/email/anexo", { method: "POST", body: form });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.error);
+        setDraft((dr) => (dr ? { ...dr, attachments: [...dr.attachments, d as DraftFile] } : dr));
+      } catch (e) {
+        toast.error(e instanceof Error && e.message ? e.message : `Falha ao anexar "${file.name}".`);
+      } finally {
+        setUploading((n) => n - 1);
+      }
+    }
   }
 
   async function markUnread(m: FullMessage) {
@@ -379,7 +413,7 @@ export function EmailInbox({
                     {msg.attachments.map((a) => (
                       <a
                         key={a.id}
-                        href={`/api/email/messages/${msg.id}/attachments/${a.id}`}
+                        href={`/api/email/messages/${msg.id}/attachments/${encodeURIComponent(a.id)}`}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex items-center gap-1.5 rounded-lg border border-hairline px-2.5 py-1.5 text-xs hover:bg-soft"
@@ -440,11 +474,54 @@ export function EmailInbox({
                 autoFocus={!!draft.to}
               />
             </Field>
-            <div className="flex justify-end gap-2">
+            {(draft.attachments.length > 0 || uploading > 0) && (
+              <div className="flex flex-wrap gap-1.5">
+                {draft.attachments.map((a) => (
+                  <span
+                    key={a.id}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-hairline py-1 pl-2.5 pr-1 text-xs"
+                  >
+                    <Paperclip className="size-3.5" />
+                    {a.filename}
+                    <span className="font-mono text-subtle">{kb(a.size)}</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setDraft({ ...draft, attachments: draft.attachments.filter((x) => x.id !== a.id) })
+                      }
+                      className="rounded p-0.5 text-subtle hover:bg-soft hover:text-ink"
+                      aria-label={`Remover ${a.filename}`}
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  </span>
+                ))}
+                {uploading > 0 && (
+                  <span className="inline-flex items-center gap-1.5 px-2 py-1 text-xs text-subtle">
+                    <Loader2 className="size-3.5 animate-spin" />
+                    Anexando…
+                  </span>
+                )}
+              </div>
+            )}
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <label className="mr-auto inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-2 text-sm text-subtle transition-colors hover:bg-soft hover:text-ink">
+                <Paperclip className="size-4" />
+                Anexar arquivo
+                <input
+                  type="file"
+                  multiple
+                  className="sr-only"
+                  onChange={(e) => {
+                    attach(e.target.files);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
               <Button variant="outline" onClick={() => setDraft(null)} disabled={sending}>
                 Cancelar
               </Button>
-              <Button variant="accent" loading={sending} onClick={send}>
+              <Button variant="accent" loading={sending} disabled={uploading > 0} onClick={send}>
                 <Send className="size-4" />
                 Enviar
               </Button>
