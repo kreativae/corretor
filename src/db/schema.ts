@@ -25,6 +25,8 @@ export const users = pgTable("users", {
   phone: text("phone"),
   creci: text("creci"),
   passwordHash: text("password_hash"),
+  /** Parte antes do @ do e-mail do usuário no domínio da empresa (ex.: "fabio"); vazio = sem caixa */
+  mailbox: text("mailbox"),
   active: boolean("active").notNull().default(true),
   lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true })
@@ -438,6 +440,35 @@ export const waMessages = pgTable("wa_messages", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [uniqueIndex("wa_messages_line_wa_id_key").on(t.line, t.waMessageId)]);
 
+/**
+ * E-mail pelo Resend: cada linha é uma mensagem na caixa de um usuário (userId) ou, sem
+ * dono, na caixa geral da empresa. Um e-mail para dois usuários vira duas linhas.
+ */
+export const mailMessages = pgTable("mail_messages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+  direction: text("direction", { enum: ["in", "out"] }).notNull(),
+  fromAddr: text("from_addr").notNull(),
+  fromName: text("from_name"),
+  toAddrs: jsonb("to_addrs").$type<string[]>().notNull().default([]),
+  ccAddrs: jsonb("cc_addrs").$type<string[]>().notNull().default([]),
+  subject: text("subject").notNull().default(""),
+  text: text("text"),
+  html: text("html"),
+  attachments: jsonb("attachments").$type<MailAttachment[]>().notNull().default([]),
+  /** Message-ID do e-mail (para responder na mesma conversa) e o que ele responde */
+  messageId: text("message_id"),
+  inReplyTo: text("in_reply_to"),
+  /** Id do e-mail no Resend (recebido ou enviado) */
+  providerId: text("provider_id"),
+  contactId: uuid("contact_id").references(() => contacts.id, { onDelete: "set null" }),
+  read: boolean("read").notNull().default(false),
+  sentBy: text("sent_by"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type MailAttachment = { id: string; filename: string; size: number; contentType: string };
+
 /* ─────────────────────────── Tipos ─────────────────────────── */
 
 export type Partner = typeof partners.$inferSelect;
@@ -457,4 +488,5 @@ export type ApiKey = typeof apiKeys.$inferSelect;
 export type PropertySend = typeof propertySends.$inferSelect;
 export type WaThread = typeof waThreads.$inferSelect;
 export type WaMessage = typeof waMessages.$inferSelect;
+export type MailMessage = typeof mailMessages.$inferSelect;
 export type MarketSampleRow = typeof marketSamples.$inferSelect;

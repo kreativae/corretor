@@ -16,18 +16,45 @@ export type TeamMember = {
   role: Role;
   creci: string | null;
   phone: string | null;
+  mailbox: string | null;
   active: boolean;
   hasPassword: boolean;
   lastLoginAt: string | null;
   createdAt: string;
 };
 
+/** Parte antes do @ do e-mail no sistema, com o domínio ao lado */
+function MailboxInput({
+  value,
+  onChange,
+  domain,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  domain: string;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <Input
+        value={value}
+        onChange={(e) => onChange(e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, ""))}
+        placeholder="nome"
+        className="font-mono"
+      />
+      <span className="shrink-0 font-mono text-xs text-subtle">@{domain || "domínio"}</span>
+    </div>
+  );
+}
+
 export function TeamClient({
   users,
   currentUserId,
+  mailDomain,
 }: {
   users: TeamMember[];
   currentUserId: string;
+  /** Domínio do remetente configurado no Resend (vazio = e-mail não configurado) */
+  mailDomain: string;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -35,13 +62,14 @@ export function TeamClient({
   const [pwTarget, setPwTarget] = useState<TeamMember | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [editTarget, setEditTarget] = useState<TeamMember | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", creci: "", phone: "" });
+  const [editForm, setEditForm] = useState({ name: "", creci: "", phone: "", mailbox: "" });
   const [form, setForm] = useState({
     name: "",
     email: "",
     role: "corretor",
     creci: "",
     phone: "",
+    mailbox: "",
     password: "",
   });
 
@@ -60,7 +88,7 @@ export function TeamClient({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       toast.success(`${form.name} agora tem acesso à plataforma.`);
-      setForm({ name: "", email: "", role: "corretor", creci: "", phone: "", password: "" });
+      setForm({ name: "", email: "", role: "corretor", creci: "", phone: "", mailbox: "", password: "" });
       setOpen(false);
       router.refresh();
     } catch (e) {
@@ -77,18 +105,18 @@ export function TeamClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(patch),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error);
       router.refresh();
       return true;
-    } catch {
-      toast.error("Não foi possível atualizar o usuário.");
+    } catch (e) {
+      toast.error(e instanceof Error && e.message ? e.message : "Não foi possível atualizar o usuário.");
       return false;
     }
   }
 
   function openEdit(u: TeamMember) {
     setEditTarget(u);
-    setEditForm({ name: u.name, creci: u.creci ?? "", phone: u.phone ?? "" });
+    setEditForm({ name: u.name, creci: u.creci ?? "", phone: u.phone ?? "", mailbox: u.mailbox ?? "" });
   }
 
   async function saveEdit() {
@@ -162,6 +190,11 @@ export function TeamClient({
                         )}
                       </p>
                       <p className="font-mono text-[11px] text-subtle">{u.email}</p>
+                      {u.mailbox && mailDomain && (
+                        <p className="font-mono text-[11px] text-accent">
+                          {u.mailbox}@{mailDomain}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </td>
@@ -298,6 +331,11 @@ export function TeamClient({
               placeholder="198.442-F"
             />
           </Field>
+          {mailDomain && (
+            <Field label="E-mail no sistema (opcional)" hint="Endereço para enviar e receber pelo menu E-mail">
+              <MailboxInput value={form.mailbox} onChange={(v) => setForm({ ...form, mailbox: v })} domain={mailDomain} />
+            </Field>
+          )}
           <Field label="WhatsApp (opcional)" hint="DDI + DDD + número · aparece na ficha">
             <Input
               inputMode="tel"
@@ -346,6 +384,18 @@ export function TeamClient({
               />
             </Field>
           </div>
+          {mailDomain && (
+            <Field
+              label="E-mail no sistema"
+              hint="Endereço para enviar e receber pelo menu E-mail. Vazio = sem caixa de e-mail."
+            >
+              <MailboxInput
+                value={editForm.mailbox}
+                onChange={(v) => setEditForm({ ...editForm, mailbox: v })}
+                domain={mailDomain}
+              />
+            </Field>
+          )}
           <p className="text-[11px] text-subtle">
             Nome, CRECI e WhatsApp aparecem na ficha do imóvel gerada por este usuário.
           </p>

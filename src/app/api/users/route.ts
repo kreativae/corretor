@@ -5,6 +5,7 @@ import { ROLE_LABELS } from "@/lib/labels";
 import { getAccount } from "@/lib/account";
 import { and, count, eq, ne } from "drizzle-orm";
 import { NextResponse } from "next/server";
+import { cleanMailbox } from "@/lib/mail";
 
 export async function POST(req: Request) {
   await requireAdmin();
@@ -44,6 +45,14 @@ export async function POST(req: Request) {
       );
     }
 
+    const mailbox = cleanMailbox(body.mailbox) || null;
+    if (mailbox) {
+      const [taken] = await (await getDb()).select({ id: users.id }).from(users).where(eq(users.mailbox, mailbox));
+      if (taken) {
+        return NextResponse.json({ error: "Este endereço de e-mail já é de outro usuário." }, { status: 409 });
+      }
+    }
+
     const [created] = await (await getDb())
       .insert(users)
       .values({
@@ -51,6 +60,7 @@ export async function POST(req: Request) {
         email,
         role: body.role === "admin" ? "admin" : "corretor",
         creci: body.creci || null,
+        mailbox,
         phone: String(body.phone ?? "").replace(/\D/g, "") || null,
         passwordHash: body.password ? hashPassword(String(body.password)) : null,
       })

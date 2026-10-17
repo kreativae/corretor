@@ -162,6 +162,41 @@ export const RUNTIME_MIGRATIONS = [
        CREATE INDEX IF NOT EXISTS wa_messages_line_phone_idx ON wa_messages (line, phone, created_at);
      END IF;
    END $$;`,
+  // E-mail por usuário (Resend): endereço de cada um e mensagens recebidas/enviadas
+  `DO $$ BEGIN
+     IF NOT EXISTS (
+       SELECT 1 FROM information_schema.columns
+       WHERE table_schema = current_schema() AND table_name = 'users' AND column_name = 'mailbox'
+     ) THEN
+       ALTER TABLE users ADD COLUMN mailbox text;
+       CREATE UNIQUE INDEX IF NOT EXISTS users_mailbox_key ON users (mailbox) WHERE mailbox IS NOT NULL;
+     END IF;
+   END $$;`,
+  `CREATE TABLE IF NOT EXISTS mail_messages (
+     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+     user_id uuid REFERENCES users(id) ON DELETE CASCADE,
+     direction text NOT NULL,
+     from_addr text NOT NULL,
+     from_name text,
+     to_addrs jsonb NOT NULL DEFAULT '[]'::jsonb,
+     cc_addrs jsonb NOT NULL DEFAULT '[]'::jsonb,
+     subject text NOT NULL DEFAULT '',
+     text text,
+     html text,
+     attachments jsonb NOT NULL DEFAULT '[]'::jsonb,
+     message_id text,
+     in_reply_to text,
+     provider_id text,
+     contact_id uuid REFERENCES contacts(id) ON DELETE SET NULL,
+     read boolean NOT NULL DEFAULT false,
+     sent_by text,
+     created_at timestamptz NOT NULL DEFAULT now()
+   );`,
+  `CREATE INDEX IF NOT EXISTS mail_messages_user_idx ON mail_messages (user_id, direction, created_at DESC);`,
+  // O mesmo e-mail recebido entra uma vez por caixa (o Resend pode reenviar o webhook)
+  `CREATE UNIQUE INDEX IF NOT EXISTS mail_messages_provider_owner_key
+     ON mail_messages (provider_id, COALESCE(user_id, '00000000-0000-0000-0000-000000000000'::uuid), direction)
+     WHERE provider_id IS NOT NULL;`,
 ];
 
 /** Só no banco principal (esquema public): cadastro de empresas da gerência */

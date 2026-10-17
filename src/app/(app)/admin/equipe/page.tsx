@@ -1,13 +1,14 @@
 import { TeamClient } from "@/components/admin/team-client";
 import { getCurrentUser } from "@/lib/auth";
 import { listUsers } from "@/lib/queries";
+import { mailDomain } from "@/lib/mail";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Equipe & acessos" };
 
 export default async function EquipePage() {
-  const [users, me] = await Promise.all([listUsers(), getCurrentUser()]);
+  const [users, me, domain] = await Promise.all([listUsers(), getCurrentUser(), mailDomain()]);
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -33,12 +34,14 @@ export default async function EquipePage() {
           role: u.role,
           creci: u.creci,
           phone: u.phone,
+          mailbox: u.mailbox,
           active: u.active,
           hasPassword: !!u.passwordHash,
           lastLoginAt: u.lastLoginAt ? u.lastLoginAt.toISOString() : null,
           createdAt: u.createdAt.toISOString(),
         }))}
         currentUserId={me?.id ?? ""}
+        mailDomain={domain}
       />
     </div>
   );

@@ -1,6 +1,7 @@
 /** Módulos que a gerência libera ou bloqueia por cliente (plano). */
 export const MODULES = [
   { key: "whatsapp", label: "WhatsApp", description: "Caixa de entrada, conexão por QR code e mensagens no contato.", paths: ["/crm/whatsapp"] },
+  { key: "email", label: "E-mail", description: "Caixa de e-mail de cada usuário no domínio da imobiliária (Resend).", paths: ["/crm/email"] },
   { key: "negociacao", label: "Negociação", description: "Envio de fichas por e-mail ao cliente, com histórico.", paths: ["/crm/negociacao"] },
   { key: "valorM2", label: "Valor do m²", description: "Mapa e ranking do valor por bairro e município.", paths: ["/crm/valor-m2"] },
   { key: "rurais", label: "Propriedades rurais", description: "Cadastro de fazendas, sítios e chácaras, KMZ e mapa de satélite.", paths: ["/crm/propriedades"] },

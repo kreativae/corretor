@@ -1,0 +1,255 @@
+import "server-only";
+import { getDb } from "@/db";
+import { contacts, mailMessages, users, type MailAttachment, type MailMessage } from "@/db/schema";
+import { getEmailConfig, esc, sendEmail } from "@/lib/notify";
+import { and, eq, isNotNull, sql } from "drizzle-orm";
+import { createHmac, timingSafeEqual } from "node:crypto";
+
+/**
+ * Caixa de e-mail de cada usuário, pelo Resend: o envio sai do endereço do usuário no
+ * domínio verificado (ex.: fabio@imobiliaria.com.br) e o recebimento chega pelo webhook
+ * "email.received" (MX do domínio apontado para o Resend).
+ */
+
+/** "fabio.silva" — só o que pode ir antes do @ */
+export function cleanMailbox(raw: unknown) {
+  return String(raw ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9._-]/g, "")
+    .replace(/^[._-]+|[._-]+$/g, "")
+    .slice(0, 40);
+}
+
+/** Domínio das caixas: o do remetente configurado (verificado no Resend) */
+export async function mailDomain() {
+  const cfg = await getEmailConfig();
+  return cfg.fromEmail.split("@")[1]?.toLowerCase() ?? "";
+}
+
+export const mailAddress = (mailbox: string | null | undefined, domain: string) =>
+  mailbox && domain ? `${mailbox}@${domain}` : "";
+
+/** "Fulano <a@b.com>" → { name, addr } */
+export function parseAddress(raw: string) {
+  const m = raw.match(/^\s*"?([^"<]*?)"?\s*<([^>]+)>\s*$/);
+  const addr = (m ? m[2] : raw).trim().toLowerCase();
+  const name = m?.[1]?.trim() || null;
+  return { name, addr };
+}
+
+/* ───────────────────────── Webhook (Standard Webhooks) ───────────────────────── */
+
+/**
+ * Confere a assinatura do Resend: HMAC-SHA256 de "id.timestamp.corpo" com o segredo
+ * (whsec_<base64>). Aceita os cabeçalhos webhook-* e os antigos svix-*.
+ */
+export function verifyResendSignature(rawBody: string, headers: Headers, secret: string) {
+  const id = headers.get("webhook-id") ?? headers.get("svix-id");
+  const ts = headers.get("webhook-timestamp") ?? headers.get("svix-timestamp");
+  const sigs = headers.get("webhook-signature") ?? headers.get("svix-signature");
+  if (!secret || !id || !ts || !sigs) return false;
+  // Rejeita reenvios antigos (mais de 5 min de diferença)
+  if (Math.abs(Date.now() / 1000 - Number(ts)) > 300) return false;
+  const key = Buffer.from(secret.replace(/^whsec_/, ""), "base64");
+  const expected = createHmac("sha256", key).update(`${id}.${ts}.${rawBody}`).digest();
+  return sigs.split(" ").some((part) => {
+    const [, sig] = part.split(",");
+    if (!sig) return false;
+    const got = Buffer.from(sig, "base64");
+    return got.length === expected.length && timingSafeEqual(got, expected);
+  });
+}
+
+/* ───────────────────────── API do Resend ───────────────────────── */
+
+async function resendGet<T>(path: string): Promise<T> {
+  const { resendApiKey } = await getEmailConfig();
+  if (!resendApiKey) throw new Error("Chave do Resend não configurada.");
+  const res = await fetch(`https://api.resend.com${path}`, {
+    headers: { Authorization: `Bearer ${resendApiKey}` },
+    cache: "no-store",
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.message || `Resend: HTTP ${res.status}`);
+  return data as T;
+}
+
+type ReceivedEmail = {
+  id: string;
+  from: string;
+  to: string[];
+  cc: string[] | null;
+  received_for?: string[];
+  subject: string;
+  html: string | null;
+  text: string | null;
+  headers: Record<string, string> | null;
+  message_id: string;
+  created_at: string;
+  attachments: {
+    id: string;
+    filename: string | null;
+    size: number;
+    content_type: string;
+    content_disposition: string | null;
+  }[];
+};
+
+/** Link temporário para baixar um anexo recebido */
+export async function receivedAttachmentUrl(emailId: string, attachmentId: string) {
+  const a = await resendGet<{ download_url: string }>(
+    `/emails/receiving/${encodeURIComponent(emailId)}/attachments/${encodeURIComponent(attachmentId)}`,
+  );
+  return a.download_url;
+}
+
+const header = (h: Record<string, string> | null, name: string) => {
+  if (!h) return null;
+  const k = Object.keys(h).find((x) => x.toLowerCase() === name);
+  return k ? h[k] : null;
+};
+
+/**
+ * Busca no Resend o e-mail recebido e grava uma cópia na caixa de cada usuário
+ * destinatário (sem nenhum, vai para a caixa geral). Idempotente.
+ */
+export async function ingestReceivedEmail(emailId: string) {
+  const email = await resendGet<ReceivedEmail>(`/emails/receiving/${encodeURIComponent(emailId)}`);
+  const domain = await mailDomain();
+  const db = await getDb();
+
+  const recipients = [...(email.received_for ?? []), ...email.to, ...(email.cc ?? [])].map(
+    (r) => parseAddress(r).addr,
+  );
+  const locals = [
+    ...new Set(
+      recipients.filter((a) => domain && a.endsWith(`@${domain}`)).map((a) => a.split("@")[0]),
+    ),
+  ];
+  const owners = locals.length
+    ? await db
+        .select({ id: users.id, mailbox: users.mailbox })
+        .from(users)
+        .where(and(isNotNull(users.mailbox), eq(users.active, true)))
+        .then((rows) => rows.filter((u) => locals.includes(u.mailbox!)).map((u) => u.id))
+    : [];
+
+  const from = parseAddress(email.from);
+  const [contact] = await db
+    .select({ id: contacts.id })
+    .from(contacts)
+    .where(sql`lower(${contacts.email}) = ${from.addr}`)
+    .limit(1);
+
+  const attachments: MailAttachment[] = email.attachments
+    .filter((a) => a.content_disposition !== "inline")
+    .map((a) => ({
+      id: a.id,
+      filename: a.filename || "anexo",
+      size: a.size,
+      contentType: a.content_type,
+    }));
+
+  const base = {
+    direction: "in" as const,
+    fromAddr: from.addr,
+    fromName: from.name,
+    toAddrs: email.to,
+    ccAddrs: email.cc ?? [],
+    subject: email.subject ?? "",
+    text: email.text,
+    html: email.html,
+    attachments,
+    messageId: email.message_id || header(email.headers, "message-id"),
+    inReplyTo: header(email.headers, "in-reply-to"),
+    providerId: email.id,
+    contactId: contact?.id ?? null,
+    createdAt: email.created_at ? new Date(email.created_at) : new Date(),
+  };
+  const rows = (owners.length ? owners : [null]).map((userId) => ({ ...base, userId }));
+  await db.insert(mailMessages).values(rows).onConflictDoNothing();
+  return rows.length;
+}
+
+/* ───────────────────────── Envio ───────────────────────── */
+
+/** Texto simples → HTML do e-mail (parágrafos e quebras de linha) */
+function textToHtml(text: string) {
+  return `<!doctype html><html><body style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:14px;line-height:1.55;color:#18181b">${esc(
+    text,
+  ).replace(/\r?\n/g, "<br>")}</body></html>`;
+}
+
+export type OutgoingMail = {
+  to: string[];
+  cc: string[];
+  subject: string;
+  text: string;
+  /** Mensagem respondida (mesma conversa no cliente de e-mail de quem recebe) */
+  replyTo?: MailMessage | null;
+};
+
+/** Envia do endereço do usuário e grava em "Enviados" */
+export async function sendFromMailbox(
+  user: { id: string; name: string; mailbox: string | null },
+  mail: OutgoingMail,
+) {
+  const domain = await mailDomain();
+  const from = mailAddress(user.mailbox, domain);
+  if (!from) throw new Error("Seu usuário ainda não tem um endereço de e-mail. Peça a um administrador (Equipe & acessos).");
+
+  let quoted = "";
+  const headers: Record<string, string> = {};
+  if (mail.replyTo) {
+    const r = mail.replyTo;
+    if (r.messageId) {
+      headers["In-Reply-To"] = r.messageId;
+      headers["References"] = r.messageId;
+    }
+    const when = r.createdAt.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+    const original = (r.text ?? "").trim();
+    if (original) {
+      quoted = `\n\nEm ${when}, ${r.fromName || r.fromAddr} escreveu:\n${original
+        .split("\n")
+        .map((l) => `> ${l}`)
+        .join("\n")}`;
+    }
+  }
+  const body = mail.text + quoted;
+
+  const providerId = await sendEmail(mail.to, mail.subject, textToHtml(body), {
+    fromName: user.name,
+    fromAddress: from,
+    cc: mail.cc,
+    text: body,
+    headers: Object.keys(headers).length ? headers : undefined,
+  });
+
+  const db = await getDb();
+  const first = parseAddress(mail.to[0] ?? "").addr;
+  const [contact] = first
+    ? await db.select({ id: contacts.id }).from(contacts).where(sql`lower(${contacts.email}) = ${first}`).limit(1)
+    : [];
+  const [row] = await db
+    .insert(mailMessages)
+    .values({
+      userId: user.id,
+      direction: "out",
+      fromAddr: from,
+      fromName: user.name,
+      toAddrs: mail.to,
+      ccAddrs: mail.cc,
+      subject: mail.subject,
+      text: body,
+      inReplyTo: mail.replyTo?.messageId ?? null,
+      providerId,
+      contactId: contact?.id ?? null,
+      read: true,
+      sentBy: user.name,
+    })
+    .returning();
+  return row;
+}

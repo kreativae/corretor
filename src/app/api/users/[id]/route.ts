@@ -3,7 +3,8 @@ import { activities, sessions, users } from "@/db/schema";
 import { hashPassword, requireAdmin } from "@/lib/auth";
 import { ROLE_LABELS } from "@/lib/labels";
 import { isAdmin, isSuperadmin } from "@/lib/roles";
-import { eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
+import { cleanMailbox } from "@/lib/mail";
 import { NextResponse } from "next/server";
 
 export async function PATCH(
@@ -25,6 +26,19 @@ export async function PATCH(
     if (body.name?.trim()) patch.name = body.name.trim();
     if (body.creci !== undefined) patch.creci = String(body.creci ?? "").trim() || null;
     if (body.phone !== undefined) patch.phone = String(body.phone ?? "").replace(/\D/g, "") || null;
+    if (body.mailbox !== undefined) {
+      const mailbox = cleanMailbox(body.mailbox) || null;
+      if (mailbox) {
+        const [taken] = await (await getDb())
+          .select({ id: users.id })
+          .from(users)
+          .where(and(eq(users.mailbox, mailbox), ne(users.id, id)));
+        if (taken) {
+          return NextResponse.json({ error: "Este endereço de e-mail já é de outro usuário." }, { status: 409 });
+        }
+      }
+      patch.mailbox = mailbox;
+    }
     if (body.role && ["admin", "corretor"].includes(body.role) && target?.role !== "superadmin") {
       if (id === me.id && !isAdmin({ role: body.role })) {
         return NextResponse.json(

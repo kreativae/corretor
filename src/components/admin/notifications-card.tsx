@@ -6,7 +6,14 @@ import { BellRing, Check, ChevronDown, Loader2, Send } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-type EmailCfg = { resendApiKey: string; fromEmail: string; fromName: string; hasKey: boolean };
+type EmailCfg = {
+  resendApiKey: string;
+  fromEmail: string;
+  fromName: string;
+  hasKey: boolean;
+  webhookSecret: string;
+  inboundUrl?: string;
+};
 
 /** Avisos de novos leads: liga/desliga, conta do Resend, destinatários e e-mail de teste. */
 export function NotificationsCard({
@@ -79,7 +86,7 @@ export function NotificationsCard({
         });
         const d = await res.json();
         if (!res.ok) throw new Error(d.error);
-        setCfg(d);
+        setCfg({ ...d, inboundUrl: cfg.inboundUrl });
         setConfigured(d.hasKey);
       }
       if (!silent) toast.success("Avisos salvos.");
@@ -192,6 +199,34 @@ export function NotificationsCard({
                   <p className="rounded-xl bg-soft px-3 py-2.5 text-xs text-subtle">
                     A mesma conta envia os e-mails da Negociação (fichas para o cliente). Desligar os avisos não afeta esses envios.
                   </p>
+                  <div className="space-y-3 border-t border-hairline pt-4">
+                    <p className="font-mono text-[10.5px] uppercase tracking-[0.2em] text-subtle">
+                      Caixa de e-mail dos usuários
+                    </p>
+                    <p className="text-xs leading-relaxed text-subtle">
+                      Cada usuário com endereço definido em Equipe &amp; acessos envia e recebe pelo menu E-mail, no
+                      domínio do remetente acima. Para receber: aponte o MX do domínio para o Resend e crie em
+                      resend.com › Webhooks um webhook com o evento <code className="font-mono">email.received</code>{" "}
+                      para o endereço abaixo.
+                    </p>
+                    {cfg.inboundUrl && (
+                      <code className="block break-all rounded-xl bg-soft px-3 py-2.5 font-mono text-xs">
+                        {cfg.inboundUrl}
+                      </code>
+                    )}
+                    <Field
+                      label="Segredo do webhook"
+                      hint="Signing secret do webhook no Resend (whsec_…). Para remover, digite um hífen (-) e salve."
+                    >
+                      <Input
+                        value={cfg.webhookSecret}
+                        onChange={(e) => setField("webhookSecret", e.target.value)}
+                        placeholder="whsec_…"
+                        className="font-mono text-xs"
+                        autoComplete="off"
+                      />
+                    </Field>
+                  </div>
                 </>
               )}
             </div>

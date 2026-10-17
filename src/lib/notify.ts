@@ -19,7 +19,13 @@ export type NotifySettings = { leadEmails: string; enabled: boolean };
 const DEFAULTS: NotifySettings = { leadEmails: "", enabled: true };
 
 /** Conta do Resend */
-export type EmailConfig = { resendApiKey: string; fromEmail: string; fromName: string };
+export type EmailConfig = {
+  resendApiKey: string;
+  fromEmail: string;
+  fromName: string;
+  /** Segredo do webhook de e-mails recebidos (whsec_…), em resend.com › Webhooks */
+  webhookSecret: string;
+};
 
 export async function getEmailConfig(): Promise<EmailConfig> {
   let saved: Partial<EmailConfig> = {};
@@ -34,6 +40,7 @@ export async function getEmailConfig(): Promise<EmailConfig> {
     resendApiKey: saved.resendApiKey || process.env.RESEND_API_KEY || "",
     fromEmail: saved.fromEmail || envFrom.match(/<([^>]+)>/)?.[1] || envFrom,
     fromName: saved.fromName || envFrom.match(/^([^<]+)</)?.[1]?.trim() || "",
+    webhookSecret: saved.webhookSecret || "",
   };
 }
 
@@ -41,12 +48,15 @@ export async function saveEmailConfig(input: Partial<EmailConfig>) {
   const cur = await getEmailConfig();
   const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
   const key = str(input.resendApiKey, 200);
+  const secret = str(input.webhookSecret, 200);
   const fromEmail = str(input.fromEmail, 200).toLowerCase();
   const next: EmailConfig = {
     // Vazio ou mascarado mantém a atual; "-" apaga
     resendApiKey: key === "-" ? "" : !key || key.includes("•") ? cur.resendApiKey : key,
     fromEmail: /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(fromEmail) ? fromEmail : "",
     fromName: str(input.fromName, 80).replace(/[<>"]/g, ""),
+    webhookSecret:
+      secret === "-" ? "" : !secret || secret.includes("•") ? cur.webhookSecret : secret,
   };
   const [row] = await (await getDb()).select().from(settings).where(eq(settings.key, "email"));
   if (row) await (await getDb()).update(settings).set({ value: next }).where(eq(settings.key, "email"));
@@ -88,16 +98,26 @@ export async function sendEmail(
   to: string[],
   subject: string,
   html: string,
-  extra: { replyTo?: string; attachments?: EmailAttachment[]; fromName?: string } = {},
+  extra: {
+    replyTo?: string;
+    attachments?: EmailAttachment[];
+    fromName?: string;
+    /** Endereço do remetente no domínio verificado (caixa do usuário); vazio = o configurado */
+    fromAddress?: string;
+    cc?: string[];
+    text?: string;
+    headers?: Record<string, string>;
+  } = {},
 ) {
   const [cfg, wl] = await Promise.all([getEmailConfig(), getWhiteLabel()]);
   const key = cfg.resendApiKey;
   if (!key) throw new Error("Chave do Resend não configurada (Configurações › Avisos de novos leads).");
   let from = `${(cfg.fromName || wl.orgName).replace(/[<>"]/g, "")} <${cfg.fromEmail || "onboarding@resend.dev"}>`;
   // Nome de exibição do remetente (ex.: corretor), mantendo o endereço verificado
-  if (extra.fromName) {
-    const addr = from.match(/<([^>]+)>/)?.[1] ?? from;
-    from = `${extra.fromName.replace(/[<>"]/g, "")} <${addr}>`;
+  if (extra.fromName || extra.fromAddress) {
+    const addr = extra.fromAddress || (from.match(/<([^>]+)>/)?.[1] ?? from);
+    const name = extra.fromName || from.match(/^([^<]+)</)?.[1]?.trim() || "";
+    from = `${name.replace(/[<>"]/g, "")} <${addr}>`;
   }
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -108,6 +128,9 @@ export async function sendEmail(
       subject,
       html,
       ...(extra.replyTo ? { reply_to: extra.replyTo } : {}),
+      ...(extra.cc?.length ? { cc: extra.cc } : {}),
+      ...(extra.text ? { text: extra.text } : {}),
+      ...(extra.headers ? { headers: extra.headers } : {}),
       ...(extra.attachments?.length ? { attachments: extra.attachments } : {}),
     }),
   });
