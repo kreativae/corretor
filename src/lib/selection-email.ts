@@ -29,7 +29,8 @@ export function selectionEmailHtml(opts: {
   toName: string;
   message: string;
   properties: PropertyWithImages[];
-  broker: { name: string; phone?: string | null; email?: string | null };
+  /** Assinatura com os dados da página Equipe: nome, cargo e WhatsApp */
+  broker: { name: string; title?: string | null; phone?: string | null };
   attached: boolean;
   msgs?: Messages;
 }) {
@@ -91,9 +92,8 @@ export function selectionEmailHtml(opts: {
   </td></tr>
   <tr><td style="padding:18px 6px;font-size:13px;line-height:1.6;color:#5b5b70">
     <strong style="color:#2B2B5D">${esc(broker.name)}</strong><br>
-    ${esc(wl.orgName)}<br>
+    ${esc([broker.title?.trim(), wl.orgName].filter(Boolean).join(" · "))}<br>
     ${digits ? `<a href="${wa}" style="color:${accent};text-decoration:none;font-weight:600">WhatsApp ${esc(formatPhone(digits))}</a>` : ""}
-    ${broker.email ? `${digits ? " · " : ""}<a href="mailto:${esc(broker.email)}" style="color:#5b5b70">${esc(broker.email)}</a>` : ""}
   </td></tr>
 </table>
 </td></tr></table>

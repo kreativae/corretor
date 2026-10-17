@@ -1,5 +1,5 @@
 import { getDb } from "@/db";
-import { activities, contacts, propertySends, type SentAttachment } from "@/db/schema";
+import { activities, contacts, propertySends, users, type SentAttachment } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { getFile } from "@/lib/blob";
 import { requestPublicOrigin } from "@/lib/google";
@@ -68,6 +68,12 @@ export async function POST(req: Request) {
 
   const [wl, msgs] = await Promise.all([getWhiteLabel(), getMessages()]);
   const replyTo = await replyAddress(user.email || wl.email);
+  // Assinatura com o cadastro da Equipe (nome, cargo e WhatsApp), sem e-mail: menos links
+  const [me] = await (await getDb())
+    .select({ name: users.name, title: users.title, phone: users.phone })
+    .from(users)
+    .where(eq(users.id, user.id))
+    .catch(() => []);
   const files = (await Promise.all(attachments.map(readAttachment))).filter((f) => !!f);
 
   const snapshot = props.map((p) => ({ id: p.id, code: p.code, title: p.title, price: p.price, city: p.city }));
@@ -92,7 +98,7 @@ export async function POST(req: Request) {
         toName,
         message,
         properties: props,
-        broker: { name: user.name, phone: user.phone, email: replyTo },
+        broker: { name: me?.name || user.name, title: me?.title, phone: me?.phone || user.phone },
         attached: files.length > 0,
         msgs,
       }),
