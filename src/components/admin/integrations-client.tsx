@@ -23,7 +23,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
 
 const PROVIDER_ICONS: Record<string, typeof Contact> = {
@@ -369,6 +369,8 @@ function IntegrationCard({ item }: { item: IntegrationView }) {
   );
 }
 
+const noopSubscribe = () => () => {};
+
 export function IntegrationsClient({
   integrations,
   apiKeys,
@@ -387,7 +389,12 @@ export function IntegrationsClient({
   const [creating, setCreating] = useState(false);
   const [newKey, setNewKey] = useState({ label: "", scope: "leitura" });
   const [revealed, setRevealed] = useState<string | null>(null);
-  const [origin, setOrigin] = useState("");
+  // Domínio aberto no navegador (vazio no servidor, sem setState em efeito)
+  const origin = useSyncExternalStore(
+    noopSubscribe,
+    () => window.location.origin,
+    () => "",
+  );
   // Google fica recolhido (sanfona); abre sozinho na volta do OAuth
   const [endpointsOpen, setEndpointsOpen] = useState(false);
   const [keysOpen, setKeysOpen] = useState(false);
@@ -396,10 +403,6 @@ export function IntegrationsClient({
   const [googleOpen, setGoogleOpen] = useState(
     () => !!(searchParams.get("connected") || searchParams.get("error")),
   );
-
-  useEffect(() => {
-    setOrigin(window.location.origin);
-  }, []);
 
   useEffect(() => {
     const connected = searchParams.get("connected");
