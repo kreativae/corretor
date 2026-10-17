@@ -192,6 +192,23 @@ export function EmailInbox({
     setReload((n) => n + 1);
   }
 
+  /** Apaga do armazenamento anexos que não vão mais ser enviados */
+  function discard(files: DraftFile[]) {
+    if (!files.length) return;
+    fetch("/api/email/anexo", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: files.map((f) => f.id) }),
+      keepalive: true,
+    }).catch(() => undefined);
+  }
+
+  function closeDraft() {
+    if (sending) return;
+    if (draft) discard(draft.attachments);
+    setDraft(null);
+  }
+
   async function send() {
     if (!draft) return;
     setSending(true);
@@ -443,7 +460,7 @@ export function EmailInbox({
         </section>
       </div>
 
-      <Modal open={!!draft} onClose={() => !sending && setDraft(null)} title={draft?.replyToId ? "Responder" : "Novo e-mail"} wide>
+      <Modal open={!!draft} onClose={closeDraft} title={draft?.replyToId ? "Responder" : "Novo e-mail"} wide>
         {draft && (
           <div className="space-y-4">
             <p className="flex items-center gap-2 text-xs text-subtle">
@@ -486,9 +503,10 @@ export function EmailInbox({
                     <span className="font-mono text-subtle">{kb(a.size)}</span>
                     <button
                       type="button"
-                      onClick={() =>
-                        setDraft({ ...draft, attachments: draft.attachments.filter((x) => x.id !== a.id) })
-                      }
+                      onClick={() => {
+                        discard([a]);
+                        setDraft({ ...draft, attachments: draft.attachments.filter((x) => x.id !== a.id) });
+                      }}
                       className="rounded p-0.5 text-subtle hover:bg-soft hover:text-ink"
                       aria-label={`Remover ${a.filename}`}
                     >
@@ -518,7 +536,7 @@ export function EmailInbox({
                   }}
                 />
               </label>
-              <Button variant="outline" onClick={() => setDraft(null)} disabled={sending}>
+              <Button variant="outline" onClick={closeDraft} disabled={sending}>
                 Cancelar
               </Button>
               <Button variant="accent" loading={sending} disabled={uploading > 0} onClick={send}>

@@ -467,6 +467,14 @@ export const mailMessages = pgTable("mail_messages", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/** Anexos que subiram para um e-mail ainda não enviado (apagados ao remover, cancelar ou após 24 h) */
+export const mailUploads = pgTable("mail_uploads", {
+  pathname: text("pathname").primaryKey(),
+  access: text("access").notNull().default("private"),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 /** Recebido: id do anexo no Resend. Enviado: caminho no armazenamento (id) e o acesso. */
 export type MailAttachment = {
   id: string;

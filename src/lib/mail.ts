@@ -1,9 +1,16 @@
 import "server-only";
 import { getDb } from "@/db";
-import { contacts, mailMessages, users, type MailAttachment, type MailMessage } from "@/db/schema";
-import { getFile } from "@/lib/blob";
+import {
+  contacts,
+  mailMessages,
+  mailUploads,
+  users,
+  type MailAttachment,
+  type MailMessage,
+} from "@/db/schema";
+import { deleteFiles, getFile } from "@/lib/blob";
 import { getEmailConfig, esc, sendEmail, type EmailAttachment } from "@/lib/notify";
-import { and, eq, isNotNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, lt, sql } from "drizzle-orm";
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 /**
@@ -199,6 +206,43 @@ export function ownAttachments(userId: string, raw: unknown): MailAttachment[] {
     }));
 }
 
+/** Anexos não enviados: registra ao subir, para poder apagar depois */
+export async function trackUpload(userId: string, pathname: string, access: string) {
+  await (await getDb()).insert(mailUploads).values({ pathname, access, userId }).onConflictDoNothing();
+}
+
+/** Apaga anexos ainda não enviados (do próprio usuário) */
+export async function discardUploads(userId: string, pathnames: string[]) {
+  if (!pathnames.length) return 0;
+  const db = await getDb();
+  const rows = await db
+    .delete(mailUploads)
+    .where(and(eq(mailUploads.userId, userId), inArray(mailUploads.pathname, pathnames)))
+    .returning();
+  await deleteFiles(rows.map((r) => r.pathname));
+  return rows.length;
+}
+
+/** Anexos esquecidos há mais de 24 h (aba fechada antes de enviar) */
+export async function cleanupStaleUploads() {
+  const db = await getDb();
+  const rows = await db
+    .delete(mailUploads)
+    .where(
+      inArray(
+        mailUploads.pathname,
+        db
+          .select({ p: mailUploads.pathname })
+          .from(mailUploads)
+          .where(lt(mailUploads.createdAt, new Date(Date.now() - 24 * 3600_000)))
+          .limit(100),
+      ),
+    )
+    .returning();
+  await deleteFiles(rows.map((r) => r.pathname));
+  return rows.length;
+}
+
 async function readAttachment(a: MailAttachment): Promise<EmailAttachment> {
   const r = await getFile(a.id, a.access ?? "private");
   if (!r) throw new Error(`Anexo "${a.filename}" não encontrado. Anexe de novo.`);
@@ -289,5 +333,17 @@ export async function sendFromMailbox(
       sentBy: user.name,
     })
     .returning();
+  // Enviados: os anexos agora são do histórico, não são mais rascunho
+  if (attachments.length) {
+    await db.delete(mailUploads).where(
+      and(
+        eq(mailUploads.userId, user.id),
+        inArray(
+          mailUploads.pathname,
+          attachments.map((a) => a.id),
+        ),
+      ),
+    );
+  }
   return row;
 }

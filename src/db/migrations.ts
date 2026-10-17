@@ -197,6 +197,12 @@ export const RUNTIME_MIGRATIONS = [
   `CREATE UNIQUE INDEX IF NOT EXISTS mail_messages_provider_owner_key
      ON mail_messages (provider_id, COALESCE(user_id, '00000000-0000-0000-0000-000000000000'::uuid), direction)
      WHERE provider_id IS NOT NULL;`,
+  `CREATE TABLE IF NOT EXISTS mail_uploads (
+     pathname text PRIMARY KEY,
+     access text NOT NULL DEFAULT 'private',
+     user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     created_at timestamptz NOT NULL DEFAULT now()
+   );`,
 ];
 
 /** Só no banco principal (esquema public): cadastro de empresas da gerência */
