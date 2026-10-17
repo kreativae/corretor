@@ -61,6 +61,8 @@ const GROUP_LABELS: Record<Group, string> = {
   negociacoes: "Negociações",
 };
 
+const NO_RESULTS: Results = { properties: [], contacts: [] };
+
 export function CommandPalette({
   open,
   onClose,
@@ -70,27 +72,35 @@ export function CommandPalette({
 }) {
   const router = useRouter();
   const [q, setQ] = useState("");
-  const [results, setResults] = useState<Results>({ properties: [], contacts: [] });
+  const [results, setResults] = useState<Results>(NO_RESULTS);
   const [loading, setLoading] = useState(false);
   const [sel, setSel] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  // Ao abrir, começa do zero (ajuste durante o render, sem setState em efeito)
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
     if (open) {
       setQ("");
-      setResults({ properties: [], contacts: [] });
+      setResults(NO_RESULTS);
+      setLoading(false);
       setSel(0);
-      setTimeout(() => inputRef.current?.focus(), 40);
     }
-  }, [open]);
+  }
 
   useEffect(() => {
-    if (!open || !q.trim()) {
-      setResults({ properties: [], contacts: [] });
-      return;
-    }
-    setLoading(true);
+    if (!open) return;
+    const t = setTimeout(() => inputRef.current?.focus(), 40);
+    return () => clearTimeout(t);
+  }, [open]);
+
+  // Busca vazia ou fechada não mostra resultados antigos
+  const shown = open && q.trim() ? results : NO_RESULTS;
+
+  useEffect(() => {
+    if (!open || !q.trim()) return;
     const t = setTimeout(async () => {
       try {
         const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
@@ -116,23 +126,23 @@ export function CommandPalette({
     };
   };
   const items: Item[] = [
-    ...results.properties.filter((p) => !isRuralType(p.type)).map(toItem),
-    ...results.properties.filter((p) => isRuralType(p.type)).map(toItem),
-    ...results.contacts.map((c) => ({
+    ...shown.properties.filter((p) => !isRuralType(p.type)).map(toItem),
+    ...shown.properties.filter((p) => isRuralType(p.type)).map(toItem),
+    ...shown.contacts.map((c) => ({
       group: "contatos" as const,
       href: `/crm/contatos/${c.id}`,
       id: c.id,
       label: c.name,
       sub: c.phone,
     })),
-    ...(results.visits ?? []).map((v) => ({
+    ...(shown.visits ?? []).map((v) => ({
       group: "visitas" as const,
       href: `/crm/agenda?visita=${v.id}`,
       id: v.id,
       label: `${v.contactName} · ${v.propertyCode}`,
       sub: `${formatDateTime(v.scheduledAt)} · ${VISIT_STATUS_LABELS[v.status] ?? v.status}`,
     })),
-    ...(results.deals ?? []).map((d) => ({
+    ...(shown.deals ?? []).map((d) => ({
       group: "negociacoes" as const,
       href: `/crm/pipeline?negocio=${d.id}`,
       id: d.id,
@@ -203,6 +213,7 @@ export function CommandPalette({
             value={q}
             onChange={(e) => {
               setQ(e.target.value);
+              setLoading(!!e.target.value.trim());
               setSel(0);
             }}
             onKeyDown={onKey}

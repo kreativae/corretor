@@ -98,20 +98,22 @@ export function LeadDrawer({
 }) {
   const router = useRouter();
   const [data, setData] = useState<LeadData | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(!!contactId);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(emptyForm);
 
-  useEffect(() => {
-    if (!contactId) {
-      setData(null);
-      setEditing(false);
-      return;
-    }
-    setLoading(true);
+  // Trocou de contato (ou fechou): limpa durante o render, sem setState em efeito
+  const [shownId, setShownId] = useState(contactId);
+  if (contactId !== shownId) {
+    setShownId(contactId);
     setData(null);
     setEditing(false);
+    setLoading(!!contactId);
+  }
+
+  useEffect(() => {
+    if (!contactId) return;
     document.body.style.overflow = "hidden";
     fetch(`/api/contacts/${contactId}`)
       .then((r) => (r.ok ? r.json() : null))
