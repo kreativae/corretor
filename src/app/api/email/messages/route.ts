@@ -111,7 +111,7 @@ export async function POST(req: Request) {
   const u = await mailUser();
   if (!u) return NextResponse.json({ error: "Faça login." }, { status: 401 });
   if (!(await emailConfigured())) {
-    return NextResponse.json({ error: "Envio de e-mail não configurado (Configurações › Avisos de novos leads)." }, { status: 400 });
+    return NextResponse.json({ error: "Envio de e-mail não configurado (Administração › E-mail)." }, { status: 400 });
   }
   const body = await req.json().catch(() => ({}));
   const list = (v: unknown) =>

@@ -321,7 +321,7 @@ export function EmailInbox({
       {(!configured || !address) && (
         <div className="mt-6 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm">
           {!configured
-            ? "O envio de e-mail ainda não está configurado (Configurações › Avisos de novos leads)."
+            ? "O envio de e-mail ainda não está configurado (Administração › E-mail)."
             : admin
               ? "Defina o seu endereço em Equipe & acessos › Editar cadastro."
               : "Peça a um administrador para definir o seu endereço em Equipe & acessos."}

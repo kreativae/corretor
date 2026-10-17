@@ -59,7 +59,11 @@ export async function POST(req: Request) {
     if (key === "watermark") value = sanitizeWatermark(value ?? {});
     if (key === "messages") value = mergeMessages(value ?? {});
     if (key === "notifications") {
-      value = { leadEmails: String(value?.leadEmails ?? "").slice(0, 500), enabled: value?.enabled !== false };
+      value = {
+        leadEmails: String(value?.leadEmails ?? "").slice(0, 500),
+        enabled: value?.enabled !== false,
+        notifyResponsible: value?.notifyResponsible === true,
+      };
     }
 
     const existing = await (await getDb())

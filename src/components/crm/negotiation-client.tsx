@@ -338,7 +338,7 @@ export function NegotiationClient({
           <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
           <p>
             O envio de e-mails ainda não está configurado. Um administrador informa a chave do Resend e o remetente em{" "}
-            <strong>Configurações › Avisos de novos leads</strong>.
+            <strong>Administração › E-mail</strong>.
           </p>
         </div>
       )}

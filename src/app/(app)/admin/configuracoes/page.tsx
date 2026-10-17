@@ -3,12 +3,10 @@ import { FeaturesCard } from "@/components/admin/features-card";
 import { StatCardsCard } from "@/components/admin/stat-cards-card";
 import { MapOptionsCard } from "@/components/admin/map-options-card";
 import { WatermarkCard } from "@/components/admin/watermark-card";
-import { NotificationsCard } from "@/components/admin/notifications-card";
 import { getFeatures, getMapOptions, getMessages, getStatCards, getWatermarkSettings } from "@/lib/features";
 import { MessagesCard } from "@/components/admin/messages-card";
 import { WhatsAppCard } from "@/components/admin/whatsapp-card";
 import { WhiteLabelCard } from "@/components/admin/white-label-card";
-import { emailConfigured, getNotifySettings } from "@/lib/notify";
 import { getDb } from "@/db";
 import { apiKeys, integrations } from "@/db/schema";
 import { ensureGoogleIntegrations } from "@/lib/google";
@@ -25,8 +23,7 @@ export default async function ConfiguracoesPage() {
     (await getDb()).select().from(apiKeys).orderBy(apiKeys.createdAt),
     getWhiteLabel(),
   ]);
-  const [notify, features, statCards, mapOptions, watermark, audit, messages] = await Promise.all([
-    getNotifySettings(),
+  const [features, statCards, mapOptions, watermark, audit, messages] = await Promise.all([
     getFeatures(),
     getStatCards(),
     getMapOptions(),
@@ -64,12 +61,6 @@ export default async function ConfiguracoesPage() {
               ? "Símbolo padrão · Carlos Amâncio Imóveis"
               : "Nome da marca, como no menu (envie um logo no White label para trocar)"
         }
-      />
-      <NotificationsCard
-        initialEmails={notify.leadEmails}
-        initialEnabled={notify.enabled}
-        fallbackEmail={wl.email}
-        configured={await emailConfigured()}
       />
       <WhatsAppCard />
       <MessagesCard initial={messages} />

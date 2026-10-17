@@ -1,6 +1,6 @@
 import "server-only";
 import { getDb } from "@/db";
-import { settings } from "@/db/schema";
+import { properties, settings, users } from "@/db/schema";
 import { TYPE_LABELS } from "@/lib/labels";
 import { getWhiteLabel } from "@/lib/queries";
 import { onAccentColor } from "@/lib/utils";
@@ -11,12 +11,17 @@ import { siteBaseUrl } from "@/lib/tenant";
 
 /**
  * E-mails via Resend (https://resend.com): avisos de novos leads e envios da Negociação.
- * Chave e remetente ficam em Configurações › Avisos de novos leads; as variáveis
+ * Chave e remetente ficam em Administração › E-mail; as variáveis
  * RESEND_API_KEY / LEADS_FROM_EMAIL da Vercel valem como reserva.
  */
 
-export type NotifySettings = { leadEmails: string; enabled: boolean };
-const DEFAULTS: NotifySettings = { leadEmails: "", enabled: true };
+export type NotifySettings = {
+  leadEmails: string;
+  enabled: boolean;
+  /** Avisar também o corretor responsável quando o lead vem de um imóvel */
+  notifyResponsible: boolean;
+};
+const DEFAULTS: NotifySettings = { leadEmails: "", enabled: true, notifyResponsible: false };
 
 /** Conta do Resend */
 export type EmailConfig = {
@@ -163,7 +168,7 @@ export async function sendEmail(
 ) {
   const [cfg, wl] = await Promise.all([getEmailConfig(), getWhiteLabel()]);
   const key = cfg.resendApiKey;
-  if (!key) throw new Error("Chave do Resend não configurada (Configurações › Avisos de novos leads).");
+  if (!key) throw new Error("Chave do Resend não configurada (Administração › E-mail).");
   let from = `${(cfg.fromName || wl.orgName).replace(/[<>"]/g, "")} <${cfg.fromEmail || "onboarding@resend.dev"}>`;
   // Nome de exibição do remetente (ex.: corretor), mantendo o endereço verificado
   if (extra.fromName || extra.fromAddress) {
@@ -218,6 +223,8 @@ export type LeadNotice = {
   /** https://dominio-do-sistema */
   baseUrl: string;
   returning?: boolean;
+  /** Imóvel de origem: avisa também o corretor responsável, se ligado */
+  propertyId?: string | null;
 };
 
 function leadHtml(n: LeadNotice, orgName: string, accent: string, onAccent: string, footer = MESSAGE_DEFAULTS.leadFooter) {
@@ -261,6 +268,15 @@ export async function notifyNewLead(n: LeadNotice) {
     const [cfg, wl, msgs] = await Promise.all([getNotifySettings(), getWhiteLabel(), getMessages()]);
     if (!cfg.enabled || !(await emailConfigured())) return;
     const to = parseEmails(cfg.leadEmails || wl.email);
+    if (cfg.notifyResponsible && n.propertyId) {
+      const [r] = await (await getDb())
+        .select({ email: users.email })
+        .from(properties)
+        .innerJoin(users, eq(users.id, properties.responsibleId))
+        .where(eq(properties.id, n.propertyId));
+      const extra = parseEmails(r?.email ?? "")[0];
+      if (extra && !to.includes(extra)) to.push(extra);
+    }
     if (!to.length) return;
     const subject = fillMessage(n.returning ? msgs.leadReturnSubject : msgs.leadSubject, {
       nome: n.name,
@@ -290,7 +306,7 @@ export async function sendTestEmail(baseUrl: string) {
         phone: wl.phone || "",
         message:
           "É assim que chega o aviso quando alguém deixa contato pelo site, agenda uma visita ou é recebido pelo webhook. No aviso de verdade, os botões abrem o contato no CRM e a conversa no WhatsApp.",
-        origin: "Configurações › Avisos de novos leads",
+        origin: "Administração › E-mail",
         baseUrl: await emailBaseUrl(wl.domain, baseUrl),
       },
       wl.orgName,

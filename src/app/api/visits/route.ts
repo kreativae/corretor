@@ -98,6 +98,7 @@ export async function POST(req: Request) {
           origin: "Visita agendada pelo site",
           detail: `${prop?.code ?? ""} ${prop?.title ?? ""} · ${formatDate(scheduledAt)} ${time}`.trim(),
           baseUrl,
+          propertyId: String(body.propertyId),
         }),
       );
     }

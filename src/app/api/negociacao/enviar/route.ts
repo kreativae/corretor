@@ -28,7 +28,7 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: "Faça login." }, { status: 401 });
   if (!(await emailConfigured())) {
     return NextResponse.json(
-      { error: "Envio de e-mail não configurado (Configurações › Avisos de novos leads)." },
+      { error: "Envio de e-mail não configurado (Administração › E-mail)." },
       { status: 400 },
     );
   }

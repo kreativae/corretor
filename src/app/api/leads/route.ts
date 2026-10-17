@@ -219,6 +219,7 @@ export async function POST(req: Request) {
           : profile || null,
         baseUrl,
         returning: !!existing,
+        propertyId: property?.id,
       }),
     );
 

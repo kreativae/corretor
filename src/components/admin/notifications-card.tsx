@@ -3,7 +3,6 @@
 import { Button, Field, Input, Switch } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { BellRing, Check, ChevronDown, Send } from "lucide-react";
-import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -11,27 +10,43 @@ import { toast } from "sonner";
 export function NotificationsCard({
   initialEmails,
   initialEnabled,
+  initialNotifyResponsible,
   fallbackEmail,
+  team,
   configured: initialConfigured,
+  defaultOpen = false,
 }: {
   initialEmails: string;
   initialEnabled: boolean;
+  initialNotifyResponsible: boolean;
   fallbackEmail: string;
+  /** Equipe com e-mail, para marcar quem recebe */
+  team: { id: string; name: string; email: string }[];
   configured: boolean;
+  defaultOpen?: boolean;
 }) {
-  const [emails, setEmails] = useState(initialEmails);
+  const list = (raw: string) => raw.split(/[,;\s]+/).map((e) => e.trim().toLowerCase()).filter(Boolean);
+  const teamEmails = new Set(team.map((m) => m.email.toLowerCase()));
+  // Equipe marcada + outros endereços digitados; salvos juntos na mesma lista
+  const [picked, setPicked] = useState(() => list(initialEmails).filter((e) => teamEmails.has(e)));
+  const [othersText, setOthersText] = useState(() => list(initialEmails).filter((e) => !teamEmails.has(e)).join(", "));
+  const emails = [...picked, ...list(othersText).filter((e) => !picked.includes(e))].join(", ");
   const [enabled, setEnabled] = useState(initialEnabled);
+  const [notifyResponsible, setNotifyResponsible] = useState(initialNotifyResponsible);
   const configured = initialConfigured;
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [toggling, setToggling] = useState(false);
   // Recolhido (sanfona); abre ao clicar no cabeçalho
-  const [open, setOpen] = useState(false);
-  const recipients = (emails.trim() || fallbackEmail)
-    .split(/[,;\s]+/)
-    .filter(Boolean);
+  const [open, setOpen] = useState(defaultOpen);
+  const recipients = list(emails || fallbackEmail);
 
-  async function saveNotify(next: { leadEmails: string; enabled: boolean }) {
+  function toggleMember(email: string, on: boolean) {
+    const e = email.toLowerCase();
+    setPicked((cur) => (on ? [...cur.filter((x) => x !== e), e] : cur.filter((x) => x !== e)));
+  }
+
+  async function saveNotify(next: { leadEmails: string; enabled: boolean; notifyResponsible: boolean }) {
     const res = await fetch("/api/settings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -44,7 +59,7 @@ export function NotificationsCard({
     setEnabled(v);
     setToggling(true);
     try {
-      await saveNotify({ leadEmails: emails, enabled: v });
+      await saveNotify({ leadEmails: emails, enabled: v, notifyResponsible });
       toast.success(v ? "Avisos de novos leads ativados." : "Avisos de novos leads desativados.");
     } catch {
       setEnabled(!v);
@@ -57,7 +72,7 @@ export function NotificationsCard({
   async function save(silent = false) {
     setSaving(true);
     try {
-      await saveNotify({ leadEmails: emails, enabled });
+      await saveNotify({ leadEmails: emails, enabled, notifyResponsible });
       if (!silent) toast.success("Avisos salvos.");
       return true;
     } catch (e) {
@@ -131,27 +146,51 @@ export function NotificationsCard({
       >
         <div className="min-h-0 overflow-hidden" inert={!open}>
           <div className="space-y-6 border-t border-hairline p-6">
-            <p className="rounded-xl bg-soft px-3 py-2.5 text-xs text-subtle">
-              {configured ? "Enviados pela conta do Resend configurada em " : "Configure primeiro a conta do Resend em "}
-              <Link href="/admin/email" className="font-medium text-ink underline underline-offset-2">
-                Administração › E-mail
-              </Link>
-              .
-            </p>
+            {!configured && (
+              <p className="rounded-xl bg-soft px-3 py-2.5 text-xs text-subtle">
+                Configure primeiro a conta do Resend, logo abaixo, em “Conta de envio (Resend)”.
+              </p>
+            )}
 
             {/* Destinatários */}
             <div className="space-y-4">
               <p className="font-mono text-[10.5px] uppercase tracking-[0.2em] text-subtle">Quem recebe os avisos</p>
+              {team.length > 0 && (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {team.map((m) => (
+                    <label key={m.id} className="flex items-center gap-3 rounded-xl border border-hairline px-3 py-2.5 text-sm">
+                      <Switch checked={picked.includes(m.email.toLowerCase())} onChange={(v) => toggleMember(m.email, v)} />
+                      <span className="min-w-0">
+                        <span className="block truncate font-medium">{m.name}</span>
+                        <span className="block truncate text-xs text-subtle">{m.email}</span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              )}
               <Field
-                label="Enviar para"
-                hint={`Um ou mais e-mails, separados por vírgula${fallbackEmail ? ` · vazio = ${fallbackEmail}` : ""}`}
+                label={team.length ? "Outros e-mails" : "Enviar para"}
+                hint={`Separados por vírgula${!emails && fallbackEmail ? ` · sem ninguém marcado, vai para o e-mail do site (${fallbackEmail})` : ""}`}
               >
                 <Input
-                  value={emails}
-                  onChange={(e) => setEmails(e.target.value)}
+                  value={othersText}
+                  onChange={(e) => setOthersText(e.target.value)}
                   placeholder="voce@imobiliaria.com.br, corretor@imobiliaria.com.br"
                 />
               </Field>
+              <label className="flex items-start gap-3 text-sm">
+                <Switch checked={notifyResponsible} onChange={setNotifyResponsible} />
+                <span>
+                  Avisar também o corretor responsável pelo imóvel
+                  <span className="block text-xs text-subtle">
+                    Quando o contato vem da página, da ficha (QR code) ou da visita de um imóvel com responsável cadastrado.
+                  </span>
+                </span>
+              </label>
+              <p className="text-xs text-subtle">
+                Hoje os avisos vão para: <span className="font-medium text-ink">{recipients.join(", ") || "ninguém"}</span>
+                {notifyResponsible ? " + o responsável pelo imóvel" : ""}.
+              </p>
             </div>
 
             <div className="flex flex-wrap justify-end gap-2">
