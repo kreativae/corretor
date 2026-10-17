@@ -4,6 +4,7 @@ import { getAccount } from "@/lib/account";
 import { isSuperadmin } from "@/lib/roles";
 import { SuspendedScreen } from "@/components/suspended-screen";
 import { getFeatures, getStatCards } from "@/lib/features";
+import { getEmailConfig } from "@/lib/notify";
 import { brandShortName, getWhiteLabel } from "@/lib/queries";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
@@ -17,15 +18,18 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function CrmLayout({ children }: { children: ReactNode }) {
-  const [user, features, statCards, account] = await Promise.all([
+  const [user, features, statCards, account, emailCfg] = await Promise.all([
     requireUser("/crm"),
     getFeatures(),
     getStatCards(),
     getAccount(),
+    getEmailConfig(),
   ]);
+  // Menu E-mail só com o módulo liberado e a caixa ligada em Administração › E-mail
+  const modules = { ...account.modules, email: account.modules.email && emailCfg.mailboxEnabled };
   if (account.status === "suspenso" && !isSuperadmin(user)) return <SuspendedScreen message={account.suspendedMessage} />;
   return (
-    <AppShell mode="crm" user={user} features={features} modules={account.modules} statCards={statCards}>
+    <AppShell mode="crm" user={user} features={features} modules={modules} statCards={statCards}>
       {children}
     </AppShell>
   );

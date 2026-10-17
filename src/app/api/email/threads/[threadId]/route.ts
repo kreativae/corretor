@@ -1,6 +1,6 @@
 import { getDb } from "@/db";
 import { mailMessages } from "@/db/schema";
-import { mailUser, visibleTo, type MailUser } from "@/lib/mail-access";
+import { mailboxOff, mailUser, visibleTo, type MailUser } from "@/lib/mail-access";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
@@ -17,6 +17,8 @@ async function threadMessages(u: MailUser, threadId: string) {
 
 /** Conversa inteira, da mais antiga para a mais nova; abrir marca como lida */
 export async function GET(_req: Request, { params }: Params) {
+  const off = await mailboxOff();
+  if (off) return off;
   const u = await mailUser();
   if (!u) return NextResponse.json({ error: "Faça login." }, { status: 401 });
   const msgs = await threadMessages(u, (await params).threadId);
@@ -30,6 +32,8 @@ export async function GET(_req: Request, { params }: Params) {
 
 /** { read: false } — marca a última mensagem recebida como não lida */
 export async function PATCH(req: Request, { params }: Params) {
+  const off = await mailboxOff();
+  if (off) return off;
   const u = await mailUser();
   if (!u) return NextResponse.json({ error: "Faça login." }, { status: 401 });
   const msgs = await threadMessages(u, (await params).threadId);
@@ -43,6 +47,8 @@ export async function PATCH(req: Request, { params }: Params) {
 
 /** Exclui a conversa inteira */
 export async function DELETE(_req: Request, { params }: Params) {
+  const off = await mailboxOff();
+  if (off) return off;
   const u = await mailUser();
   if (!u) return NextResponse.json({ error: "Faça login." }, { status: 401 });
   const msgs = await threadMessages(u, (await params).threadId);

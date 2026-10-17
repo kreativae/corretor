@@ -3,7 +3,21 @@ import { getDb } from "@/db";
 import { mailMessages, users } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { isAdmin } from "@/lib/roles";
+import { getEmailConfig } from "@/lib/notify";
 import { and, eq, isNull, or, type SQL } from "drizzle-orm";
+import { NextResponse } from "next/server";
+
+/** Caixa de e-mail dos usuários ligada em Administração › E-mail? */
+export async function mailboxEnabled() {
+  return (await getEmailConfig()).mailboxEnabled;
+}
+
+/** Resposta das rotas da caixa quando o serviço está desligado (null = ligado) */
+export async function mailboxOff() {
+  return (await mailboxEnabled())
+    ? null
+    : NextResponse.json({ error: "A caixa de e-mail está desativada (Administração › E-mail)." }, { status: 403 });
+}
 
 /** Usuário da sessão com o endereço de e-mail dele */
 export async function mailUser() {

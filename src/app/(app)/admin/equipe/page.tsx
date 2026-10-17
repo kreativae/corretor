@@ -2,13 +2,19 @@ import { TeamClient } from "@/components/admin/team-client";
 import { getCurrentUser } from "@/lib/auth";
 import { listUsers } from "@/lib/queries";
 import { mailDomain } from "@/lib/mail";
+import { mailboxEnabled } from "@/lib/mail-access";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Equipe & acessos" };
 
 export default async function EquipePage() {
-  const [users, me, domain] = await Promise.all([listUsers(), getCurrentUser(), mailDomain()]);
+  const [users, me, domain, mailbox] = await Promise.all([
+    listUsers(),
+    getCurrentUser(),
+    mailDomain(),
+    mailboxEnabled(),
+  ]);
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -41,7 +47,7 @@ export default async function EquipePage() {
           createdAt: u.createdAt.toISOString(),
         }))}
         currentUserId={me?.id ?? ""}
-        mailDomain={domain}
+        mailDomain={mailbox ? domain : ""}
       />
     </div>
   );

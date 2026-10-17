@@ -10,7 +10,7 @@ export const maxDuration = 30;
  */
 export async function POST(req: Request) {
   const raw = await req.text();
-  const { webhookSecret } = await getEmailConfig();
+  const { webhookSecret, mailboxEnabled } = await getEmailConfig();
   if (!verifyResendSignature(raw, req.headers, webhookSecret)) {
     return new Response("Assinatura inválida", { status: 401 });
   }
@@ -21,6 +21,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   }
   if (event.type !== "email.received" || !event.data?.email_id) return NextResponse.json({ ok: true });
+  // Serviço desligado: confirma o recebimento para o Resend não insistir, sem gravar
+  if (!mailboxEnabled) return NextResponse.json({ ok: true, ignored: "caixa desativada" });
   try {
     const saved = await ingestReceivedEmail(event.data.email_id);
     return NextResponse.json({ ok: true, saved });

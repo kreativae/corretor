@@ -2,7 +2,7 @@ import { getDb } from "@/db";
 import { mailMessages } from "@/db/schema";
 import { emailConfigured } from "@/lib/notify";
 import { mailAddress, mailDomain, ownAttachments, parseAddress, sendFromMailbox } from "@/lib/mail";
-import { findVisibleMessage, mailUser } from "@/lib/mail-access";
+import { findVisibleMessage, mailboxOff, mailUser } from "@/lib/mail-access";
 import { and, countDistinct, desc, eq, isNull, type SQL } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
@@ -13,6 +13,8 @@ const EMAIL_RE = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
  * com algo recebido; Enviados, as com algo enviado; Geral, a caixa sem dono (admins).
  */
 export async function GET(req: Request) {
+  const off = await mailboxOff();
+  if (off) return off;
   const u = await mailUser();
   if (!u) return NextResponse.json({ error: "Faça login." }, { status: 401 });
   const sp = new URL(req.url).searchParams;
@@ -104,6 +106,8 @@ export async function GET(req: Request) {
 
 /** Envia do endereço do usuário: { to, cc?, subject, text, replyToId? } */
 export async function POST(req: Request) {
+  const off = await mailboxOff();
+  if (off) return off;
   const u = await mailUser();
   if (!u) return NextResponse.json({ error: "Faça login." }, { status: 401 });
   if (!(await emailConfigured())) {

@@ -1,6 +1,6 @@
 import { getDb } from "@/db";
 import { mailMessages } from "@/db/schema";
-import { findVisibleMessage, mailUser } from "@/lib/mail-access";
+import { findVisibleMessage, mailboxOff, mailUser } from "@/lib/mail-access";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
@@ -8,6 +8,8 @@ type Params = { params: Promise<{ id: string }> };
 
 /** Mensagem completa; abrir marca como lida */
 export async function GET(_req: Request, { params }: Params) {
+  const off = await mailboxOff();
+  if (off) return off;
   const u = await mailUser();
   if (!u) return NextResponse.json({ error: "Faça login." }, { status: 401 });
   const msg = await findVisibleMessage(u, (await params).id);
@@ -20,6 +22,8 @@ export async function GET(_req: Request, { params }: Params) {
 
 /** { read: boolean } */
 export async function PATCH(req: Request, { params }: Params) {
+  const off = await mailboxOff();
+  if (off) return off;
   const u = await mailUser();
   if (!u) return NextResponse.json({ error: "Faça login." }, { status: 401 });
   const msg = await findVisibleMessage(u, (await params).id);
@@ -32,6 +36,8 @@ export async function PATCH(req: Request, { params }: Params) {
 }
 
 export async function DELETE(_req: Request, { params }: Params) {
+  const off = await mailboxOff();
+  if (off) return off;
   const u = await mailUser();
   if (!u) return NextResponse.json({ error: "Faça login." }, { status: 401 });
   const msg = await findVisibleMessage(u, (await params).id);

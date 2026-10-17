@@ -3,6 +3,9 @@ import { getEmailConfig, maskKey, saveEmailConfig, type EmailConfig } from "@/li
 import { NextResponse } from "next/server";
 import { requestPublicOrigin } from "@/lib/google";
 import { tenantParam } from "@/lib/tenant";
+import { getDb } from "@/db";
+import { mailMessages, users } from "@/db/schema";
+import { and, count, eq, isNotNull, max } from "drizzle-orm";
 import { isAdmin } from "@/lib/roles";
 
 const view = (c: EmailConfig) => ({
@@ -19,7 +22,17 @@ export async function GET(req: Request) {
   // Endereço para cadastrar no Resend (Webhooks › evento email.received)
   const t = await tenantParam();
   const inboundUrl = `${requestPublicOrigin(req)}/api/email/inbound${t ? `?t=${t}` : ""}`;
-  return NextResponse.json({ ...view(await getEmailConfig()), inboundUrl });
+  const db = await getDb();
+  const [[boxes], [last]] = await Promise.all([
+    db.select({ n: count() }).from(users).where(and(isNotNull(users.mailbox), eq(users.active, true))),
+    db.select({ at: max(mailMessages.createdAt) }).from(mailMessages).where(eq(mailMessages.direction, "in")),
+  ]);
+  return NextResponse.json({
+    ...view(await getEmailConfig()),
+    inboundUrl,
+    usersWithMailbox: boxes?.n ?? 0,
+    lastReceivedAt: last?.at ?? null,
+  });
 }
 
 export async function POST(req: Request) {

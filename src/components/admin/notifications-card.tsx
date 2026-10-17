@@ -2,20 +2,12 @@
 
 import { Button, Field, Input, Switch } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import { BellRing, Check, ChevronDown, Loader2, Send } from "lucide-react";
-import { useEffect, useState } from "react";
+import { BellRing, Check, ChevronDown, Send } from "lucide-react";
+import Link from "next/link";
+import { useState } from "react";
 import { toast } from "sonner";
 
-type EmailCfg = {
-  resendApiKey: string;
-  fromEmail: string;
-  fromName: string;
-  hasKey: boolean;
-  webhookSecret: string;
-  inboundUrl?: string;
-};
-
-/** Avisos de novos leads: liga/desliga, conta do Resend, destinatários e e-mail de teste. */
+/** Avisos de novos leads: liga/desliga, destinatários e e-mail de teste (a conta do Resend fica em Administração › E-mail). */
 export function NotificationsCard({
   initialEmails,
   initialEnabled,
@@ -29,8 +21,7 @@ export function NotificationsCard({
 }) {
   const [emails, setEmails] = useState(initialEmails);
   const [enabled, setEnabled] = useState(initialEnabled);
-  const [configured, setConfigured] = useState(initialConfigured);
-  const [cfg, setCfg] = useState<EmailCfg | null>(null);
+  const configured = initialConfigured;
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [toggling, setToggling] = useState(false);
@@ -39,17 +30,6 @@ export function NotificationsCard({
   const recipients = (emails.trim() || fallbackEmail)
     .split(/[,;\s]+/)
     .filter(Boolean);
-
-  // Conta do Resend: carrega ao abrir (a chave vem mascarada)
-  useEffect(() => {
-    if (!open || cfg) return;
-    fetch("/api/email-config")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => d && setCfg(d))
-      .catch(() => undefined);
-  }, [open, cfg]);
-
-  const setField = <K extends keyof EmailCfg>(k: K, v: EmailCfg[K]) => setCfg((c) => (c ? { ...c, [k]: v } : c));
 
   async function saveNotify(next: { leadEmails: string; enabled: boolean }) {
     const res = await fetch("/api/settings", {
@@ -78,17 +58,6 @@ export function NotificationsCard({
     setSaving(true);
     try {
       await saveNotify({ leadEmails: emails, enabled });
-      if (cfg) {
-        const res = await fetch("/api/email-config", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(cfg),
-        });
-        const d = await res.json();
-        if (!res.ok) throw new Error(d.error);
-        setCfg({ ...d, inboundUrl: cfg.inboundUrl });
-        setConfigured(d.hasKey);
-      }
       if (!silent) toast.success("Avisos salvos.");
       return true;
     } catch (e) {
@@ -162,74 +131,13 @@ export function NotificationsCard({
       >
         <div className="min-h-0 overflow-hidden" inert={!open}>
           <div className="space-y-6 border-t border-hairline p-6">
-            {/* Conta do Resend */}
-            <div className="space-y-4">
-              <p className="font-mono text-[10.5px] uppercase tracking-[0.2em] text-subtle">Conta do Resend</p>
-              {!cfg ? (
-                <div className="flex justify-center py-4 text-subtle">
-                  <Loader2 className="size-5 animate-spin" />
-                </div>
-              ) : (
-                <>
-                  <Field
-                    label="API Key"
-                    hint="Em resend.com › API Keys (permissão “Sending access”). Para remover, digite um hífen (-) e salve."
-                  >
-                    <Input
-                      value={cfg.resendApiKey}
-                      onChange={(e) => setField("resendApiKey", e.target.value)}
-                      placeholder="re_…"
-                      className="font-mono text-xs"
-                      autoComplete="off"
-                    />
-                  </Field>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <Field label="E-mail do remetente" hint="De um domínio verificado no Resend. Vazio = remetente de testes.">
-                      <Input
-                        type="email"
-                        value={cfg.fromEmail}
-                        onChange={(e) => setField("fromEmail", e.target.value)}
-                        placeholder="avisos@suaimobiliaria.com.br"
-                      />
-                    </Field>
-                    <Field label="Nome do remetente" hint="Vazio = nome da imobiliária.">
-                      <Input value={cfg.fromName} onChange={(e) => setField("fromName", e.target.value)} placeholder="Carlos Amâncio Imóveis" />
-                    </Field>
-                  </div>
-                  <p className="rounded-xl bg-soft px-3 py-2.5 text-xs text-subtle">
-                    A mesma conta envia os e-mails da Negociação (fichas para o cliente). Desligar os avisos não afeta esses envios.
-                  </p>
-                  <div className="space-y-3 border-t border-hairline pt-4">
-                    <p className="font-mono text-[10.5px] uppercase tracking-[0.2em] text-subtle">
-                      Caixa de e-mail dos usuários
-                    </p>
-                    <p className="text-xs leading-relaxed text-subtle">
-                      Cada usuário com endereço definido em Equipe &amp; acessos envia e recebe pelo menu E-mail, no
-                      domínio do remetente acima. Para receber: aponte o MX do domínio para o Resend e crie em
-                      resend.com › Webhooks um webhook com o evento <code className="font-mono">email.received</code>{" "}
-                      para o endereço abaixo.
-                    </p>
-                    {cfg.inboundUrl && (
-                      <code className="block break-all rounded-xl bg-soft px-3 py-2.5 font-mono text-xs">
-                        {cfg.inboundUrl}
-                      </code>
-                    )}
-                    <Field
-                      label="Segredo do webhook"
-                      hint="Signing secret do webhook no Resend (whsec_…). Para remover, digite um hífen (-) e salve."
-                    >
-                      <Input
-                        value={cfg.webhookSecret}
-                        onChange={(e) => setField("webhookSecret", e.target.value)}
-                        placeholder="whsec_…"
-                        className="font-mono text-xs"
-                        autoComplete="off"
-                      />
-                    </Field>
-                  </div>
-                </>
-              )}
-            </div>
+            <p className="rounded-xl bg-soft px-3 py-2.5 text-xs text-subtle">
+              {configured ? "Enviados pela conta do Resend configurada em " : "Configure primeiro a conta do Resend em "}
+              <Link href="/admin/email" className="font-medium text-ink underline underline-offset-2">
+                Administração › E-mail
+              </Link>
+              .
+            </p>
 
             {/* Destinatários */}
             <div className="space-y-4">

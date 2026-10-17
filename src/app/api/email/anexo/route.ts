@@ -2,11 +2,14 @@ import { getCurrentUser } from "@/lib/auth";
 import { putFile, STORAGE_MISSING, storageReady } from "@/lib/blob";
 import { cleanupStaleUploads, discardUploads, MAIL_ATTACHMENT_MAX, trackUpload } from "@/lib/mail";
 import { NextResponse } from "next/server";
+import { mailboxOff } from "@/lib/mail-access";
 
 /** Guarda um anexo do e-mail que o usuário está escrevendo (pasta email/<usuário>/). */
 export async function POST(req: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Faça login para enviar arquivos." }, { status: 401 });
+  const off = await mailboxOff();
+  if (off) return off;
   if (!storageReady()) return NextResponse.json({ error: STORAGE_MISSING }, { status: 500 });
   try {
     const form = await req.formData();

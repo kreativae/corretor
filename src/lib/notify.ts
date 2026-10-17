@@ -25,6 +25,8 @@ export type EmailConfig = {
   fromName: string;
   /** Segredo do webhook de e-mails recebidos (whsec_…), em resend.com › Webhooks */
   webhookSecret: string;
+  /** Caixa de e-mail dos usuários (menu E-mail) ligada? Desligada por padrão */
+  mailboxEnabled: boolean;
 };
 
 export async function getEmailConfig(): Promise<EmailConfig> {
@@ -41,6 +43,7 @@ export async function getEmailConfig(): Promise<EmailConfig> {
     fromEmail: saved.fromEmail || envFrom.match(/<([^>]+)>/)?.[1] || envFrom,
     fromName: saved.fromName || envFrom.match(/^([^<]+)</)?.[1]?.trim() || "",
     webhookSecret: saved.webhookSecret || "",
+    mailboxEnabled: saved.mailboxEnabled === true,
   };
 }
 
@@ -53,10 +56,18 @@ export async function saveEmailConfig(input: Partial<EmailConfig>) {
   const next: EmailConfig = {
     // Vazio ou mascarado mantém a atual; "-" apaga
     resendApiKey: key === "-" ? "" : !key || key.includes("•") ? cur.resendApiKey : key,
-    fromEmail: /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(fromEmail) ? fromEmail : "",
-    fromName: str(input.fromName, 80).replace(/[<>"]/g, ""),
+    // Campo ausente mantém o atual (ex.: só ligar/desligar a caixa)
+    fromEmail:
+      input.fromEmail === undefined
+        ? cur.fromEmail
+        : /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(fromEmail)
+          ? fromEmail
+          : "",
+    fromName: input.fromName === undefined ? cur.fromName : str(input.fromName, 80).replace(/[<>"]/g, ""),
     webhookSecret:
       secret === "-" ? "" : !secret || secret.includes("•") ? cur.webhookSecret : secret,
+    mailboxEnabled:
+      typeof input.mailboxEnabled === "boolean" ? input.mailboxEnabled : cur.mailboxEnabled,
   };
   const [row] = await (await getDb()).select().from(settings).where(eq(settings.key, "email"));
   if (row) await (await getDb()).update(settings).set({ value: next }).where(eq(settings.key, "email"));

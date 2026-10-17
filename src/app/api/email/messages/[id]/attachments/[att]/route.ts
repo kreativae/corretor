@@ -1,10 +1,12 @@
 import { getFile } from "@/lib/blob";
 import { receivedAttachmentUrl } from "@/lib/mail";
-import { findVisibleMessage, mailUser } from "@/lib/mail-access";
+import { findVisibleMessage, mailboxOff, mailUser } from "@/lib/mail-access";
 import { NextResponse } from "next/server";
 
 /** Baixa um anexo: recebido (link temporário do Resend) ou enviado (armazenamento) */
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string; att: string }> }) {
+  const off = await mailboxOff();
+  if (off) return off;
   const u = await mailUser();
   if (!u) return NextResponse.json({ error: "Faça login." }, { status: 401 });
   const { id, att } = await params;

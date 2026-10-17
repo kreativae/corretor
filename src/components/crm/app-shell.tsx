@@ -58,6 +58,7 @@ const ADMIN_NAV = [
   { href: "/admin", label: "Visão geral", icon: ShieldCheck, exact: true },
   { href: "/admin/equipe", label: "Equipe & acessos", icon: Users },
   { href: "/admin/site", label: "Conteúdo do site", icon: Palette },
+  { href: "/admin/email", label: "E-mail", icon: Mail },
   { href: "/admin/configuracoes", label: "Configurações", icon: Plug },
 ];
 
