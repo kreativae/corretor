@@ -93,6 +93,29 @@ export async function emailConfigured() {
 
 export type EmailAttachment = { filename: string; content: string /* base64 */ };
 
+/** Versão em texto do HTML: e-mail só com HTML pesa nos filtros de spam */
+export function htmlToText(html: string) {
+  return html
+    .replace(/<(head|style|script)[\s\S]*?<\/\1>/gi, "")
+    .replace(/<a\s[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi, (_m, href: string, label: string) => {
+      const text = label.replace(/<[^>]+>/g, "").trim();
+      return href.startsWith("mailto:") || !text ? text : `${text} (${href})`;
+    })
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|h[1-6]|li|tr|table)>/gi, "\n")
+    .replace(/<\/(td|th)>/gi, "  ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 /** Envia pelo Resend; devolve o id da mensagem. */
 export async function sendEmail(
   to: string[],
@@ -129,7 +152,7 @@ export async function sendEmail(
       html,
       ...(extra.replyTo ? { reply_to: extra.replyTo } : {}),
       ...(extra.cc?.length ? { cc: extra.cc } : {}),
-      ...(extra.text ? { text: extra.text } : {}),
+      text: extra.text || htmlToText(html),
       ...(extra.headers ? { headers: extra.headers } : {}),
       ...(extra.attachments?.length ? { attachments: extra.attachments } : {}),
     }),
