@@ -190,13 +190,14 @@ export function SiteEditor({
               </Field>
               <Field
                 label="Barra de edição (quando logado)"
-                hint="Oculta: aparece ao levar o mouse ao topo da tela"
+                hint="Oculta: aparece ao levar o mouse ao topo da tela. Desligada: não aparece no site"
               >
                 <div className="flex gap-1 rounded-xl border border-hairline p-1">
                   {(
                     [
                       ["fixa", "Fixa"],
                       ["oculta", "Oculta"],
+                      ["desligada", "Desligada"],
                     ] as const
                   ).map(([v, l]) => (
                     <button

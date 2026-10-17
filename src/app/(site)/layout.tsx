@@ -32,7 +32,7 @@ export default async function SiteLayout({ children }: { children: ReactNode }) 
   const mode = editor ? (await getSiteContent().catch(() => null))?.header.adminBar : undefined;
   return (
     <SiteTheme>
-      {editor && <AdminBar name={editor.name} admin={isAdmin(editor)} hidden={mode === "oculta"} />}
+      {editor && mode !== "desligada" && <AdminBar name={editor.name} admin={isAdmin(editor)} hidden={mode === "oculta"} />}
       {/* Conteúdo começa abaixo da faixa do relógio (o header fixo cobre essa faixa) */}
       <div className="pt-[var(--site-safe,env(safe-area-inset-top))]">{children}</div>
     </SiteTheme>

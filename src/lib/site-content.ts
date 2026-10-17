@@ -13,8 +13,8 @@ export type SiteContent = {
     /** Botão de destaque (vazio = esconde) */
     ctaLabel: string;
     ctaHref: string;
-    /** Barra de edição (logado): sempre visível ou oculta até o mouse chegar ao topo */
-    adminBar: "fixa" | "oculta";
+    /** Barra de edição (logado): sempre visível, oculta até o mouse chegar ao topo, ou desligada */
+    adminBar: "fixa" | "oculta" | "desligada";
   };
   hero: {
     eyebrow: string;
