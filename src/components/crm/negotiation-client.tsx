@@ -161,7 +161,9 @@ export function NegotiationClient({
       corretor: userName,
     }),
   );
-  const [attach, setAttach] = useState(true);
+  // Anexo no primeiro contato é um dos sinais que mais mandam para o lixo eletrônico
+  // (Outlook/Hotmail); o e-mail já tem o botão "Ficha" de cada imóvel
+  const [attach, setAttach] = useState(false);
 
   /* ── envio ── */
   const [sending, setSending] = useState(false);
@@ -544,8 +546,13 @@ export function NegotiationClient({
                 Anexar as fichas em PDF
               </label>
               <p className="text-[11px] text-subtle">
-                O e-mail traz foto, preço e botões para o site de cada imóvel. As respostas do cliente chegam no seu e-mail.
+                O e-mail traz foto, preço e botões para o site e para a ficha de cada imóvel. As respostas vão para o “Responder para” de Administração › E-mail (ou, se vazio, para o seu e-mail).
               </p>
+              {attach && (
+                <p className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-600 dark:text-amber-400">
+                  Anexos aumentam a chance de cair no lixo eletrônico, principalmente no Outlook/Hotmail e no primeiro contato. Prefira anexar só para quem já conversa com você.
+                </p>
+              )}
             </div>
           </section>
         </div>

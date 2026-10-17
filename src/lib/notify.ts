@@ -27,6 +27,8 @@ export type EmailConfig = {
   webhookSecret: string;
   /** Caixa de e-mail dos usuários (menu E-mail) ligada? Desligada por padrão */
   mailboxEnabled: boolean;
+  /** "Responder para" dos envios aos clientes, de preferência no domínio do remetente */
+  replyTo: string;
 };
 
 export async function getEmailConfig(): Promise<EmailConfig> {
@@ -44,7 +46,21 @@ export async function getEmailConfig(): Promise<EmailConfig> {
     fromName: saved.fromName || envFrom.match(/^([^<]+)</)?.[1]?.trim() || "",
     webhookSecret: saved.webhookSecret || "",
     mailboxEnabled: saved.mailboxEnabled === true,
+    replyTo: saved.replyTo || "",
   };
+}
+
+const EMAIL_ADDR = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
+
+/** Endereço de resposta dos e-mails aos clientes. Domínio diferente do remetente pesa no
+ * filtro do Outlook, então vale: o configurado em Administração › E-mail; senão o do
+ * corretor, se for do mesmo domínio; senão o do corretor mesmo (melhor que perder a resposta). */
+export async function replyAddress(candidate?: string | null) {
+  const cfg = await getEmailConfig();
+  if (cfg.replyTo) return cfg.replyTo;
+  const c = (candidate ?? "").trim().toLowerCase();
+  if (!EMAIL_ADDR.test(c)) return undefined;
+  return c;
 }
 
 export async function saveEmailConfig(input: Partial<EmailConfig>) {
@@ -53,6 +69,7 @@ export async function saveEmailConfig(input: Partial<EmailConfig>) {
   const key = str(input.resendApiKey, 200);
   const secret = str(input.webhookSecret, 200);
   const fromEmail = str(input.fromEmail, 200).toLowerCase();
+  const replyTo = str(input.replyTo, 200).toLowerCase();
   const next: EmailConfig = {
     // Vazio ou mascarado mantém a atual; "-" apaga
     resendApiKey: key === "-" ? "" : !key || key.includes("•") ? cur.resendApiKey : key,
@@ -60,7 +77,7 @@ export async function saveEmailConfig(input: Partial<EmailConfig>) {
     fromEmail:
       input.fromEmail === undefined
         ? cur.fromEmail
-        : /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(fromEmail)
+        : EMAIL_ADDR.test(fromEmail)
           ? fromEmail
           : "",
     fromName: input.fromName === undefined ? cur.fromName : str(input.fromName, 80).replace(/[<>"]/g, ""),
@@ -68,6 +85,7 @@ export async function saveEmailConfig(input: Partial<EmailConfig>) {
       secret === "-" ? "" : !secret || secret.includes("•") ? cur.webhookSecret : secret,
     mailboxEnabled:
       typeof input.mailboxEnabled === "boolean" ? input.mailboxEnabled : cur.mailboxEnabled,
+    replyTo: input.replyTo === undefined ? cur.replyTo : EMAIL_ADDR.test(replyTo) ? replyTo : "",
   };
   const [row] = await (await getDb()).select().from(settings).where(eq(settings.key, "email"));
   if (row) await (await getDb()).update(settings).set({ value: next }).where(eq(settings.key, "email"));

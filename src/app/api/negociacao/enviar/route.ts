@@ -3,7 +3,7 @@ import { activities, contacts, propertySends, type SentAttachment } from "@/db/s
 import { getCurrentUser } from "@/lib/auth";
 import { getFile } from "@/lib/blob";
 import { requestPublicOrigin } from "@/lib/google";
-import { emailBaseUrl, emailConfigured, sendEmail, type EmailAttachment } from "@/lib/notify";
+import { emailBaseUrl, emailConfigured, replyAddress, sendEmail, type EmailAttachment } from "@/lib/notify";
 import { getWhiteLabel, listProperties } from "@/lib/queries";
 import { getMessages } from "@/lib/features";
 import { selectionEmailHtml } from "@/lib/selection-email";
@@ -67,6 +67,7 @@ export async function POST(req: Request) {
   }
 
   const [wl, msgs] = await Promise.all([getWhiteLabel(), getMessages()]);
+  const replyTo = await replyAddress(user.email || wl.email);
   const files = (await Promise.all(attachments.map(readAttachment))).filter((f) => !!f);
 
   const snapshot = props.map((p) => ({ id: p.id, code: p.code, title: p.title, price: p.price, city: p.city }));
@@ -91,12 +92,12 @@ export async function POST(req: Request) {
         toName,
         message,
         properties: props,
-        broker: { name: user.name, phone: user.phone, email: user.email || wl.email },
+        broker: { name: user.name, phone: user.phone, email: replyTo },
         attached: files.length > 0,
         msgs,
       }),
       {
-        replyTo: user.email || wl.email || undefined,
+        replyTo,
         fromName: `${user.name} · ${wl.orgName}`,
         attachments: files,
       },

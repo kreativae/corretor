@@ -22,6 +22,7 @@ type Cfg = {
   resendApiKey: string;
   fromEmail: string;
   fromName: string;
+  replyTo: string;
   hasKey: boolean;
   webhookSecret: string;
   mailboxEnabled: boolean;
@@ -129,6 +130,7 @@ export function EmailSettings() {
         resendApiKey: cfg.resendApiKey,
         fromEmail: cfg.fromEmail,
         fromName: cfg.fromName,
+        replyTo: cfg.replyTo,
         webhookSecret: cfg.webhookSecret,
       });
       toast.success("Configurações de e-mail salvas.");
@@ -223,6 +225,27 @@ export function EmailSettings() {
               <Input value={cfg.fromName} onChange={(e) => set("fromName", e.target.value)} placeholder="Carlos Amâncio Imóveis" />
             </Field>
           </div>
+          <Field
+            label="Responder para"
+            hint={`Para onde vão as respostas dos clientes aos e-mails da Negociação. Use um endereço @${domain || "do seu domínio"} que você leia: resposta para outro domínio pesa no filtro de spam do Outlook. Vazio = e-mail de cada corretor.`}
+          >
+            <Input
+              type="email"
+              value={cfg.replyTo}
+              onChange={(e) => set("replyTo", e.target.value)}
+              placeholder={domain ? `contato@${domain}` : "contato@suaimobiliaria.com.br"}
+            />
+          </Field>
+          {domain && cfg.replyTo.includes("@") && cfg.replyTo.split("@")[1]?.toLowerCase() !== domain.toLowerCase() && (
+            <p className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-600 dark:text-amber-400">
+              “Responder para” está em outro domínio (@{cfg.replyTo.split("@")[1]}). Isso aumenta a chance de cair no lixo eletrônico, principalmente no Outlook/Hotmail.
+            </p>
+          )}
+          {domain && !cfg.replyTo && (
+            <p className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-600 dark:text-amber-400">
+              Sem “Responder para”, a resposta vai para o e-mail de login de cada corretor. Se for de outro domínio (ex.: Gmail), o Outlook tende a mandar para o lixo eletrônico.
+            </p>
+          )}
           <div className="flex justify-end">
             <Button variant="accent" loading={saving} onClick={save}>
               <Check className="size-4" />
