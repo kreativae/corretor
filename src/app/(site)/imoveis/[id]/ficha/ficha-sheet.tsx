@@ -306,11 +306,6 @@ export function FichaSheet({
             <span className="font-mono text-[13px] tabular">{phone}</span>
           </a>
         )}
-        {showDomain && !qrSvg && (
-          <p className="shrink-0 text-right text-[9px] uppercase tracking-[0.16em] text-[#9A9AB5]">
-            {domain}
-          </p>
-        )}
         {qrSvg && (
           <a
             href={qrUrl}
@@ -327,12 +322,6 @@ export function FichaSheet({
                 {qrKind === "mapa"
                   ? "Perímetro em satélite, rota e KMZ"
                   : "Aponte a câmera e deixe seu contato"}
-                {showDomain && (
-                  <>
-                    <br />
-                    {domain}
-                  </>
-                )}
               </p>
             </div>
             <div
