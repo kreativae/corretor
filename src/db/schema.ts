@@ -459,6 +459,8 @@ export const mailMessages = pgTable("mail_messages", {
   /** Message-ID do e-mail (para responder na mesma conversa) e o que ele responde */
   messageId: text("message_id"),
   inReplyTo: text("in_reply_to"),
+  /** Conversa: mensagens da mesma caixa ligadas por resposta ou mesmo assunto */
+  threadId: uuid("thread_id").notNull(),
   /** Id do e-mail no Resend (recebido ou enviado) */
   providerId: text("provider_id"),
   contactId: uuid("contact_id").references(() => contacts.id, { onDelete: "set null" }),

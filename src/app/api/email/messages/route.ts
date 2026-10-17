@@ -3,42 +3,31 @@ import { mailMessages } from "@/db/schema";
 import { emailConfigured } from "@/lib/notify";
 import { mailAddress, mailDomain, ownAttachments, parseAddress, sendFromMailbox } from "@/lib/mail";
 import { findVisibleMessage, mailUser } from "@/lib/mail-access";
-import { and, count, desc, eq, ilike, isNull, or, type SQL } from "drizzle-orm";
+import { and, countDistinct, desc, eq, isNull, type SQL } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 const EMAIL_RE = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
 
-/** Lista: ?pasta=entrada|enviados|geral&q=busca */
+/**
+ * Conversas da pasta: ?pasta=entrada|enviados|geral&q=busca. Entrada lista as conversas
+ * com algo recebido; Enviados, as com algo enviado; Geral, a caixa sem dono (admins).
+ */
 export async function GET(req: Request) {
   const u = await mailUser();
   if (!u) return NextResponse.json({ error: "Faça login." }, { status: 401 });
   const sp = new URL(req.url).searchParams;
   const folder = sp.get("pasta") ?? "entrada";
-  const q = (sp.get("q") ?? "").trim().slice(0, 100);
+  const q = (sp.get("q") ?? "").trim().toLowerCase().slice(0, 100);
 
   if (folder === "geral" && !u.admin) {
     return NextResponse.json({ error: "Apenas administradores." }, { status: 403 });
   }
-  const where: SQL[] = [
-    folder === "geral" ? isNull(mailMessages.userId) : eq(mailMessages.userId, u.id),
-    eq(mailMessages.direction, folder === "enviados" ? "out" : "in"),
-  ];
-  if (q) {
-    const like = `%${q.replace(/[%_]/g, "\\$&")}%`;
-    where.push(
-      or(
-        ilike(mailMessages.subject, like),
-        ilike(mailMessages.fromAddr, like),
-        ilike(mailMessages.fromName, like),
-        ilike(mailMessages.text, like),
-      ) as SQL,
-    );
-  }
-
   const db = await getDb();
+  const ownerOf = (f: string) => (f === "geral" ? isNull(mailMessages.userId) : eq(mailMessages.userId, u.id));
   const rows = await db
     .select({
       id: mailMessages.id,
+      threadId: mailMessages.threadId,
       direction: mailMessages.direction,
       fromAddr: mailMessages.fromAddr,
       fromName: mailMessages.fromName,
@@ -50,14 +39,53 @@ export async function GET(req: Request) {
       createdAt: mailMessages.createdAt,
     })
     .from(mailMessages)
-    .where(and(...where))
+    .where(ownerOf(folder))
     .orderBy(desc(mailMessages.createdAt))
-    .limit(100);
+    .limit(1500);
+
+  // Agrupa por conversa (as linhas já vêm da mais nova para a mais antiga)
+  const threads = new Map<string, typeof rows>();
+  for (const r of rows) {
+    const list = threads.get(r.threadId);
+    if (list) list.push(r);
+    else threads.set(r.threadId, [r]);
+  }
+  const want = folder === "enviados" ? "out" : "in";
+  const matches = (r: (typeof rows)[number]) =>
+    [r.subject, r.fromAddr, r.fromName ?? "", r.text ?? "", ...r.toAddrs].some((v) => v.toLowerCase().includes(q));
+
+  const list = [...threads.values()]
+    .filter((msgs) => msgs.some((m) => m.direction === want))
+    .filter((msgs) => !q || msgs.some(matches))
+    .slice(0, 100)
+    .map((msgs) => {
+      const last = msgs[0];
+      const first = msgs[msgs.length - 1];
+      // Quem está do outro lado: último remetente recebido ou destinatário do enviado
+      const lastIn = msgs.find((m) => m.direction === "in");
+      const lastOut = msgs.find((m) => m.direction === "out");
+      const people = want === "in" && lastIn
+        ? lastIn.fromName || lastIn.fromAddr
+        : lastOut
+          ? `Para: ${lastOut.toAddrs.join(", ")}`
+          : last.fromName || last.fromAddr;
+      return {
+        threadId: last.threadId,
+        subject: first.subject,
+        people,
+        initialsOf: lastIn ? lastIn.fromName || lastIn.fromAddr : (lastOut?.toAddrs[0] ?? "?"),
+        preview: (last.text ?? "").replace(/\s+/g, " ").trim().slice(0, 140),
+        count: msgs.length,
+        unread: msgs.some((m) => m.direction === "in" && !m.read),
+        hasAttachments: msgs.some((m) => m.attachments.length > 0),
+        lastAt: last.createdAt,
+      };
+    });
 
   const unreadOf = async (owner: SQL) =>
     (
       await db
-        .select({ n: count() })
+        .select({ n: countDistinct(mailMessages.threadId) })
         .from(mailMessages)
         .where(and(owner, eq(mailMessages.direction, "in"), eq(mailMessages.read, false)))
     )[0]?.n ?? 0;
@@ -67,16 +95,10 @@ export async function GET(req: Request) {
     address: mailAddress(u.mailbox, domain),
     admin: u.admin,
     unread: {
-      entrada: await unreadOf(eq(mailMessages.userId, u.id)),
-      geral: u.admin ? await unreadOf(isNull(mailMessages.userId)) : 0,
+      entrada: await unreadOf(ownerOf("entrada")),
+      geral: u.admin ? await unreadOf(ownerOf("geral")) : 0,
     },
-    messages: rows.map((r) => ({
-      ...r,
-      preview: (r.text ?? "").replace(/\s+/g, " ").trim().slice(0, 140),
-      text: undefined,
-      hasAttachments: r.attachments.length > 0,
-      attachments: undefined,
-    })),
+    threads: list,
   });
 }
 

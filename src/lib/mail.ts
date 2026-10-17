@@ -10,8 +10,8 @@ import {
 } from "@/db/schema";
 import { deleteFiles, getFile } from "@/lib/blob";
 import { getEmailConfig, esc, sendEmail, type EmailAttachment } from "@/lib/notify";
-import { and, eq, inArray, isNotNull, lt, sql } from "drizzle-orm";
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { and, desc, eq, gt, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
+import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 
 /**
  * Caixa de e-mail de cada usuário, pelo Resend: o envio sai do endereço do usuário no
@@ -46,6 +46,61 @@ export function parseAddress(raw: string) {
   const addr = (m ? m[2] : raw).trim().toLowerCase();
   const name = m?.[1]?.trim() || null;
   return { name, addr };
+}
+
+/* ───────────────────────── Conversas ───────────────────────── */
+
+/** Assunto sem "Re:", "RES:", "Fwd:", "ENC:"… para comparar conversas */
+export function threadSubject(subject: string) {
+  return subject
+    .replace(/^\s*((re|res|fw|fwd|enc|tr|aw|wg|rv)\s*(\[\d+\])?\s*:\s*)+/i, "")
+    .trim()
+    .toLowerCase();
+}
+
+/**
+ * Conversa de uma mensagem na caixa do dono: primeiro pelos cabeçalhos de resposta
+ * (In-Reply-To/References); sem eles, pelo mesmo assunto com a mesma pessoa nos últimos
+ * 90 dias. Sem nada, conversa nova.
+ */
+async function findThread(
+  ownerId: string | null,
+  refs: string[],
+  subject: string,
+  counterpart: string,
+) {
+  const db = await getDb();
+  const owner = ownerId ? eq(mailMessages.userId, ownerId) : isNull(mailMessages.userId);
+  if (refs.length) {
+    const [byRef] = await db
+      .select({ threadId: mailMessages.threadId })
+      .from(mailMessages)
+      .where(and(owner, inArray(mailMessages.messageId, refs)))
+      .limit(1);
+    if (byRef) return byRef.threadId;
+  }
+  const norm = threadSubject(subject);
+  if (norm && counterpart) {
+    const recent = await db
+      .select({
+        threadId: mailMessages.threadId,
+        subject: mailMessages.subject,
+        fromAddr: mailMessages.fromAddr,
+        toAddrs: mailMessages.toAddrs,
+        ccAddrs: mailMessages.ccAddrs,
+      })
+      .from(mailMessages)
+      .where(and(owner, gt(mailMessages.createdAt, new Date(Date.now() - 90 * 86400_000))))
+      .orderBy(desc(mailMessages.createdAt))
+      .limit(300);
+    const hit = recent.find(
+      (m) =>
+        threadSubject(m.subject) === norm &&
+        [m.fromAddr, ...m.toAddrs, ...m.ccAddrs].some((a) => parseAddress(a).addr === counterpart),
+    );
+    if (hit) return hit.threadId;
+  }
+  return randomUUID();
 }
 
 /* ───────────────────────── Webhook (Standard Webhooks) ───────────────────────── */
@@ -161,6 +216,11 @@ export async function ingestReceivedEmail(emailId: string) {
       contentType: a.content_type,
     }));
 
+  const replyRefs = [
+    ...(header(email.headers, "references") ?? "").split(/\s+/),
+    header(email.headers, "in-reply-to") ?? "",
+  ].filter(Boolean);
+
   const base = {
     direction: "in" as const,
     fromAddr: from.addr,
@@ -177,7 +237,13 @@ export async function ingestReceivedEmail(emailId: string) {
     contactId: contact?.id ?? null,
     createdAt: email.created_at ? new Date(email.created_at) : new Date(),
   };
-  const rows = (owners.length ? owners : [null]).map((userId) => ({ ...base, userId }));
+  const rows = await Promise.all(
+    (owners.length ? owners : [null]).map(async (userId) => ({
+      ...base,
+      userId,
+      threadId: await findThread(userId, replyRefs, base.subject, from.addr),
+    })),
+  );
   await db.insert(mailMessages).values(rows).onConflictDoNothing();
   return rows.length;
 }
@@ -311,6 +377,7 @@ export async function sendFromMailbox(
 
   const db = await getDb();
   const first = parseAddress(mail.to[0] ?? "").addr;
+  const threadId = mail.replyTo?.threadId ?? (await findThread(user.id, [], mail.subject, first));
   const [contact] = first
     ? await db.select({ id: contacts.id }).from(contacts).where(sql`lower(${contacts.email}) = ${first}`).limit(1)
     : [];
@@ -327,6 +394,7 @@ export async function sendFromMailbox(
       text: body,
       attachments,
       inReplyTo: mail.replyTo?.messageId ?? null,
+      threadId,
       providerId,
       contactId: contact?.id ?? null,
       read: true,

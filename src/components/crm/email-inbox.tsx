@@ -24,26 +24,33 @@ import { toast } from "sonner";
 
 type Folder = "entrada" | "enviados" | "geral";
 
-type ListItem = {
+type ThreadItem = {
+  threadId: string;
+  subject: string;
+  people: string;
+  initialsOf: string;
+  preview: string;
+  count: number;
+  unread: boolean;
+  hasAttachments: boolean;
+  lastAt: string;
+};
+
+type FullMessage = {
   id: string;
+  threadId: string;
   direction: "in" | "out";
   fromAddr: string;
   fromName: string | null;
   toAddrs: string[];
-  subject: string;
-  preview: string;
-  hasAttachments: boolean;
-  read: boolean;
-  createdAt: string;
-};
-
-type FullMessage = Omit<ListItem, "preview" | "hasAttachments"> & {
   ccAddrs: string[];
+  subject: string;
   text: string | null;
   html: string | null;
   attachments: { id: string; filename: string; size: number; contentType: string }[];
   contactId: string | null;
   sentBy: string | null;
+  createdAt: string;
 };
 
 type DraftFile = { id: string; filename: string; size: number; contentType: string; access: "public" | "private" };
@@ -69,6 +76,34 @@ function htmlDoc(html: string) {
   return `<!doctype html><html><head><meta charset="utf-8"><base target="_blank"><meta http-equiv="Content-Security-Policy" content="script-src 'none'"><style>body{margin:16px;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:14px;color:#18181b;background:#fff;word-wrap:break-word}img{max-width:100%;height:auto}</style></head><body>${html}</body></html>`;
 }
 
+/** HTML da mensagem num iframe sem scripts, com a altura do conteúdo */
+function HtmlFrame({ html }: { html: string }) {
+  const [height, setHeight] = useState(240);
+  return (
+    <iframe
+      title="Mensagem"
+      // Sem allow-scripts nada roda; allow-same-origin só serve para medir a altura
+      sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+      srcDoc={htmlDoc(html)}
+      onLoad={(e) => {
+        const doc = e.currentTarget.contentDocument;
+        if (doc) setHeight(Math.min(Math.max(doc.documentElement.scrollHeight, 80), 4000));
+      }}
+      style={{ height }}
+      className="w-full rounded-xl bg-white"
+    />
+  );
+}
+
+/** Corta a citação da mensagem anterior ("Em …, Fulano escreveu:" e linhas com ">") */
+function withoutQuote(text: string) {
+  const lines = text.split("\n");
+  const cut = lines.findIndex(
+    (l, i) => /^(em|on|el|le) .+(escreveu|wrote|escribió|a écrit):\s*$/i.test(l.trim()) || (l.startsWith(">") && lines.slice(i).every((x) => !x.trim() || x.startsWith(">"))),
+  );
+  return (cut > 0 ? lines.slice(0, cut) : lines).join("\n").trim();
+}
+
 const kb = (n: number) => (n > 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
 
 export function EmailInbox({
@@ -86,10 +121,12 @@ export function EmailInbox({
 }) {
   const [folder, setFolder] = useState<Folder>("entrada");
   const [q, setQ] = useState("");
-  const [list, setList] = useState<ListItem[] | null>(null);
+  const [list, setList] = useState<ThreadItem[] | null>(null);
   const [unread, setUnread] = useState({ entrada: 0, geral: 0 });
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [msg, setMsg] = useState<FullMessage | null>(null);
+  const [thread, setThread] = useState<FullMessage[] | null>(null);
+  /** Mensagens abertas na conversa (a última sempre abre) */
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [reload, setReload] = useState(0);
   const [draft, setDraft] = useState<Draft | null>(initialTo ? { ...EMPTY_DRAFT, to: initialTo } : null);
   const [sending, setSending] = useState(false);
@@ -103,7 +140,7 @@ export function EmailInbox({
         .then((r) => (r.ok ? r.json() : null))
         .then((d) => {
           if (!alive || !d) return;
-          setList(d.messages);
+          setList(d.threads);
           setUnread(d.unread);
         })
         .catch(() => undefined);
@@ -120,25 +157,36 @@ export function EmailInbox({
     if (f === folder) return;
     setFolder(f);
     setList(null);
-    setActiveId(null);
-    setMsg(null);
+    closeThread();
   }
 
-  async function open(item: ListItem) {
-    setActiveId(item.id);
-    setMsg(null);
-    const res = await fetch(`/api/email/messages/${item.id}`);
+  function closeThread() {
+    setActiveId(null);
+    setThread(null);
+  }
+
+  async function loadThread(threadId: string) {
+    const res = await fetch(`/api/email/threads/${threadId}`);
     if (!res.ok) {
-      toast.error("Não foi possível abrir a mensagem.");
+      toast.error("Não foi possível abrir a conversa.");
       return;
     }
-    setMsg(await res.json());
-    if (!item.read) {
-      setList((l) => l?.map((m) => (m.id === item.id ? { ...m, read: true } : m)) ?? l);
-      setUnread((u) => ({ ...u, [folder]: Math.max(0, (u[folder as "entrada" | "geral"] ?? 0) - 1) }));
+    const d: { messages: FullMessage[] } = await res.json();
+    setThread(d.messages);
+    setExpanded(new Set(d.messages.slice(-1).map((m) => m.id)));
+  }
+
+  async function open(item: ThreadItem) {
+    setActiveId(item.threadId);
+    setThread(null);
+    await loadThread(item.threadId);
+    if (item.unread) {
+      setList((l) => l?.map((t) => (t.threadId === item.threadId ? { ...t, unread: false } : t)) ?? l);
+      if (folder !== "enviados") setUnread((u) => ({ ...u, [folder]: Math.max(0, u[folder] - 1) }));
     }
   }
 
+  /** Responde a uma mensagem (padrão: a última recebida da conversa) */
   function reply(m: FullMessage) {
     const to = m.direction === "in" ? m.fromAddr : m.toAddrs.join(", ");
     const subject = /^re:/i.test(m.subject) ? m.subject : `Re: ${m.subject}`;
@@ -168,27 +216,25 @@ export function EmailInbox({
     }
   }
 
-  async function markUnread(m: FullMessage) {
-    await fetch(`/api/email/messages/${m.id}`, {
+  async function markUnread(threadId: string) {
+    await fetch(`/api/email/threads/${threadId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ read: false }),
     });
-    setActiveId(null);
-    setMsg(null);
+    closeThread();
     setReload((n) => n + 1);
   }
 
-  async function remove(m: FullMessage) {
-    if (!confirm("Excluir esta mensagem? Não dá para desfazer.")) return;
-    const res = await fetch(`/api/email/messages/${m.id}`, { method: "DELETE" });
+  async function removeThread(threadId: string) {
+    if (!confirm("Excluir a conversa inteira? Não dá para desfazer.")) return;
+    const res = await fetch(`/api/email/threads/${threadId}`, { method: "DELETE" });
     if (!res.ok) {
       toast.error("Não foi possível excluir.");
       return;
     }
-    toast.success("Mensagem excluída.");
-    setActiveId(null);
-    setMsg(null);
+    toast.success("Conversa excluída.");
+    closeThread();
     setReload((n) => n + 1);
   }
 
@@ -221,8 +267,10 @@ export function EmailInbox({
       const d = await res.json();
       if (!res.ok) throw new Error(d.error);
       toast.success("E-mail enviado.");
+      const inThread = draft.replyToId && thread?.some((m) => m.id === draft.replyToId);
       setDraft(null);
       setReload((n) => n + 1);
+      if (inThread && activeId) loadThread(activeId);
     } catch (e) {
       toast.error(e instanceof Error && e.message ? e.message : "Falha no envio.");
     } finally {
@@ -230,8 +278,8 @@ export function EmailInbox({
     }
   }
 
-  const who = (m: ListItem) =>
-    m.direction === "out" ? `Para: ${m.toAddrs.join(", ")}` : m.fromName || m.fromAddr;
+  const lastIn = thread ? [...thread].reverse().find((m) => m.direction === "in") : undefined;
+  const replyTarget = lastIn ?? thread?.[thread.length - 1];
 
   return (
     <div>
@@ -329,32 +377,33 @@ export function EmailInbox({
                       : "Nenhum e-mail recebido ainda."}
               </li>
             )}
-            {list?.map((m) => (
-              <li key={m.id}>
+            {list?.map((t) => (
+              <li key={t.threadId}>
                 <button
                   type="button"
-                  onClick={() => open(m)}
+                  onClick={() => open(t)}
                   className={cn(
                     "flex w-full gap-3 border-b border-hairline px-3 py-3 text-left transition-colors",
-                    activeId === m.id ? "bg-soft" : "hover:bg-soft/60",
+                    activeId === t.threadId ? "bg-soft" : "hover:bg-soft/60",
                   )}
                 >
                   <span className="grid size-9 shrink-0 place-items-center rounded-full bg-accent/12 font-mono text-[10px] font-medium text-accent">
-                    {initials(m.direction === "out" ? m.toAddrs[0] ?? "?" : m.fromName || m.fromAddr)}
+                    {initials(t.initialsOf)}
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-2">
-                      <span className={cn("truncate text-sm", !m.read ? "font-semibold" : "font-medium")}>{who(m)}</span>
-                      <span className="ml-auto shrink-0 font-mono text-[10.5px] text-subtle">{timeAgo(m.createdAt)}</span>
+                      <span className={cn("truncate text-sm", t.unread ? "font-semibold" : "font-medium")}>{t.people}</span>
+                      {t.count > 1 && <span className="shrink-0 font-mono text-[10.5px] text-subtle">{t.count}</span>}
+                      <span className="ml-auto shrink-0 font-mono text-[10.5px] text-subtle">{timeAgo(t.lastAt)}</span>
                     </span>
                     <span className="mt-0.5 flex items-center gap-1.5">
-                      {!m.read && <span className="size-1.5 shrink-0 rounded-full bg-accent" />}
-                      <span className={cn("truncate text-xs", !m.read ? "text-ink" : "text-subtle")}>
-                        {m.subject || "(sem assunto)"}
+                      {t.unread && <span className="size-1.5 shrink-0 rounded-full bg-accent" />}
+                      <span className={cn("truncate text-xs", t.unread ? "text-ink" : "text-subtle")}>
+                        {t.subject || "(sem assunto)"}
                       </span>
-                      {m.hasAttachments && <Paperclip className="ml-auto size-3 shrink-0 text-subtle" />}
+                      {t.hasAttachments && <Paperclip className="ml-auto size-3 shrink-0 text-subtle" />}
                     </span>
-                    <span className="mt-0.5 block truncate text-[11.5px] text-subtle">{m.preview}</span>
+                    <span className="mt-0.5 block truncate text-[11.5px] text-subtle">{t.preview}</span>
                   </span>
                 </button>
               </li>
@@ -371,89 +420,131 @@ export function EmailInbox({
                 <p className="mt-2">Selecione um e-mail para ler.</p>
               </div>
             </div>
-          ) : !msg ? (
+          ) : !thread ? (
             <div className="grid flex-1 place-items-center text-subtle">
               <Loader2 className="size-5 animate-spin" />
             </div>
           ) : (
             <>
-              <div className="space-y-3 border-b border-hairline p-4">
-                <div className="flex items-start gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveId(null);
-                      setMsg(null);
-                    }}
-                    className="rounded-full p-1.5 text-subtle hover:bg-soft md:hidden"
-                    aria-label="Voltar"
-                  >
-                    <ArrowLeft className="size-4" />
-                  </button>
-                  <h2 className="min-w-0 flex-1 text-lg font-semibold leading-snug">{msg.subject || "(sem assunto)"}</h2>
-                  <div className="flex shrink-0 gap-1">
-                    {configured && address && (
-                      <Button variant="outline" size="sm" onClick={() => reply(msg)}>
-                        <Reply className="size-4" />
-                        Responder
-                      </Button>
-                    )}
-                    {msg.direction === "in" && (
-                      <Button variant="ghost" size="icon" onClick={() => markUnread(msg)} aria-label="Marcar como não lida">
-                        <MailOpen className="size-4" />
-                      </Button>
-                    )}
-                    <Button variant="ghost" size="icon" onClick={() => remove(msg)} aria-label="Excluir">
-                      <Trash2 className="size-4" />
+              <div className="flex items-start gap-2 border-b border-hairline p-4">
+                <button
+                  type="button"
+                  onClick={closeThread}
+                  className="rounded-full p-1.5 text-subtle hover:bg-soft md:hidden"
+                  aria-label="Voltar"
+                >
+                  <ArrowLeft className="size-4" />
+                </button>
+                <h2 className="min-w-0 flex-1 text-lg font-semibold leading-snug">
+                  {thread[0]?.subject || "(sem assunto)"}
+                  {thread.length > 1 && <span className="ml-2 font-mono text-xs font-normal text-subtle">{thread.length} mensagens</span>}
+                </h2>
+                <div className="flex shrink-0 gap-1">
+                  {configured && address && replyTarget && (
+                    <Button variant="outline" size="sm" onClick={() => reply(replyTarget)}>
+                      <Reply className="size-4" />
+                      Responder
                     </Button>
-                  </div>
+                  )}
+                  {lastIn && (
+                    <Button variant="ghost" size="icon" onClick={() => markUnread(activeId)} aria-label="Marcar como não lida">
+                      <MailOpen className="size-4" />
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="icon" onClick={() => removeThread(activeId)} aria-label="Excluir conversa">
+                    <Trash2 className="size-4" />
+                  </Button>
                 </div>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-subtle">
-                  <span>
-                    <span className="font-medium text-ink">{msg.fromName || msg.fromAddr}</span>
-                    {msg.fromName && <span className="font-mono"> &lt;{msg.fromAddr}&gt;</span>}
-                  </span>
-                  <span>para {[...msg.toAddrs, ...msg.ccAddrs].join(", ")}</span>
-                  <span className="ml-auto font-mono">{formatDateTime(msg.createdAt)}</span>
-                </div>
-                {msg.contactId && (
-                  <Link
-                    href={`/crm/contatos/${msg.contactId}`}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-soft px-2.5 py-1 text-xs font-medium hover:text-accent"
-                  >
-                    <UserRound className="size-3.5" />
-                    Abrir contato no CRM
-                  </Link>
-                )}
-                {msg.attachments.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {msg.attachments.map((a) => (
-                      <a
-                        key={a.id}
-                        href={`/api/email/messages/${msg.id}/attachments/${encodeURIComponent(a.id)}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-hairline px-2.5 py-1.5 text-xs hover:bg-soft"
-                      >
-                        <Paperclip className="size-3.5" />
-                        {a.filename}
-                        <span className="font-mono text-subtle">{kb(a.size)}</span>
-                      </a>
-                    ))}
-                  </div>
-                )}
               </div>
-              <div className="min-h-0 flex-1 overflow-y-auto" data-lenis-prevent>
-                {msg.html ? (
-                  <iframe
-                    title="Mensagem"
-                    sandbox="allow-popups allow-popups-to-escape-sandbox"
-                    srcDoc={htmlDoc(msg.html)}
-                    className="size-full min-h-[400px] bg-white"
-                  />
-                ) : (
-                  <p className="whitespace-pre-wrap p-5 text-sm leading-relaxed">{msg.text || "(mensagem vazia)"}</p>
-                )}
+              <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3" data-lenis-prevent>
+                {thread.map((m) => {
+                  const isOpen = expanded.has(m.id);
+                  const toggle = () =>
+                    setExpanded((s) => {
+                      const n = new Set(s);
+                      if (n.has(m.id)) n.delete(m.id);
+                      else n.add(m.id);
+                      return n;
+                    });
+                  return (
+                    <article
+                      key={m.id}
+                      className={cn(
+                        "rounded-2xl border border-hairline",
+                        m.direction === "out" ? "bg-accent/[0.04]" : "bg-card",
+                      )}
+                    >
+                      <button type="button" onClick={toggle} className="flex w-full items-start gap-3 p-3 text-left">
+                        <span className="grid size-8 shrink-0 place-items-center rounded-full bg-accent/12 font-mono text-[10px] font-medium text-accent">
+                          {initials(m.fromName || m.fromAddr)}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-center gap-2 text-sm">
+                            <span className="truncate font-medium">
+                              {m.direction === "out" ? `${m.fromName || m.fromAddr} (você)` : m.fromName || m.fromAddr}
+                            </span>
+                            {m.attachments.length > 0 && <Paperclip className="size-3 shrink-0 text-subtle" />}
+                            <span className="ml-auto shrink-0 font-mono text-[10.5px] text-subtle">{formatDateTime(m.createdAt)}</span>
+                          </span>
+                          <span className="block truncate text-xs text-subtle">
+                            {isOpen
+                              ? `${m.fromName ? `${m.fromAddr} · ` : ""}para ${[...m.toAddrs, ...m.ccAddrs].join(", ")}`
+                              : (m.text ?? "").replace(/\s+/g, " ").slice(0, 140)}
+                          </span>
+                        </span>
+                      </button>
+                      {isOpen && (
+                        <div className="space-y-3 px-3 pb-3">
+                          {m.html ? (
+                            <HtmlFrame html={m.html} />
+                          ) : (
+                            <p className="whitespace-pre-wrap px-1 text-sm leading-relaxed">
+                              {(thread.length > 1 ? withoutQuote(m.text ?? "") : m.text) || "(mensagem vazia)"}
+                            </p>
+                          )}
+                          {m.attachments.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5">
+                              {m.attachments.map((a) => (
+                                <a
+                                  key={a.id}
+                                  href={`/api/email/messages/${m.id}/attachments/${encodeURIComponent(a.id)}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1.5 rounded-lg border border-hairline px-2.5 py-1.5 text-xs hover:bg-soft"
+                                >
+                                  <Paperclip className="size-3.5" />
+                                  {a.filename}
+                                  <span className="font-mono text-subtle">{kb(a.size)}</span>
+                                </a>
+                              ))}
+                            </div>
+                          )}
+                          <div className="flex flex-wrap items-center gap-2">
+                            {m.contactId && (
+                              <Link
+                                href={`/crm/contatos/${m.contactId}`}
+                                className="inline-flex items-center gap-1.5 rounded-full bg-soft px-2.5 py-1 text-xs font-medium hover:text-accent"
+                              >
+                                <UserRound className="size-3.5" />
+                                Abrir contato no CRM
+                              </Link>
+                            )}
+                            {configured && address && (
+                              <button
+                                type="button"
+                                onClick={() => reply(m)}
+                                className="ml-auto inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-subtle hover:bg-soft hover:text-ink"
+                              >
+                                <Reply className="size-3.5" />
+                                Responder esta
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </article>
+                  );
+                })}
               </div>
             </>
           )}

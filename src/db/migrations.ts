@@ -197,6 +197,18 @@ export const RUNTIME_MIGRATIONS = [
   `CREATE UNIQUE INDEX IF NOT EXISTS mail_messages_provider_owner_key
      ON mail_messages (provider_id, COALESCE(user_id, '00000000-0000-0000-0000-000000000000'::uuid), direction)
      WHERE provider_id IS NOT NULL;`,
+  // Conversas: as mensagens que já existiam viram conversas de uma mensagem só
+  `DO $$ BEGIN
+     IF NOT EXISTS (
+       SELECT 1 FROM information_schema.columns
+       WHERE table_schema = current_schema() AND table_name = 'mail_messages' AND column_name = 'thread_id'
+     ) THEN
+       ALTER TABLE mail_messages ADD COLUMN thread_id uuid;
+       UPDATE mail_messages SET thread_id = id WHERE thread_id IS NULL;
+       ALTER TABLE mail_messages ALTER COLUMN thread_id SET NOT NULL;
+       CREATE INDEX IF NOT EXISTS mail_messages_thread_idx ON mail_messages (thread_id, created_at);
+     END IF;
+   END $$;`,
   `CREATE TABLE IF NOT EXISTS mail_uploads (
      pathname text PRIMARY KEY,
      access text NOT NULL DEFAULT 'private',
