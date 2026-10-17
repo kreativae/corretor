@@ -189,13 +189,15 @@ export async function tenantParam(): Promise<string | null> {
   return t && t.schemaName !== DEFAULT_SCHEMA ? t.slug : null;
 }
 
-/** Endereço público do site da empresa atual (metadados, robots, feed de portais) */
-export async function siteBaseUrl(wlDomain: string) {
+/** Endereço público do site da empresa atual (metadados, robots, feed de portais, e-mails).
+ * Sem domínio configurado, usa `fallback` ou o host da requisição. */
+export async function siteBaseUrl(wlDomain: string, fallback?: string) {
   if (await isMainTenant()) {
     const env = process.env.NEXT_PUBLIC_SITE_URL;
     if (env) return env;
   }
   if (wlDomain) return `https://${wlDomain.replace(/^https?:\/\//, "").replace(/\/+$/, "")}`;
+  if (fallback) return fallback;
   const host = (await headers()).get("host");
   return host ? `https://${host}` : "https://localhost";
 }

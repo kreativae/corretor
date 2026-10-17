@@ -7,6 +7,7 @@ import { onAccentColor } from "@/lib/utils";
 import { eq } from "drizzle-orm";
 import { getMessages } from "@/lib/features";
 import { fillMessage, MESSAGE_DEFAULTS } from "@/lib/messages";
+import { siteBaseUrl } from "@/lib/tenant";
 
 /**
  * E-mails via Resend (https://resend.com): avisos de novos leads e envios da Negociação.
@@ -115,6 +116,16 @@ export async function sendEmail(
   return (data?.id as string | undefined) ?? null;
 }
 
+/** Links dos e-mails no domínio oficial do site, o mesmo do remetente, e não no domínio por
+ * onde o sistema foi acessado: domínios diferentes no mesmo e-mail pesam no filtro de spam. */
+export async function emailBaseUrl(wlDomain: string, fallback: string) {
+  try {
+    return await siteBaseUrl(wlDomain, fallback);
+  } catch {
+    return fallback;
+  }
+}
+
 export const esc = (s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
@@ -180,7 +191,8 @@ export async function notifyNewLead(n: LeadNotice) {
       interesse: n.interest ? (TYPE_LABELS[n.interest] ?? n.interest) : "",
       origem: n.origin,
     });
-    await sendEmail(to, subject, leadHtml(n, wl.orgName, wl.accent, onAccentColor(wl.accent, wl.onAccent), msgs.leadFooter));
+    const baseUrl = await emailBaseUrl(wl.domain, n.baseUrl);
+    await sendEmail(to, subject, leadHtml({ ...n, baseUrl }, wl.orgName, wl.accent, onAccentColor(wl.accent, wl.onAccent), msgs.leadFooter));
   } catch (e) {
     console.error("[aviso de lead]", e);
   }
@@ -203,7 +215,7 @@ export async function sendTestEmail(baseUrl: string) {
         interest: "fazenda",
         message: "Este é um e-mail de teste. Os avisos de novos leads estão funcionando.",
         origin: "Teste em Configurações",
-        baseUrl,
+        baseUrl: await emailBaseUrl(wl.domain, baseUrl),
       },
       wl.orgName,
       wl.accent,

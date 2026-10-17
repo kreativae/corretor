@@ -3,7 +3,7 @@ import { activities, contacts, propertySends, type SentAttachment } from "@/db/s
 import { getCurrentUser } from "@/lib/auth";
 import { getFile } from "@/lib/blob";
 import { requestPublicOrigin } from "@/lib/google";
-import { emailConfigured, sendEmail, type EmailAttachment } from "@/lib/notify";
+import { emailBaseUrl, emailConfigured, sendEmail, type EmailAttachment } from "@/lib/notify";
 import { getWhiteLabel, listProperties } from "@/lib/queries";
 import { getMessages } from "@/lib/features";
 import { selectionEmailHtml } from "@/lib/selection-email";
@@ -87,7 +87,7 @@ export async function POST(req: Request) {
       subject,
       selectionEmailHtml({
         wl,
-        baseUrl: requestPublicOrigin(req),
+        baseUrl: await emailBaseUrl(wl.domain, requestPublicOrigin(req)),
         toName,
         message,
         properties: props,
