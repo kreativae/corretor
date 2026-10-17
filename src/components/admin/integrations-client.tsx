@@ -170,6 +170,8 @@ function IntegrationCard({ item }: { item: IntegrationView }) {
           ? err.message
           : "Não foi possível concluir a operação.",
       );
+      // A falha pode ter desconectado a integração (token revogado): atualiza o card
+      router.refresh();
     } finally {
       setBusy(null);
     }

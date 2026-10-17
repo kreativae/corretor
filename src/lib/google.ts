@@ -102,9 +102,39 @@ async function tokenRequest(body: URLSearchParams): Promise<TokenResponse> {
   });
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(data.error_description || data.error || "Falha ao obter token Google.");
+    throw new GoogleTokenError(
+      data.error_description || data.error || "Falha ao obter token Google.",
+      data.error,
+    );
   }
   return data as TokenResponse;
+}
+
+class GoogleTokenError extends Error {
+  constructor(
+    message: string,
+    public code?: string,
+  ) {
+    super(message);
+    this.name = "GoogleTokenError";
+  }
+}
+
+const REAUTH_MESSAGE = "Autorização do Google expirada ou revogada. Reconecte a conta.";
+
+/** Token sem volta (expirado ou revogado no Google): a integração deixa de aparecer como
+ * conectada, para o card pedir a reconexão em vez de seguir falhando a cada sincronização. */
+async function markGoogleDisconnected(integration: Integration) {
+  await (await getDb())
+    .update(integrations)
+    .set({
+      connected: false,
+      accessToken: null,
+      refreshToken: null,
+      tokenExpiresAt: null,
+      statusMessage: REAUTH_MESSAGE,
+    })
+    .where(eq(integrations.id, integration.id));
 }
 
 export async function exchangeGoogleCode(
@@ -138,17 +168,27 @@ export async function getGoogleAccessToken(integration: Integration) {
   }
 
   if (!integration.refreshToken || !integration.clientId || !integration.clientSecret) {
-    throw new Error("Autorização Google expirada. Reconecte a conta.");
+    if (!integration.refreshToken) await markGoogleDisconnected(integration);
+    throw new Error(REAUTH_MESSAGE);
   }
 
-  const token = await tokenRequest(
-    new URLSearchParams({
-      refresh_token: integration.refreshToken,
-      client_id: integration.clientId.trim(),
-      client_secret: integration.clientSecret.trim(),
-      grant_type: "refresh_token",
-    }),
-  );
+  let token: TokenResponse;
+  try {
+    token = await tokenRequest(
+      new URLSearchParams({
+        refresh_token: integration.refreshToken,
+        client_id: integration.clientId.trim(),
+        client_secret: integration.clientSecret.trim(),
+        grant_type: "refresh_token",
+      }),
+    );
+  } catch (error) {
+    if (error instanceof GoogleTokenError && error.code === "invalid_grant") {
+      await markGoogleDisconnected(integration);
+      throw new Error(REAUTH_MESSAGE);
+    }
+    throw error;
+  }
 
   const expiresAt = new Date(Date.now() + token.expires_in * 1000);
   await (await getDb())
