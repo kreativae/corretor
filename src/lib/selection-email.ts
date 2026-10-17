@@ -37,7 +37,18 @@ export function selectionEmailHtml(opts: {
   const { wl, baseUrl, properties, broker } = opts;
   const accent = wl.accent || "#F47525";
   const onAccent = onAccentColor(accent, wl.onAccent);
-  const abs = (u: string) => (u.startsWith("http") ? u : `${baseUrl}${u}`);
+  // Arquivos do próprio sistema (/api/...) sempre no domínio do e-mail: foto salva com o
+  // endereço antigo (ex.: corretor.kreativ.ae) é domínio misturado, que pesa no filtro de spam
+  const abs = (u: string) => {
+    if (!u.startsWith("http")) return `${baseUrl}${u}`;
+    try {
+      const url = new URL(u);
+      if (url.pathname.startsWith("/api/")) return `${baseUrl}${url.pathname}${url.search}`;
+    } catch {
+      /* endereço inválido: usa como veio */
+    }
+    return u;
+  };
   const digits = (broker.phone || wl.phone || "").replace(/\D/g, "");
   const wa = digits ? `https://wa.me/${digits.startsWith("55") ? digits : `55${digits}`}` : "";
   const first = opts.toName.trim().split(/\s+/)[0] || "";
