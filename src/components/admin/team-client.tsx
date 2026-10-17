@@ -15,6 +15,7 @@ export type TeamMember = {
   email: string;
   role: Role;
   creci: string | null;
+  title: string | null;
   phone: string | null;
   mailbox: string | null;
   active: boolean;
@@ -62,11 +63,12 @@ export function TeamClient({
   const [pwTarget, setPwTarget] = useState<TeamMember | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [editTarget, setEditTarget] = useState<TeamMember | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", creci: "", phone: "", mailbox: "" });
+  const [editForm, setEditForm] = useState({ name: "", title: "", creci: "", phone: "", mailbox: "" });
   const [form, setForm] = useState({
     name: "",
     email: "",
     role: "corretor",
+    title: "",
     creci: "",
     phone: "",
     mailbox: "",
@@ -88,7 +90,7 @@ export function TeamClient({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       toast.success(`${form.name} agora tem acesso à plataforma.`);
-      setForm({ name: "", email: "", role: "corretor", creci: "", phone: "", mailbox: "", password: "" });
+      setForm({ name: "", email: "", role: "corretor", title: "", creci: "", phone: "", mailbox: "", password: "" });
       setOpen(false);
       router.refresh();
     } catch (e) {
@@ -116,7 +118,13 @@ export function TeamClient({
 
   function openEdit(u: TeamMember) {
     setEditTarget(u);
-    setEditForm({ name: u.name, creci: u.creci ?? "", phone: u.phone ?? "", mailbox: u.mailbox ?? "" });
+    setEditForm({
+      name: u.name,
+      title: u.title ?? "",
+      creci: u.creci ?? "",
+      phone: u.phone ?? "",
+      mailbox: u.mailbox ?? "",
+    });
   }
 
   async function saveEdit() {
@@ -324,6 +332,13 @@ export function TeamClient({
               <option value="admin">Administrador</option>
             </Select>
           </Field>
+          <Field label="Cargo (opcional)" hint="Aparece na ficha do imóvel · vazio = Corretor">
+            <Input
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              placeholder="Corretor de imóveis"
+            />
+          </Field>
           <Field label="CRECI (opcional)">
             <Input
               value={form.creci}
@@ -364,6 +379,13 @@ export function TeamClient({
               onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
             />
           </Field>
+          <Field label="Cargo" hint="Vazio = Corretor">
+            <Input
+              value={editForm.title}
+              onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+              placeholder="Corretor de imóveis"
+            />
+          </Field>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="CRECI">
               <Input
@@ -397,7 +419,7 @@ export function TeamClient({
             </Field>
           )}
           <p className="text-[11px] text-subtle">
-            Nome, CRECI e WhatsApp aparecem na ficha do imóvel gerada por este usuário.
+            Nome, cargo, CRECI e WhatsApp aparecem na ficha dos imóveis em que este usuário é o responsável.
           </p>
         </div>
         <div className="mt-6 flex justify-end gap-2">

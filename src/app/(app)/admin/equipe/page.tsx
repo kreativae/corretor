@@ -39,6 +39,7 @@ export default async function EquipePage() {
           email: u.email,
           role: u.role,
           creci: u.creci,
+          title: u.title,
           phone: u.phone,
           mailbox: u.mailbox,
           active: u.active,

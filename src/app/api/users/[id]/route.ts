@@ -25,6 +25,7 @@ export async function PATCH(
     const patch: Partial<typeof users.$inferInsert> = {};
     if (body.name?.trim()) patch.name = body.name.trim();
     if (body.creci !== undefined) patch.creci = String(body.creci ?? "").trim() || null;
+    if (body.title !== undefined) patch.title = String(body.title ?? "").trim().slice(0, 60) || null;
     if (body.phone !== undefined) patch.phone = String(body.phone ?? "").replace(/\D/g, "") || null;
     if (body.mailbox !== undefined) {
       const mailbox = cleanMailbox(body.mailbox) || null;

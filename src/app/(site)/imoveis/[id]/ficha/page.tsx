@@ -5,6 +5,9 @@ import { FitSheet } from "./fit-sheet";
 import { PrintBar } from "./print-bar";
 import { getPropertyByCode, getWhiteLabel } from "@/lib/queries";
 import { getCurrentUser } from "@/lib/auth";
+import { getDb } from "@/db";
+import { users } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { crmPropertyPath, isRuralType, normalizeRural, acceptsKmz } from "@/lib/rural";
 import { headers } from "next/headers";
 import QRCode from "qrcode";
@@ -31,17 +34,28 @@ export default async function FichaPage({
   ]);
   if (!p) notFound();
 
-  // Corretor logado assina a ficha; visitante vê o responsável do site
+  // Assina a ficha o corretor responsável pelo imóvel (cadastro da equipe); sem ele, o
+  // corretor logado; para o visitante, o atendimento do site
   const user = await getCurrentUser();
-  const broker = user
-    ? { name: user.name, role: user.creci ? `Corretor · CRECI ${user.creci}` : "Corretor" }
+  const signerId = p.responsibleId ?? user?.id;
+  const [signer] = signerId
+    ? await (await getDb())
+        .select({ name: users.name, title: users.title, creci: users.creci, phone: users.phone })
+        .from(users)
+        .where(eq(users.id, signerId))
+    : [];
+  const broker = signer
+    ? {
+        name: signer.name,
+        role: `${signer.title?.trim() || "Corretor"}${signer.creci ? ` · CRECI ${signer.creci}` : ""}`,
+      }
     : {
         name: content.detail.brokerName || wl.orgName,
         role: content.detail.brokerRole || "Atendimento",
       };
   const today = new Date().toLocaleDateString("pt-BR", { timeZone: TIME_ZONE });
-  // WhatsApp do corretor logado; sem ele, o da imobiliária (white label)
-  const digits = (user?.phone || wl.phone).replace(/\D/g, "");
+  // WhatsApp de quem assina; sem ele, o da imobiliária (white label)
+  const digits = (signer?.phone || wl.phone).replace(/\D/g, "");
   const phone =
     digits.length === 13
       ? `+${digits.slice(0, 2)} (${digits.slice(2, 4)}) ${digits.slice(4, 9)}-${digits.slice(9)}`

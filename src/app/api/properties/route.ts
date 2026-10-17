@@ -3,6 +3,7 @@ import { getDb } from "@/db";
 import { activities, properties, propertyImages } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { sanitizePropertyPartnerFields } from "@/lib/partners";
+import { sanitizeResponsible } from "@/lib/responsible";
 import { nextPropertyCode } from "@/lib/property-code";
 import { alqToM2, isRuralType, sanitizeRural, kmzOnly } from "@/lib/rural";
 import { parseYouTubeUrl } from "@/lib/utils";
@@ -24,6 +25,10 @@ export async function POST(req: Request) {
     delete data.commissionPct;
     delete data.partnerSharePct;
     Object.assign(data, sanitizePropertyPartnerFields(body));
+    // Responsável: o escolhido no cadastro; sem escolha, quem está cadastrando
+    data.responsibleId = await sanitizeResponsible(
+      "responsibleId" in body ? body.responsibleId : (await getCurrentUser())?.id,
+    );
     // Vídeo: só link válido do YouTube
     if ("videoUrl" in data) {
       const v = String(data.videoUrl ?? "").trim();

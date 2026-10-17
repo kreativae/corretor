@@ -60,6 +60,7 @@ export async function POST(req: Request) {
         email,
         role: body.role === "admin" ? "admin" : "corretor",
         creci: body.creci || null,
+        title: String(body.title ?? "").trim().slice(0, 60) || null,
         mailbox,
         phone: String(body.phone ?? "").replace(/\D/g, "") || null,
         passwordHash: body.password ? hashPassword(String(body.password)) : null,

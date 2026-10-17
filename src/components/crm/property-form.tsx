@@ -35,8 +35,14 @@ export function PropertyForm({
   kind,
   partners = [],
   customFeatures = [],
+  team = [],
+  currentUserId,
 }: {
   initial?: PropertyWithImages;
+  /** Equipe que pode ser responsável pelo imóvel (assina a ficha) */
+  team?: { id: string; name: string }[];
+  /** Quem está cadastrando: responsável padrão de um imóvel novo */
+  currentUserId?: string;
   /** Parceiros cadastrados (imóvel captado por parceiro) */
   partners?: PartnerOption[];
   /** Comodidades extras cadastradas pela equipe */
@@ -76,6 +82,7 @@ export function PropertyForm({
     images: (initial?.images ?? []).map((i) => i.url),
     published: initial?.published ?? true,
     partnerId: initial?.partnerId ?? "",
+    responsibleId: initial ? (initial.responsibleId ?? "") : (currentUserId ?? ""),
     commissionPct: initial?.commissionPct?.toString() ?? "",
     partnerSharePct: initial?.partnerSharePct?.toString() ?? "",
     taxPct: initial?.taxPct?.toString() ?? "",
@@ -183,6 +190,7 @@ export function PropertyForm({
         images: imageUrls,
         published: form.published,
         partnerId: form.partnerId || null,
+        responsibleId: form.responsibleId || null,
         commissionPct: form.commissionPct === "" ? null : form.commissionPct,
         partnerSharePct: form.partnerId && form.partnerSharePct !== "" ? form.partnerSharePct : null,
         taxPct: form.taxPct === "" ? null : form.taxPct,
@@ -433,6 +441,16 @@ export function PropertyForm({
               Parceria e comissão
             </h2>
             <div className="space-y-4">
+              <Field label="Corretor responsável" hint="Nome, cargo e telefone dele vão na ficha do imóvel">
+                <Select value={form.responsibleId} onChange={(e) => set("responsibleId", e.target.value)}>
+                  <option value="">Sem responsável (dados da imobiliária)</option>
+                  {team.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
               <Field label="Captação">
                 <Select value={form.partnerId} onChange={(e) => pickPartner(e.target.value)}>
                   <option value="">Carteira própria</option>

@@ -14,6 +14,7 @@ import { alqToM2, isRuralType, kmzOnly, sanitizeRural } from "@/lib/rural";
 import { sanitizePropertyPartnerFields } from "@/lib/partners";
 import { parseYouTubeUrl } from "@/lib/utils";
 import { NextResponse } from "next/server";
+import { sanitizeResponsible } from "@/lib/responsible";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -58,6 +59,7 @@ export async function PATCH(req: Request, { params }: Params) {
     delete data.commissionPct;
     delete data.partnerSharePct;
     Object.assign(data, sanitizePropertyPartnerFields(body));
+    if ("responsibleId" in data) data.responsibleId = await sanitizeResponsible(data.responsibleId);
     // Vídeo: só link válido do YouTube
     if ("videoUrl" in data) {
       const v = String(data.videoUrl ?? "").trim();

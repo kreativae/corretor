@@ -209,6 +209,21 @@ export const RUNTIME_MIGRATIONS = [
        CREATE INDEX IF NOT EXISTS mail_messages_thread_idx ON mail_messages (thread_id, created_at);
      END IF;
    END $$;`,
+  // Cargo do usuário e corretor responsável pelo imóvel (assinam a ficha)
+  `DO $$ BEGIN
+     IF NOT EXISTS (
+       SELECT 1 FROM information_schema.columns
+       WHERE table_schema = current_schema() AND table_name = 'users' AND column_name = 'title'
+     ) THEN
+       ALTER TABLE users ADD COLUMN title text;
+     END IF;
+     IF NOT EXISTS (
+       SELECT 1 FROM information_schema.columns
+       WHERE table_schema = current_schema() AND table_name = 'properties' AND column_name = 'responsible_id'
+     ) THEN
+       ALTER TABLE properties ADD COLUMN responsible_id uuid REFERENCES users(id) ON DELETE SET NULL;
+     END IF;
+   END $$;`,
   `CREATE TABLE IF NOT EXISTS mail_uploads (
      pathname text PRIMARY KEY,
      access text NOT NULL DEFAULT 'private',

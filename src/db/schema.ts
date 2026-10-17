@@ -24,6 +24,8 @@ export const users = pgTable("users", {
     .default("corretor"),
   phone: text("phone"),
   creci: text("creci"),
+  /** Cargo mostrado na ficha do imóvel (ex.: "Corretor de imóveis"); vazio = "Corretor" */
+  title: text("title"),
   passwordHash: text("password_hash"),
   /** Parte antes do @ do e-mail do usuário no domínio da empresa (ex.: "fabio"); vazio = sem caixa */
   mailbox: text("mailbox"),
@@ -168,6 +170,8 @@ export const properties = pgTable("properties", {
   /** Imóvel de parceiro (captado por outro corretor/imobiliária) */
   videoUrl: text("video_url"),
   partnerId: uuid("partner_id").references(() => partners.id, { onDelete: "set null" }),
+  /** Corretor responsável: assina a ficha (nome, cargo e telefone do cadastro da equipe) */
+  responsibleId: uuid("responsible_id").references(() => users.id, { onDelete: "set null" }),
   /** Comissão total combinada na venda/locação (%) */
   commissionPct: real("commission_pct"),
   /** Parte da comissão que vai para o parceiro (% da comissão) */
