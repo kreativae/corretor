@@ -85,6 +85,10 @@ export type SiteContent = {
     timeLabel: string;
     /** Horários oferecidos */
     times: string[];
+    /** Dias da semana abertos para visita (0 = domingo … 6 = sábado) */
+    days: number[];
+    /** Antecedência mínima em dias (0 = aceita no mesmo dia, com 2 h de folga) */
+    leadDays: number;
     button: string;
     note: string;
     successTitle: string;
@@ -234,6 +238,8 @@ export const DEFAULT_CONTENT: SiteContent = {
     dateLabel: "Data",
     timeLabel: "Horário",
     times: ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00", "18:00"],
+    days: [1, 2, 3, 4, 5, 6],
+    leadDays: 1,
     button: "Reservar visita",
     note: "Sem compromisso. Seus dados ficam apenas com a equipe e nunca são compartilhados.",
     successTitle: "Visita reservada",
@@ -347,6 +353,14 @@ export async function getSiteContent(): Promise<SiteContent> {
           Array.isArray(saved.visit?.times) && saved.visit.times.length
             ? saved.visit.times
             : DEFAULT_CONTENT.visit.times,
+        days:
+          Array.isArray(saved.visit?.days) && saved.visit.days.length
+            ? saved.visit.days.filter((d) => Number.isInteger(d) && d >= 0 && d <= 6)
+            : DEFAULT_CONTENT.visit.days,
+        leadDays:
+          typeof saved.visit?.leadDays === "number" && saved.visit.leadDays >= 0
+            ? Math.min(60, Math.floor(saved.visit.leadDays))
+            : DEFAULT_CONTENT.visit.leadDays,
       },
       footer: {
         ...DEFAULT_CONTENT.footer,

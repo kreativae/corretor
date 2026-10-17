@@ -5,6 +5,8 @@ import { formatDate } from "@/lib/utils";
 import { apiUser, unauthorized } from "@/lib/api-auth";
 import { requestPublicOrigin } from "@/lib/google";
 import { notifyNewLead } from "@/lib/notify";
+import { getSiteContent } from "@/lib/site-content";
+import { visitAllowed } from "@/lib/visit-slots";
 import { after, NextResponse } from "next/server";
 
 export async function POST(req: Request) {
@@ -26,6 +28,14 @@ export async function POST(req: Request) {
         .where(eq(properties.id, String(body.propertyId)));
       if (!prop?.published) {
         return NextResponse.json({ error: "Imóvel indisponível" }, { status: 404 });
+      }
+      // Dias da semana, antecedência e horários definidos em Conteúdo do site › Visita guiada
+      const rules = (await getSiteContent()).visit;
+      if (!visitAllowed(String(body.date ?? ""), String(body.time ?? ""), rules)) {
+        return NextResponse.json(
+          { error: "Esse dia ou horário não está disponível. Escolha outra data." },
+          { status: 400 },
+        );
       }
     }
     if (!contactId && body.name && body.phone) {

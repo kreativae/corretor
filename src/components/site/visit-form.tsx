@@ -4,6 +4,8 @@ import { Button, Field, Input, Select } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { CalendarCheck } from "lucide-react";
 import type { SiteContent } from "@/lib/site-content";
+import { visitDates, visitTimesFor } from "@/lib/visit-slots";
+import { useHydrated } from "@/lib/use-hydrated";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -19,16 +21,20 @@ export function VisitForm({
   texts: SiteContent["visit"];
   className?: string;
 }) {
-  const times = t.times.filter(Boolean);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
-  const [form, setForm] = useState({ name: "", phone: "", date: "", time: t.times.includes("10:00") ? "10:00" : (t.times[0] ?? "") });
+  const [form, setForm] = useState({ name: "", phone: "", date: "", time: "" });
 
-  const today = new Date().toISOString().split("T")[0];
+  // Datas e horários dependem de "agora": calculados só no navegador (evita divergir do servidor)
+  const hydrated = useHydrated();
+  const dates = hydrated ? visitDates(t) : [];
+  const date = dates.some((d) => d.value === form.date) ? form.date : (dates[0]?.value ?? "");
+  const times = date ? visitTimesFor(date, t) : [];
+  const time = times.includes(form.time) ? form.time : times.includes("10:00") ? "10:00" : (times[0] ?? "");
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.name.trim() || !form.phone.trim() || !form.date) {
+    if (!form.name.trim() || !form.phone.trim() || !date || !time) {
       toast.error("Preencha nome, telefone e data.");
       return;
     }
@@ -41,16 +47,20 @@ export function VisitForm({
           propertyId,
           name: form.name,
           phone: form.phone,
-          date: form.date,
-          time: form.time,
+          date,
+          time,
           source: "site",
         }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error);
+      }
+      setForm((f) => ({ ...f, date, time }));
       setDone(true);
       toast.success("Visita agendada — confirmamos em instantes.");
-    } catch {
-      toast.error("Não foi possível agendar. Tente pelo WhatsApp.");
+    } catch (e) {
+      toast.error(e instanceof Error && e.message ? e.message : "Não foi possível agendar. Tente pelo WhatsApp.");
     } finally {
       setLoading(false);
     }
@@ -103,29 +113,31 @@ export function VisitForm({
           />
         </Field>
         <Field label={t.dateLabel}>
-          <Input
-            type="date"
-            min={today}
-            value={form.date}
-            onChange={(e) => setForm({ ...form, date: e.target.value })}
-          />
+          <Select value={date} onChange={(e) => setForm({ ...form, date: e.target.value })}>
+            {dates.map((d) => (
+              <option key={d.value} value={d.value}>
+                {d.label}
+              </option>
+            ))}
+          </Select>
         </Field>
         <Field label={t.timeLabel}>
-          <Select
-            value={form.time}
-            onChange={(e) => setForm({ ...form, time: e.target.value })}
-          >
+          <Select value={time} onChange={(e) => setForm({ ...form, time: e.target.value })}>
             {times.map((h) => (
               <option key={h}>{h}</option>
             ))}
           </Select>
         </Field>
       </div>
+      {hydrated && !dates.length && (
+        <p className="mt-3 text-xs text-subtle">Sem datas abertas para visita no momento. Fale com a gente pelo WhatsApp.</p>
+      )}
       <Button
         type="submit"
         variant="accent"
         size="lg"
         loading={loading}
+        disabled={!date || !time}
         className="mt-6 w-full"
       >
         {t.button}

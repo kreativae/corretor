@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Field, Input, Switch, Textarea } from "@/components/ui";
+import { Button, Field, Input, Select, Switch, Textarea } from "@/components/ui";
 import type { WhiteLabel } from "@/lib/queries";
 import type { SiteContent } from "@/lib/site-content";
 import { cn, parseYouTubeUrl } from "@/lib/utils";
@@ -324,6 +324,51 @@ export function SiteEditor({
                     }
                     className="font-mono text-xs"
                   />
+                </Field>
+                <Field label="Dias disponíveis para visita" hint="Só estes dias aparecem para o visitante escolher" className="sm:col-span-2">
+                  <div className="flex flex-wrap gap-2">
+                    {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((label, d) => {
+                      const on = c.visit.days.includes(d);
+                      return (
+                        <button
+                          key={label}
+                          type="button"
+                          aria-pressed={on}
+                          onClick={() =>
+                            patch("visit", {
+                              days: on ? c.visit.days.filter((x) => x !== d) : [...c.visit.days, d].sort(),
+                            })
+                          }
+                          className={cn(
+                            "rounded-full border px-3.5 py-1.5 text-sm transition-colors",
+                            on ? "border-accent bg-accent text-on-accent" : "border-hairline text-subtle hover:text-ink",
+                          )}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </Field>
+                <Field
+                  label="Antecedência mínima"
+                  hint={
+                    c.visit.leadDays === 0
+                      ? "Aceita no mesmo dia, só em horários com pelo menos 2 h de folga"
+                      : `A primeira data liberada é daqui a ${c.visit.leadDays} ${c.visit.leadDays === 1 ? "dia (amanhã)" : "dias"}`
+                  }
+                  className="sm:col-span-2"
+                >
+                  <Select
+                    value={c.visit.leadDays}
+                    onChange={(e) => patch("visit", { leadDays: Number(e.target.value) })}
+                  >
+                    {[0, 1, 2, 3, 5, 7].map((n) => (
+                      <option key={n} value={n}>
+                        {n === 0 ? "No mesmo dia (2 h de folga)" : n === 1 ? "A partir de amanhã" : `A partir de ${n} dias`}
+                      </option>
+                    ))}
+                  </Select>
                 </Field>
                 <Field label="Botão de enviar" className="sm:col-span-2">
                   <Input
