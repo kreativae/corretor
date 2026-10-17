@@ -318,7 +318,7 @@ async function readAttachment(a: MailAttachment): Promise<EmailAttachment> {
 
 /** Texto simples → HTML do e-mail (parágrafos e quebras de linha) */
 function textToHtml(text: string) {
-  return `<!doctype html><html><body style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:14px;line-height:1.55;color:#18181b">${esc(
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title></title></head><body style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:14px;line-height:1.55;color:#18181b">${esc(
     text,
   ).replace(/\r?\n/g, "<br>")}</body></html>`;
 }

@@ -212,7 +212,7 @@ function leadHtml(n: LeadNotice, orgName: string, accent: string, onAccent: stri
     ...(n.detail ? [["Detalhe", n.detail] as [string, string]] : []),
     ["Origem", n.origin],
   ];
-  return `<!doctype html><html><body style="margin:0;background:#f4f4f5;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#18181b">
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(orgName)}</title></head><body style="margin:0;background:#f4f4f5;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#18181b">
 <div style="max-width:520px;margin:24px auto;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #e4e4e7">
   <div style="padding:20px 24px;border-bottom:1px solid #e4e4e7">
     <p style="margin:0;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#71717a">${esc(orgName)} · ${n.returning ? "Lead retornou" : "Novo lead"}</p>

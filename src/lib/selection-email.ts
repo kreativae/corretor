@@ -66,7 +66,7 @@ export function selectionEmailHtml(opts: {
     })
     .join("");
 
-  return `<!doctype html><html><body style="margin:0;background:#f1f1f6;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#1c1c30">
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(wl.orgName)}</title></head><body style="margin:0;background:#f1f1f6;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#1c1c30">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px 12px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px">
   <tr><td style="padding:0 4px 18px">
