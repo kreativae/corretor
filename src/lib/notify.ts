@@ -204,9 +204,10 @@ export type LeadNotice = {
 
 function leadHtml(n: LeadNotice, orgName: string, accent: string, onAccent: string, footer = MESSAGE_DEFAULTS.leadFooter) {
   const digits = n.phone.replace(/\D/g, "");
-  const wa = `https://wa.me/${digits.startsWith("55") ? digits : `55${digits}`}`;
+  // Botões só com destino real (link quebrado ou número inválido pesa no filtro de spam)
+  const wa = digits.length >= 10 ? `https://wa.me/${digits.startsWith("55") ? digits : `55${digits}`}` : "";
   const rows: [string, string][] = [
-    ["WhatsApp", n.phone],
+    ...(n.phone ? [["WhatsApp", n.phone] as [string, string]] : []),
     ...(n.email ? [["E-mail", n.email] as [string, string]] : []),
     ...(n.interest ? [["Interesse", TYPE_LABELS[n.interest] ?? n.interest] as [string, string]] : []),
     ...(n.detail ? [["Detalhe", n.detail] as [string, string]] : []),
@@ -228,8 +229,8 @@ function leadHtml(n: LeadNotice, orgName: string, accent: string, onAccent: stri
   </table>
   ${n.message ? `<div style="margin:16px 24px;padding:14px;background:#f4f4f5;border-radius:12px;font-size:14px;line-height:1.5;white-space:pre-wrap">${esc(n.message)}</div>` : ""}
   <div style="padding:16px 24px 24px">
-    <a href="${n.baseUrl}/crm/contatos/${n.contactId}" style="display:inline-block;background:${accent};color:${onAccent};text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:999px;margin:0 8px 8px 0">Abrir no CRM</a>
-    <a href="${wa}" style="display:inline-block;background:#18181b;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:999px">Responder no WhatsApp</a>
+    ${n.contactId ? `<a href="${n.baseUrl}/crm/contatos/${n.contactId}" style="display:inline-block;background:${accent};color:${onAccent};text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:999px;margin:0 8px 8px 0">Abrir no CRM</a>` : ""}
+    ${wa ? `<a href="${wa}" style="display:inline-block;background:#18181b;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:999px">Responder no WhatsApp</a>` : ""}
   </div>
 </div>
 ${footer ? `<p style="text-align:center;font-size:11px;color:#a1a1aa">${esc(footer)}</p>` : ""}
@@ -262,16 +263,16 @@ export async function sendTestEmail(baseUrl: string) {
   if (!to.length) throw new Error("Informe ao menos um e-mail de destino e salve.");
   await sendEmail(
     to,
-    "Teste: avisos de novos leads",
+    `Avisos de novos leads ativados · ${wl.orgName}`,
+    // Sem dados inventados (telefone, e-mail ou link vazio parecem golpe para o filtro de spam)
     leadHtml(
       {
         contactId: "",
-        name: "Lead de teste",
-        phone: "5543999999999",
-        email: "cliente@exemplo.com",
-        interest: "fazenda",
-        message: "Este é um e-mail de teste. Os avisos de novos leads estão funcionando.",
-        origin: "Teste em Configurações",
+        name: "Os avisos estão funcionando",
+        phone: wl.phone || "",
+        message:
+          "É assim que chega o aviso quando alguém deixa contato pelo site, agenda uma visita ou é recebido pelo webhook. No aviso de verdade, os botões abrem o contato no CRM e a conversa no WhatsApp.",
+        origin: "Configurações › Avisos de novos leads",
         baseUrl: await emailBaseUrl(wl.domain, baseUrl),
       },
       wl.orgName,
