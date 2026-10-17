@@ -80,7 +80,7 @@ function personValues(person: GooglePerson) {
   };
 }
 
-function googlePersonBody(contact: Contact, etag?: string | null) {
+function googlePersonBody(contact: Contact, current?: GooglePerson) {
   const parts = contact.name.trim().split(/\s+/);
   const givenName = parts.shift() ?? contact.name;
   const familyName = parts.join(" ");
@@ -90,11 +90,41 @@ function googlePersonBody(contact: Contact, etag?: string | null) {
   if (contact.googleResourceName) body.resourceName = contact.googleResourceName;
   if (contact.email) body.emailAddresses = [{ value: contact.email }];
   if (contact.phone) body.phoneNumbers = [{ value: contact.phone }];
-  if (etag) {
-    body.etag = etag;
-    body.metadata = { sources: [{ type: "CONTACT", etag }] };
+  // updateContact exige o etag da pessoa e o da fonte CONTACT, que são diferentes.
+  if (current) {
+    body.etag = current.etag;
+    const source = personSource(current);
+    if (source) body.metadata = { sources: [{ type: source.type, etag: source.etag }] };
   }
   return body;
+}
+
+const PERSON_FIELDS = "names,emailAddresses,phoneNumbers,metadata";
+
+/** Envia o contato do CRM ao Google. Lê a pessoa na hora para ter os ETags atuais e
+ * tenta de novo uma vez se ela mudou entre a leitura e a gravação. */
+async function updateGooglePerson(
+  integration: Integration,
+  resourceName: string,
+  local: Contact,
+) {
+  for (let attempt = 0; ; attempt++) {
+    const current = await googleApi<GooglePerson>(
+      integration,
+      `https://people.googleapis.com/v1/${resourceName}?personFields=metadata`,
+    );
+    try {
+      return await googleApi<GooglePerson>(
+        integration,
+        `https://people.googleapis.com/v1/${resourceName}:updateContact?updatePersonFields=names,emailAddresses,phoneNumbers&personFields=${PERSON_FIELDS}`,
+        { method: "PATCH", body: JSON.stringify(googlePersonBody(local, current)) },
+      );
+    } catch (error) {
+      const stale =
+        error instanceof GoogleApiError && error.status === 400 && /etag/i.test(error.message);
+      if (!stale || attempt > 0) throw error;
+    }
+  }
 }
 
 async function listGooglePeople(integration: Integration) {
@@ -253,14 +283,7 @@ export async function syncGoogleContacts(
 
       // Alteração local mais recente: envia ao Google usando ETag atual.
       if (localChanged && (!remoteChanged || localMs > remoteMs)) {
-        const updated = await googleApi<GooglePerson>(
-          integration,
-          `https://people.googleapis.com/v1/${person.resourceName}:updateContact?updatePersonFields=names,emailAddresses,phoneNumbers&personFields=names,emailAddresses,phoneNumbers,metadata`,
-          {
-            method: "PATCH",
-            body: JSON.stringify(googlePersonBody(local, remoteEtag)),
-          },
-        );
+        const updated = await updateGooglePerson(integration, person.resourceName, local);
         const newSource = personSource(updated);
         await (await getDb())
           .update(contacts)
@@ -332,14 +355,7 @@ export async function syncGoogleContacts(
           result.unchanged += 1;
           continue;
         }
-        const updated = await googleApi<GooglePerson>(
-          integration,
-          `https://people.googleapis.com/v1/${local.googleResourceName}:updateContact?updatePersonFields=names,emailAddresses,phoneNumbers&personFields=names,emailAddresses,phoneNumbers,metadata`,
-          {
-            method: "PATCH",
-            body: JSON.stringify(googlePersonBody(local, local.googleEtag)),
-          },
-        );
+        const updated = await updateGooglePerson(integration, local.googleResourceName, local);
         const source = personSource(updated);
         await (await getDb())
           .update(contacts)
