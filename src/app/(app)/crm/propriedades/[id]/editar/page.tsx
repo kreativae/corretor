@@ -1,4 +1,5 @@
 import { PropertyForm } from "@/components/crm/property-form";
+import { getKmzPassword } from "@/lib/kmz-lock";
 import { getCustomFeatures } from "@/lib/features";
 import { listResponsibles } from "@/lib/responsible";
 import { getPropertyById, listPartners } from "@/lib/queries";
@@ -17,15 +18,16 @@ export default async function EditarPropriedadePage({
   const { id } = await params;
   const property = await getPropertyById(id);
   if (!property) notFound();
-  const [partners, customFeatures, team] = await Promise.all([
+  const [partners, customFeatures, team, kmzPassword] = await Promise.all([
     listPartners(),
     getCustomFeatures(),
     listResponsibles(),
+    getKmzPassword(property.id),
   ]);
   if (!isRuralType(property.type)) redirect(crmPropertyPath(property, "/editar"));
   return (
     <div className="mx-auto max-w-6xl">
-      <PropertyForm initial={property} partners={partners} customFeatures={customFeatures} team={team} />
+      <PropertyForm initial={property} partners={partners} customFeatures={customFeatures} team={team} kmzPassword={kmzPassword ?? ""} />
     </div>
   );
 }

@@ -8,6 +8,7 @@ import { nextPropertyCode } from "@/lib/property-code";
 import { alqToM2, isRuralType, sanitizeRural, kmzOnly } from "@/lib/rural";
 import { parseYouTubeUrl } from "@/lib/utils";
 import { propertyLimitError } from "@/lib/account";
+import { setKmzPassword } from "@/lib/kmz-lock";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
@@ -16,7 +17,7 @@ export async function POST(req: Request) {
   if (limit) return NextResponse.json({ error: limit }, { status: 403 });
   try {
     const body = await req.json();
-    const { images = [], ...data } = body as Record<string, unknown> & {
+    const { images = [], kmzPassword, ...data } = body as Record<string, unknown> & {
       images?: string[];
     };
 
@@ -77,6 +78,9 @@ export async function POST(req: Request) {
       kind: "created",
       text: `${rural ? "Propriedade rural" : "Imóvel"} ${created.code} cadastrad${rural ? "a" : "o"}${author ? ` por ${author.name}` : ""}.`,
     });
+
+    // Senha do mapa/KMZ no site: guardada à parte, nunca nos dados do anúncio
+    if (kmzPassword) await setKmzPassword(created.id, kmzPassword);
 
     return NextResponse.json(created, { status: 201 });
   } catch (e) {

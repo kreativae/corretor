@@ -15,6 +15,7 @@ import { sanitizePropertyPartnerFields } from "@/lib/partners";
 import { parseYouTubeUrl } from "@/lib/utils";
 import { NextResponse } from "next/server";
 import { sanitizeResponsible } from "@/lib/responsible";
+import { setKmzPassword } from "@/lib/kmz-lock";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -41,7 +42,7 @@ export async function PATCH(req: Request, { params }: Params) {
       return NextResponse.json(updated);
     }
 
-    const { images, id: _ignore, code: _code, createdAt: _c, ...data } = body;
+    const { images, kmzPassword, id: _ignore, code: _code, createdAt: _c, ...data } = body;
     void _ignore; void _code; void _c;
     if ("type" in data) {
       if (isRuralType(data.type)) {
@@ -86,6 +87,9 @@ export async function PATCH(req: Request, { params }: Params) {
         );
       }
     }
+
+    // Senha do mapa/KMZ no site (vazio remove): guardada à parte, nunca nos dados do anúncio
+    if (kmzPassword !== undefined) await setKmzPassword(id, kmzPassword);
 
     await (await getDb()).insert(activities).values({
       entity: "imovel",

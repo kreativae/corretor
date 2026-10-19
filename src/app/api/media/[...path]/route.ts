@@ -1,3 +1,4 @@
+import { loggedUser } from "@/lib/auth";
 import { getFile, isMediaPath } from "@/lib/blob";
 import { getWatermarkSettings } from "@/lib/features";
 import { getWatermarkLogo, watermark } from "@/lib/watermark";
@@ -15,6 +16,10 @@ export async function GET(
   if (!isMediaPath(pathname)) {
     return new Response("Not found", { status: 404 });
   }
+  // KMZ: endereço direto só para a equipe logada. O site entrega pelo /imoveis/<código>/kmz,
+  // que respeita a senha do imóvel
+  const isKmz = pathname.startsWith("kmz/");
+  if (isKmz && !(await loggedUser())) return new Response("Not found", { status: 404 });
   const result = await getFile(pathname);
   if (!result) return new Response("Not found", { status: 404 });
   // ?wm=padrao|logo|linhas (ou 1): fotos de imóveis exibidas no site saem com marca
@@ -63,14 +68,14 @@ export async function GET(
       // "0" faria o navegador descartar o corpo — o KMZ chegava vazio.
       ...(result.size > 0 ? { "Content-Length": String(result.size) } : {}),
       // ?wm=1 servido sem marca (desligada): cache curto para religar sem esperar
-      "Cache-Control": wantsMark
-        ? "public, max-age=600, s-maxage=3600"
-        : "public, max-age=31536000, s-maxage=31536000, immutable",
-      // CORS: o mapa público lê o KMZ via fetch
-      "Access-Control-Allow-Origin": "*",
-      ...(pathname.startsWith("kmz/")
+      "Cache-Control": isKmz
+        ? "private, no-store"
+        : wantsMark
+          ? "public, max-age=600, s-maxage=3600"
+          : "public, max-age=31536000, s-maxage=31536000, immutable",
+      ...(isKmz
         ? { "Content-Disposition": `attachment; filename="${pathname.split("/").pop()}"` }
-        : {}),
+        : { "Access-Control-Allow-Origin": "*" }),
     },
   });
 }

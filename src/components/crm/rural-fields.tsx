@@ -214,10 +214,15 @@ export function KmzField({
   url,
   name,
   onChange,
+  password,
+  onPasswordChange,
 }: {
   url: string;
   name: string;
   onChange: (url: string, name: string) => void;
+  /** Senha para ver o mapa e baixar o KMZ no site (vazio = aberto) */
+  password?: string;
+  onPasswordChange?: (v: string) => void;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [progress, setProgress] = useState<number | null>(null);
@@ -297,6 +302,22 @@ export function KmzField({
           e.target.value = "";
         }}
       />
+      {url && onPasswordChange && (
+        <Field
+          label="Senha para ver o mapa e baixar o KMZ"
+          hint="Quem abrir o mapa pelo site ou pelo QR code da ficha precisa digitar esta senha. Vazio = aberto para todos. A equipe logada no CRM vê sem senha."
+          className="mt-4"
+        >
+          <Input
+            value={password ?? ""}
+            onChange={(e) => onPasswordChange(e.target.value)}
+            placeholder="Ex.: 4821"
+            maxLength={64}
+            autoComplete="off"
+            className="h-10 max-w-xs font-mono"
+          />
+        </Field>
+      )}
     </div>
   );
 }
@@ -305,9 +326,13 @@ export function KmzField({
 export function RuralFields({
   value,
   onChange,
+  kmzPassword,
+  onKmzPasswordChange,
 }: {
   value: RuralData;
   onChange: (next: RuralData) => void;
+  kmzPassword?: string;
+  onKmzPasswordChange?: (v: string) => void;
 }) {
   const set = <K extends keyof RuralData>(k: K, v: RuralData[K]) => onChange({ ...value, [k]: v });
   const showCabecas = value.aptidao === "pecuaria" || value.aptidao === "dupla";
@@ -468,6 +493,8 @@ export function RuralFields({
           url={value.kmzUrl}
           name={value.kmzName}
           onChange={(url, name) => onChange({ ...value, kmzUrl: url, kmzName: name })}
+          password={kmzPassword}
+          onPasswordChange={onKmzPasswordChange}
         />
       </section>
     </>

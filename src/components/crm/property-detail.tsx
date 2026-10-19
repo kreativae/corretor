@@ -1,4 +1,5 @@
 import { RuralDetails } from "@/components/rural-details";
+import { getKmzPassword } from "@/lib/kmz-lock";
 import { commissionValues } from "@/lib/partners";
 import { CommissionBreakdown } from "@/components/crm/commission-breakdown";
 import { getMessages } from "@/lib/features";
@@ -47,6 +48,7 @@ import {
   Check,
   FileDown,
   Globe,
+  Lock,
   Map as MapIcon,
   MessageCircle,
   Pencil,
@@ -78,6 +80,7 @@ export async function PropertyDetail({
   // Rurais vivem em /crm/propriedades; urbanos em /crm/imoveis
   if (isRuralType(p.type) !== (section === "propriedades")) redirect(crmPropertyPath(p));
 
+  const kmzPassword = acceptsKmz(p.type) ? await getKmzPassword(p.id) : null;
   const [activities, views, documents, partner, msgs, market] = await Promise.all([
     listActivitiesFor("imovel", p.id, 15),
     getPropertyViewStats(p.id),
@@ -165,10 +168,11 @@ export async function PropertyDetail({
             </Button>
           </Link>
           {acceptsKmz(p.type) && r.kmzUrl && (
-            <Link href={`/imoveis/${p.code}/mapa`} target="_blank">
+            <Link href={`/imoveis/${p.code}/mapa`} target="_blank" title={kmzPassword ? `Mapa protegido · senha ${kmzPassword}` : undefined}>
               <Button variant="outline" size="sm">
-                <MapIcon className="size-3.5" />
+                {kmzPassword ? <Lock className="size-3.5" /> : <MapIcon className="size-3.5" />}
                 Mapa
+                {kmzPassword && <span className="font-mono text-[11px] text-subtle">· senha {kmzPassword}</span>}
               </Button>
             </Link>
           )}

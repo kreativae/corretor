@@ -37,8 +37,11 @@ export function PropertyForm({
   customFeatures = [],
   team = [],
   currentUserId,
+  kmzPassword: initialKmzPassword = "",
 }: {
   initial?: PropertyWithImages;
+  /** Senha atual do KMZ no site (vazio = aberto) */
+  kmzPassword?: string;
   /** Equipe que pode ser responsável pelo imóvel (assina a ficha) */
   team?: { id: string; name: string }[];
   /** Quem está cadastrando: responsável padrão de um imóvel novo */
@@ -58,6 +61,7 @@ export function PropertyForm({
   );
   const [ruralData, setRuralData] = useState<RuralData>(() => normalizeRural(initial?.rural));
   const [saving, setSaving] = useState(false);
+  const [kmzPassword, setKmzPassword] = useState(initialKmzPassword);
   const [form, setForm] = useState({
     title: initial?.title ?? "",
     type: initial?.type ?? (rural ? RURAL_TYPES[0] : "apartamento"),
@@ -212,6 +216,8 @@ export function PropertyForm({
         ...(!rural && form.type === "terreno"
           ? { rural: { kmzUrl: ruralData.kmzUrl, kmzName: ruralData.kmzName } }
           : {}),
+        // Senha do mapa/KMZ no site (guardada à parte, fora dos dados do anúncio)
+        ...(rural || form.type === "terreno" ? { kmzPassword: ruralData.kmzUrl ? kmzPassword : "" } : {}),
       };
       const res = await fetch(
         isEdit ? `/api/properties/${initial.id}` : "/api/properties",
@@ -298,7 +304,7 @@ export function PropertyForm({
           </section>
 
           {rural ? (
-            <RuralFields value={ruralData} onChange={setRuralData} />
+            <RuralFields value={ruralData} onChange={setRuralData} kmzPassword={kmzPassword} onKmzPasswordChange={setKmzPassword} />
           ) : (
             <>
           {/* Características */}
@@ -350,6 +356,8 @@ export function PropertyForm({
                 url={ruralData.kmzUrl}
                 name={ruralData.kmzName}
                 onChange={(url, name) => setRuralData((cur) => ({ ...cur, kmzUrl: url, kmzName: name }))}
+                password={kmzPassword}
+                onPasswordChange={setKmzPassword}
               />
             </section>
           )}

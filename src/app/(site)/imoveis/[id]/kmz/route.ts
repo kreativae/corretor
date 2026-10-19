@@ -1,10 +1,13 @@
+import { getFile } from "@/lib/blob";
+import { kmzAccess, kmzPathname } from "@/lib/kmz-lock";
 import { getPropertyByCode } from "@/lib/queries";
-import { isRuralType, normalizeRural, acceptsKmz } from "@/lib/rural";
+import { normalizeRural, acceptsKmz } from "@/lib/rural";
 import { NextResponse } from "next/server";
 
 /**
- * Link fixo de download do KMZ (destino do QR code da ficha). Redireciona
- * para o arquivo atual, então fichas impressas seguem válidas se o KMZ mudar.
+ * Link fixo do KMZ (download do mapa e leitura pelo mapa do site). Entrega o arquivo atual, então
+ * fichas impressas seguem válidas se o KMZ mudar. Com senha no imóvel, só depois de liberar no mapa
+ * (ou para quem está logado no CRM). ?inline=1: leitura pelo mapa, sem forçar download.
  */
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -13,13 +16,27 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   if (!p || !r?.kmzUrl) {
     return new NextResponse("KMZ não encontrado para esta propriedade.", { status: 404 });
   }
-  const target = new URL(r.kmzUrl, req.url);
-  // Blob público: força download; o proxy privado (/api/media) já envia como anexo
-  if (target.hostname.endsWith("blob.vercel-storage.com")) target.searchParams.set("download", "1");
-  // Escapa de respostas vazias antigas guardadas no cache do navegador
-  else target.searchParams.set("v", "2");
-  return NextResponse.redirect(target, {
-    status: 302,
-    headers: { "Cache-Control": "no-store" },
+  if ((await kmzAccess(p.id)) === "locked") {
+    return NextResponse.redirect(new URL(`/imoveis/${p.code}/mapa`, req.url), { status: 302 });
+  }
+
+  const pathname = kmzPathname(r.kmzUrl);
+  const file = pathname ? await getFile(pathname) : null;
+  if (!file) {
+    // Arquivo antigo fora do armazenamento do sistema (ex.: Blob público): segue o endereço salvo
+    const target = new URL(r.kmzUrl, req.url);
+    if (target.hostname.endsWith("blob.vercel-storage.com")) target.searchParams.set("download", "1");
+    return NextResponse.redirect(target, { status: 302, headers: { "Cache-Control": "no-store" } });
+  }
+  const inline = new URL(req.url).searchParams.get("inline") === "1";
+  const name = (r.kmzName || `${p.code}.kmz`).replace(/["\r\n]/g, "");
+  return new Response(file.stream, {
+    headers: {
+      "Content-Type": file.contentType,
+      ...(file.size > 0 ? { "Content-Length": String(file.size) } : {}),
+      "Content-Disposition": `${inline ? "inline" : "attachment"}; filename="${name}"`,
+      // Pode ter senha: nunca em cache compartilhado
+      "Cache-Control": "private, no-store",
+    },
   });
 }

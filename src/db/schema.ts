@@ -474,6 +474,18 @@ export const mailMessages = pgTable("mail_messages", {
 });
 
 /** Anexos que subiram para um e-mail ainda não enviado (apagados ao remover, cancelar ou após 24 h) */
+/**
+ * Senha para ver/baixar o KMZ de um imóvel no site (mapa do QR code e download). Fica fora da
+ * tabela de imóveis para nunca ir junto com os dados do anúncio para o navegador.
+ */
+export const propertyKmzLocks = pgTable("property_kmz_locks", {
+  propertyId: uuid("property_id")
+    .primaryKey()
+    .references(() => properties.id, { onDelete: "cascade" }),
+  password: text("password").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const mailUploads = pgTable("mail_uploads", {
   pathname: text("pathname").primaryKey(),
   access: text("access").notNull().default("private"),

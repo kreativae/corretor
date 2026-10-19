@@ -230,6 +230,12 @@ export const RUNTIME_MIGRATIONS = [
      user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
      created_at timestamptz NOT NULL DEFAULT now()
    );`,
+  // Senha do KMZ (mapa e download no site), fora da tabela de imóveis
+  `CREATE TABLE IF NOT EXISTS property_kmz_locks (
+     property_id uuid PRIMARY KEY REFERENCES properties(id) ON DELETE CASCADE,
+     password text NOT NULL,
+     updated_at timestamptz NOT NULL DEFAULT now()
+   );`,
 ];
 
 /** Só no banco principal (esquema public): cadastro de empresas da gerência */

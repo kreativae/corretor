@@ -106,6 +106,11 @@ async function sessionUser(fromControl = false): Promise<SessionUser | null> {
   }
 }
 
+/** Só quem fez login de verdade (ignora o acesso liberado do AUTH_OPEN). */
+export async function loggedUser(): Promise<SessionUser | null> {
+  return sessionUser();
+}
+
 /** Usuário logado (ou null). Seguro para usar em layouts/páginas. */
 export async function getCurrentUser(): Promise<SessionUser | null> {
   // Acesso liberado: quem fez login continua sendo quem é (ex.: gerência);
