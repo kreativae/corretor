@@ -30,6 +30,8 @@ export async function POST(req: Request) {
     data.responsibleId = await sanitizeResponsible(
       "responsibleId" in body ? body.responsibleId : (await getCurrentUser())?.id,
     );
+    // Observações: texto livre, vazio = não aparece no site nem na ficha
+    if ("notes" in data) data.notes = String(data.notes ?? "").trim().slice(0, 2000) || null;
     // Vídeo: só link válido do YouTube
     if ("videoUrl" in data) {
       const v = String(data.videoUrl ?? "").trim();

@@ -61,6 +61,8 @@ export async function PATCH(req: Request, { params }: Params) {
     delete data.partnerSharePct;
     Object.assign(data, sanitizePropertyPartnerFields(body));
     if ("responsibleId" in data) data.responsibleId = await sanitizeResponsible(data.responsibleId);
+    // Observações: texto livre, vazio = não aparece no site nem na ficha
+    if ("notes" in data) data.notes = String(data.notes ?? "").trim().slice(0, 2000) || null;
     // Vídeo: só link válido do YouTube
     if ("videoUrl" in data) {
       const v = String(data.videoUrl ?? "").trim();

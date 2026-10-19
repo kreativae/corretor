@@ -224,6 +224,17 @@ export default async function ImovelPage({ params }: { params: Params }) {
               </>
             )}
 
+            {p.notes?.trim() && (
+              <>
+                <h2 className="mt-10 font-display text-xl font-semibold tracking-tight md:mt-12 md:text-2xl">
+                  Observações
+                </h2>
+                <p className="mt-5 max-w-3xl whitespace-pre-line text-sm leading-relaxed text-subtle md:text-base">
+                  {p.notes.trim()}
+                </p>
+              </>
+            )}
+
             <h2 className="mt-10 font-display text-xl font-semibold tracking-tight md:mt-12 md:text-2xl">
               Localização
             </h2>

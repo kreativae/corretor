@@ -284,6 +284,16 @@ export function FichaSheet({
         )}
       </div>
 
+      {/* Observações do anúncio (só quando preenchidas) */}
+      {p.notes?.trim() && (
+        <section className="mt-[4mm] shrink-0">
+          <h2 className="text-[9.5px] font-semibold uppercase tracking-[0.2em] text-[#9A9AB5]">Observações</h2>
+          <p className="mt-1.5 line-clamp-4 whitespace-pre-line text-[10.5px] leading-[1.5] text-[#45456E]">
+            {p.notes.trim()}
+          </p>
+        </section>
+      )}
+
       {/* Rodapé */}
       <footer
         className={`mt-[5mm] flex shrink-0 items-center justify-between gap-4 rounded-md bg-[#2B2B5D] px-4 text-white ${

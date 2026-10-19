@@ -7,6 +7,11 @@ export function siteImage<T extends string | null | undefined>(
   /** Modo do parceiro dono do imóvel; vazio = padrão do site */
   mode?: string | null,
 ): T {
+  if (!url) return url;
+  // Arquivo do próprio sistema: sempre pelo domínio atual. A foto guarda o endereço completo de
+  // quando foi enviada (ex.: domínio antigo), que pode não responder mais
+  const own = url.match(/^https?:\/\/[^/]+(\/api\/media\/.+)$/);
+  if (own) url = own[1] as T;
   if (!url || !url.includes("/api/media/imoveis/") || url.includes("?")) return url;
   if (mode === "nenhuma") return url;
   return `${url}?wm=${mode === "logo" || mode === "linhas" ? mode : "padrao"}` as T;

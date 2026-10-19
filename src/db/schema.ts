@@ -154,6 +154,8 @@ export const properties = pgTable("properties", {
   bathrooms: integer("bathrooms").notNull().default(0),
   garage: integer("garage").notNull().default(0),
   description: text("description").notNull().default(""),
+  /** Observações: informações complementares do anúncio (site e ficha); vazio = não aparece */
+  notes: text("notes"),
   street: text("street").notNull().default(""),
   neighborhood: text("neighborhood").notNull(),
   city: text("city").notNull().default("São Paulo"),

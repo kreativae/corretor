@@ -5,6 +5,8 @@
 //
 // No Terminal do app no Coolify (com BLOB_READ_WRITE_TOKEN, UPLOAD_DIR e DATABASE_URL):
 //   node scripts/migrate-blob.mjs https://corretor.kreativ.ae
+// Só trocar o domínio gravado nos endereços (ex.: depois de mudar o domínio do site), sem o Blob:
+//   node scripts/migrate-blob.mjs https://carlosamancioimoveis.com.br --so-enderecos
 import { get, list } from "@vercel/blob";
 import { mkdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -15,18 +17,23 @@ if (!/^https:\/\/[^/]+$/.test(origin)) {
   console.error("Uso: node scripts/migrate-blob.mjs https://dominio-do-crm");
   process.exit(1);
 }
+const onlyUrls = process.argv.includes("--so-enderecos");
 const token =
   process.env.BLOB_READ_WRITE_TOKEN ??
   Object.entries(process.env).find(([k]) => k.endsWith("_READ_WRITE_TOKEN"))?.[1];
 const root = path.resolve(process.env.UPLOAD_DIR ?? "");
-if (!token || !process.env.UPLOAD_DIR || !process.env.DATABASE_URL) {
-  console.error("Defina BLOB_READ_WRITE_TOKEN, UPLOAD_DIR e DATABASE_URL no app antes de rodar.");
+if (!process.env.DATABASE_URL || (!onlyUrls && (!token || !process.env.UPLOAD_DIR))) {
+  console.error(
+    onlyUrls
+      ? "Defina DATABASE_URL no app antes de rodar."
+      : "Defina BLOB_READ_WRITE_TOKEN, UPLOAD_DIR e DATABASE_URL no app antes de rodar (ou use --so-enderecos).",
+  );
   process.exit(1);
 }
 
 // 1) Arquivos
 let copied = 0, skipped = 0, failed = 0, cursor;
-do {
+if (!onlyUrls) do {
   const page = await list({ token, cursor, limit: 1000 });
   for (const b of page.blobs) {
     const full = path.resolve(root, b.pathname);
@@ -43,7 +50,7 @@ do {
   }
   cursor = page.hasMore ? page.cursor : undefined;
 } while (cursor);
-console.log(`Arquivos — copiados: ${copied} · já estavam: ${skipped} · falhas: ${failed}`);
+if (!onlyUrls) console.log(`Arquivos — copiados: ${copied} · já estavam: ${skipped} · falhas: ${failed}`);
 
 // 2) Endereços no banco (esquema principal e das empresas)
 const OLD = String.raw`https?://([a-z0-9]+\.(public|private)\.blob\.vercel-storage\.com/|[^/"'[:space:]]+/api/media/)`;

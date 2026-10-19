@@ -230,6 +230,8 @@ export const RUNTIME_MIGRATIONS = [
      user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
      created_at timestamptz NOT NULL DEFAULT now()
    );`,
+  // Observações do anúncio (informações complementares no site e na ficha)
+  `ALTER TABLE properties ADD COLUMN IF NOT EXISTS notes text;`,
   // Senha do KMZ (mapa e download no site), fora da tabela de imóveis
   `CREATE TABLE IF NOT EXISTS property_kmz_locks (
      property_id uuid PRIMARY KEY REFERENCES properties(id) ON DELETE CASCADE,

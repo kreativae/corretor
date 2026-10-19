@@ -81,6 +81,7 @@ export function PropertyForm({
     city: initial?.city ?? (rural ? "" : "São Paulo"),
     state: initial?.state ?? (rural ? "PR" : "SP"),
     description: initial?.description ?? "",
+    notes: initial?.notes ?? "",
     videoUrl: initial?.videoUrl ?? "",
     features: initial?.features ?? ([] as string[]),
     images: (initial?.images ?? []).map((i) => i.url),
@@ -189,6 +190,7 @@ export function PropertyForm({
         city: form.city,
         state: form.state,
         description: form.description,
+        notes: form.notes.trim() || null,
         videoUrl: form.videoUrl.trim() || null,
         features: form.features,
         images: imageUrls,
@@ -384,6 +386,20 @@ export function PropertyForm({
                   : "Conte a história do imóvel: luz, planta, reforma, vista…"
               }
             />
+            <div className="mt-5 border-t border-hairline pt-5">
+              <Field
+                label="Observações"
+                hint="Informações complementares (ex.: documentação, condições de pagamento, aceita permuta). Aparecem no site, abaixo das comodidades, e na ficha PDF. Vazio = não aparece."
+              >
+                <Textarea
+                  rows={4}
+                  maxLength={2000}
+                  value={form.notes}
+                  onChange={(e) => set("notes", e.target.value)}
+                  placeholder="Ex.: Aceita financiamento e permuta por imóvel de menor valor. Escritura e matrícula em dia."
+                />
+              </Field>
+            </div>
             <div className="mt-5 border-t border-hairline pt-5">
               <Field label="Vídeo (link do YouTube)">
                 <Input
