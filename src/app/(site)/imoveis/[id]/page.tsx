@@ -1,5 +1,8 @@
 import { RuralDetails } from "@/components/rural-details";
-import { getMessages } from "@/lib/features";
+import { getMapOptions, getMessages } from "@/lib/features";
+import { areaCenter } from "@/lib/area-center";
+import { getMapProvider, tilesFor } from "@/lib/map-provider";
+import { AreaLocation } from "@/components/site/area-map";
 import { fillMessage } from "@/lib/messages";
 import {
   APTIDAO_LABELS,
@@ -60,15 +63,20 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 
 export default async function ImovelPage({ params }: { params: Params }) {
   const { id } = await params;
-  const [wl, p, published, content, msgs] = await Promise.all([
+  const [wl, p, published, content, msgs, mapOpts, mapCfg] = await Promise.all([
     getWhiteLabel(),
     getPropertyByCode(id),
     listPublishedProperties(),
     getSiteContent(),
     getMessages(),
+    getMapOptions(),
+    getMapProvider(),
   ]);
 
   if (!p || !p.published) notFound();
+  // Região no anúncio: centro aproximado (deslocado ou do bairro); o ponto exato não vai para a página
+  const area = mapOpts.areaMode === "off" ? null : await areaCenter(p, mapOpts.areaRadiusKm);
+  const tiles = tilesFor(mapCfg);
 
   const related = published
     .filter(
@@ -219,29 +227,15 @@ export default async function ImovelPage({ params }: { params: Params }) {
             <h2 className="mt-10 font-display text-xl font-semibold tracking-tight md:mt-12 md:text-2xl">
               Localização
             </h2>
-            <div className="grid-bg relative mt-5 overflow-hidden rounded-2xl border border-hairline p-6">
-              <div className="flex flex-wrap items-end justify-between gap-4">
-                <div>
-                  <p className="text-sm font-medium">{p.neighborhood}</p>
-                  <p className="mt-1 text-sm text-subtle">
-                    {p.city}, {p.state} — Brasil
-                  </p>
-                  {p.lat && p.lng && (
-                    <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.18em] text-subtle">
-                      {p.lat.toFixed(4)}° S · {Math.abs(p.lng).toFixed(4)}° W
-                    </p>
-                  )}
-                </div>
-                <a
-                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${p.neighborhood}, ${p.city}`)}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="rounded-full border border-hairline-strong px-4 py-2 text-xs font-medium transition-colors hover:bg-card"
-                >
-                  Abrir no Maps
-                </a>
-              </div>
-            </div>
+            {/* Região aproximada (círculo), nunca o endereço exato; sem link para o Google Maps */}
+            <AreaLocation
+              neighborhood={p.neighborhood}
+              place={`${p.city}, ${p.state} — Brasil`}
+              center={area}
+              radiusKm={mapOpts.areaRadiusKm}
+              tiles={tiles}
+              mode={mapOpts.areaMode}
+            />
           </div>
 
           {/* Sidebar */}

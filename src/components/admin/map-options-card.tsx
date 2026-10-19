@@ -1,14 +1,16 @@
 "use client";
 
 import { Button, Field, Input, Select, Switch } from "@/components/ui";
-import type { MapOptions } from "@/lib/map-options";
+import { AREA_MODES, AREA_RADII, type AreaMode, type MapOptions } from "@/lib/map-options";
 import { cn } from "@/lib/utils";
 import { CheckCircle2, ChevronDown, Loader2, LocateFixed, Map as MapIcon, Navigation, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-const OPTIONS: { key: keyof MapOptions; label: string; description: string; icon: typeof MapIcon }[] = [
+type ToggleKey = "locate" | "directions";
+
+const OPTIONS: { key: ToggleKey; label: string; description: string; icon: typeof MapIcon }[] = [
   {
     key: "locate",
     label: "Minha localização",
@@ -32,9 +34,8 @@ export function MapOptionsCard({ initial }: { initial: MapOptions }) {
   const [open, setOpen] = useState(false);
   const active = OPTIONS.filter((o) => opts[o.key]).map((o) => o.label);
 
-  async function toggle(key: keyof MapOptions, v: boolean) {
+  async function save(key: keyof MapOptions, next: MapOptions, message: string) {
     const prev = opts;
-    const next = { ...opts, [key]: v };
     setOpts(next);
     setSaving(key);
     try {
@@ -44,8 +45,7 @@ export function MapOptionsCard({ initial }: { initial: MapOptions }) {
         body: JSON.stringify({ key: "mapOptions", value: next }),
       });
       if (!res.ok) throw new Error();
-      const label = OPTIONS.find((o) => o.key === key)?.label;
-      toast.success(`"${label}" ${v ? "visível" : "oculto"} no mapa.`);
+      toast.success(message);
       router.refresh();
     } catch {
       setOpts(prev);
@@ -53,6 +53,11 @@ export function MapOptionsCard({ initial }: { initial: MapOptions }) {
     } finally {
       setSaving(null);
     }
+  }
+
+  function toggle(key: ToggleKey, v: boolean) {
+    const label = OPTIONS.find((o) => o.key === key)?.label;
+    void save(key, { ...opts, [key]: v }, `"${label}" ${v ? "visível" : "oculto"} no mapa.`);
   }
 
   return (
@@ -70,7 +75,7 @@ export function MapOptionsCard({ initial }: { initial: MapOptions }) {
           <span className="block font-display text-base font-semibold tracking-tight">Mapa</span>
           <span className="mt-1 block max-w-xl text-xs text-subtle">
             {open
-              ? "Estilo do mapa, API da CARTO e botões do mapa das propriedades rurais."
+              ? "Estilo do mapa, API da CARTO, localização no anúncio e botões do mapa das propriedades rurais."
               : `${active.length ? `Visíveis: ${active.join(", ")}` : "Botões ocultos"} — clique para gerenciar`}
           </span>
         </span>
@@ -87,6 +92,48 @@ export function MapOptionsCard({ initial }: { initial: MapOptions }) {
         <div className="min-h-0 overflow-hidden" inert={!open}>
           <div className="space-y-6 border-t border-hairline p-6">
             {open && <MapProviderSection />}
+            <p className="font-mono text-[10.5px] uppercase tracking-[0.2em] text-subtle">Localização no anúncio do site</p>
+            <div className="space-y-4 rounded-xl border border-hairline p-4">
+              <p className="text-xs text-subtle">
+                Mostra a região do imóvel num círculo aproximado, sem o endereço exato e sem link para o Google Maps.
+                Com coordenadas no cadastro, o círculo é deslocado para o imóvel não ficar no centro; sem elas, usa o centro do bairro.
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {AREA_MODES.map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    disabled={saving !== null}
+                    aria-pressed={opts.areaMode === m.id}
+                    onClick={() => void save("areaMode", { ...opts, areaMode: m.id as AreaMode }, `Localização: ${m.label.toLowerCase()}.`)}
+                    className={cn(
+                      "rounded-xl border p-3 text-left transition-colors",
+                      opts.areaMode === m.id ? "border-accent bg-accent/10" : "border-hairline hover:bg-soft",
+                    )}
+                  >
+                    <span className="block text-sm font-medium">{m.label}</span>
+                    <span className="mt-0.5 block text-xs text-subtle">{m.hint}</span>
+                  </button>
+                ))}
+              </div>
+              {opts.areaMode !== "off" && (
+                <Field label="Raio do círculo">
+                  <Select
+                    value={String(opts.areaRadiusKm)}
+                    disabled={saving !== null}
+                    onChange={(e) => {
+                      const km = Number(e.target.value);
+                      void save("areaRadiusKm", { ...opts, areaRadiusKm: km }, `Raio da região: ${km < 1 ? `${km * 1000} m` : `${km} km`}.`);
+                    }}
+                    className="max-w-[12rem]"
+                  >
+                    {AREA_RADII.map((km) => (
+                      <option key={km} value={km}>{km < 1 ? `${km * 1000} m` : `${km} km`}</option>
+                    ))}
+                  </Select>
+                </Field>
+              )}
+            </div>
             <p className="font-mono text-[10.5px] uppercase tracking-[0.2em] text-subtle">Mapa das propriedades rurais (QR code)</p>
             <div className="divide-y divide-hairline rounded-xl border border-hairline">
               {OPTIONS.map((o) => (
