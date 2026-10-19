@@ -17,7 +17,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     return new NextResponse("KMZ não encontrado para esta propriedade.", { status: 404 });
   }
   if ((await kmzAccess(p.id)) === "locked") {
-    return NextResponse.redirect(new URL(`/imoveis/${p.code}/mapa`, req.url), { status: 302 });
+    // Caminho relativo: atrás do proxy (Coolify) o req.url é o endereço interno do container
+    return new NextResponse(null, { status: 302, headers: { Location: `/imoveis/${p.code}/mapa`, "Cache-Control": "no-store" } });
   }
 
   const pathname = kmzPathname(r.kmzUrl);

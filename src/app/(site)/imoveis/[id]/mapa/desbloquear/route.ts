@@ -11,5 +11,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const ok = await unlockKmz(p.id, String(form?.get("senha") ?? ""));
   // Senha errada: pequena espera contra tentativas em sequência
   if (!ok) await new Promise((r) => setTimeout(r, 800));
-  return NextResponse.redirect(new URL(`/imoveis/${p.code}/mapa${ok ? "" : "?erro=1"}`, req.url), 303);
+  // Caminho relativo: atrás do proxy (Coolify) o req.url é o endereço interno do container
+  return new NextResponse(null, { status: 303, headers: { Location: `/imoveis/${p.code}/mapa${ok ? "" : "?erro=1"}` } });
 }
