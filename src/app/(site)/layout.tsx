@@ -13,11 +13,11 @@ import { SuspendedScreen } from "@/components/suspended-screen";
  * fixo cobre essa faixa, então a página não aparece passando por trás dela.
  */
 export const viewport: Viewport = {
-  themeColor: "#11112a",
+  themeColor: "#f5f5f9",
   viewportFit: "cover",
 };
 
-/** Vitrine pública — dark mode por padrão, alterável pelo visitante. */
+/** Vitrine pública — light mode por padrão, alterável pelo visitante. */
 export default async function SiteLayout({ children }: { children: ReactNode }) {
   // Logado no painel: barra de edição no topo (atalhos para o CRM)
   const [editor, account] = await Promise.all([getSiteEditor().catch(() => null), getAccount()]);

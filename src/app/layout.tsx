@@ -49,7 +49,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export const viewport: Viewport = {
-  themeColor: "#11112a",
+  themeColor: "#f5f5f9",
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {

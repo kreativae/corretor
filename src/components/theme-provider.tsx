@@ -52,7 +52,7 @@ function ThemeColorSync() {
 }
 
 /**
- * Tema da VITRINE pública — dark por padrão.
+ * Tema da VITRINE pública — light por padrão.
  * Persistência independente (imob-theme-site): o visitante pode alternar
  * sem afetar o tema do sistema.
  */
@@ -60,7 +60,7 @@ export function SiteTheme({ children }: { children: ReactNode }) {
   return (
     <ThemeProvider
       attribute="class"
-      defaultTheme="dark"
+      defaultTheme="light"
       enableSystem={false}
       storageKey="imob-theme-site"
       disableTransitionOnChange={false}
