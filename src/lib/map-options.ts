@@ -6,7 +6,7 @@ export const AREA_MODES: { id: AreaMode; label: string; hint: string }[] = [
   { id: "always", label: "Sempre visível", hint: "O mapa aparece direto na seção Localização." },
   { id: "off", label: "Desligado", hint: "Só bairro e cidade, sem mapa." },
 ];
-export const AREA_RADII = [0.5, 1, 2, 3, 5];
+export const AREA_RADII = [0.25, 0.5, 1, 2, 3, 5];
 
 /** Opções do mapa público da propriedade (/imoveis/[código]/mapa) e da região no anúncio. */
 export type MapOptions = {
