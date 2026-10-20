@@ -187,6 +187,12 @@ export const properties = pgTable("properties", {
   land: jsonb("land").$type<LandData>(),
   /** Imóvel de parceiro (captado por outro corretor/imobiliária) */
   videoUrl: text("video_url"),
+  /** Destaque: vai primeiro (ou só ele) nas seções da home, conforme Conteúdo do site › Exibição */
+  featured: boolean("featured").notNull().default(false),
+  /** Selo no card do site: id de um selo de Configurações › Selos (vazio = sem selo) */
+  badge: text("badge"),
+  /** Texto próprio do selo neste imóvel (vazio = texto do selo) */
+  badgeLabel: text("badge_label"),
   partnerId: uuid("partner_id").references(() => partners.id, { onDelete: "set null" }),
   /** Corretor responsável: assina a ficha (nome, cargo e telefone do cadastro da equipe) */
   responsibleId: uuid("responsible_id").references(() => users.id, { onDelete: "set null" }),

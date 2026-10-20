@@ -1,7 +1,7 @@
 import { RuralDetails } from "@/components/rural-details";
 import { LandDetails } from "@/components/land-details";
 import { landDimensions, landNumbers, normalizeLand, TOPOGRAFIA_TERRENO } from "@/lib/land";
-import { getMapOptions, getMessages } from "@/lib/features";
+import { getBadgeSettings, getMapOptions, getMessages } from "@/lib/features";
 import { areaCenter } from "@/lib/area-center";
 import { getMapProvider, tilesFor } from "@/lib/map-provider";
 import { AreaLocation } from "@/components/site/area-map";
@@ -70,7 +70,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 
 export default async function ImovelPage({ params }: { params: Params }) {
   const { id } = await params;
-  const [wl, p, published, content, msgs, mapOpts, mapCfg] = await Promise.all([
+  const [wl, p, published, content, msgs, mapOpts, mapCfg, badgeSettings] = await Promise.all([
     getWhiteLabel(),
     getPropertyByCode(id),
     listPublishedProperties(),
@@ -78,6 +78,7 @@ export default async function ImovelPage({ params }: { params: Params }) {
     getMessages(),
     getMapOptions(),
     getMapProvider(),
+    getBadgeSettings(),
   ]);
 
   if (!p || !p.published) notFound();
@@ -151,7 +152,16 @@ export default async function ImovelPage({ params }: { params: Params }) {
               {p.neighborhood} — {p.city}/{p.state}
             </p>
           </div>
-          <div data-reveal className="flex items-center gap-2">
+          <div data-reveal className="flex flex-wrap items-center gap-2">
+            {(() => {
+              // Mesmo selo do card (a lista pública já vem com ele resolvido)
+              const b = published.find((x) => x.id === p.id)?.badgeView;
+              return b && badgeSettings.onDetail ? (
+                <span className="rounded-full px-3 py-1 text-xs font-semibold shadow-sm" style={{ background: b.bg, color: b.fg }}>
+                  {b.label}
+                </span>
+              ) : null;
+            })()}
             <Badge className={cn("border", STATUS_STYLES[p.status])}>
               {STATUS_LABELS[p.status]}
             </Badge>

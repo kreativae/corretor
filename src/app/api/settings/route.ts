@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { requireAdmin } from "@/lib/auth";
 import { sanitizeFeatures } from "@/lib/features";
 import { sanitizeMapOptions } from "@/lib/map-options";
+import { sanitizeBadges } from "@/lib/badges";
 import { sanitizeWatermark } from "@/lib/watermark-settings";
 import { sanitizeStatCards } from "@/lib/stat-cards";
 import { sanitizeSecurity } from "@/lib/security-settings";
@@ -58,6 +59,7 @@ export async function POST(req: Request) {
     if (key === "features") value = sanitizeFeatures(value ?? {});
     if (key === "statCards") value = sanitizeStatCards(value ?? {});
     if (key === "mapOptions") value = sanitizeMapOptions(value ?? {});
+    if (key === "badges") value = sanitizeBadges(value ?? {});
     if (key === "watermark") value = sanitizeWatermark(value ?? {});
     if (key === "security") value = sanitizeSecurity(value ?? {});
     if (key === "messages") value = mergeMessages(value ?? {});

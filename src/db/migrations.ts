@@ -262,6 +262,10 @@ export const RUNTIME_MIGRATIONS = [
   `ALTER TABLE property_sends ADD COLUMN IF NOT EXISTS channel text NOT NULL DEFAULT 'email';`,
   `ALTER TABLE property_sends ADD COLUMN IF NOT EXISTS to_phone text;`,
   `ALTER TABLE property_sends ALTER COLUMN to_email DROP NOT NULL;`,
+  // Site: imóvel em destaque e selo (badge) no card
+  `ALTER TABLE properties ADD COLUMN IF NOT EXISTS featured boolean NOT NULL DEFAULT false;`,
+  `ALTER TABLE properties ADD COLUMN IF NOT EXISTS badge text;`,
+  `ALTER TABLE properties ADD COLUMN IF NOT EXISTS badge_label text;`,
 ];
 
 /** Só no banco principal (esquema public): cadastro de empresas da gerência */

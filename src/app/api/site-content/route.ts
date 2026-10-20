@@ -3,6 +3,7 @@ import { activities, settings } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
 import { DEFAULT_CONTENT, getSiteContent } from "@/lib/site-content";
 import { eq } from "drizzle-orm";
+import { normalizeDisplay } from "@/lib/site-display";
 import { NextResponse } from "next/server";
 
 export async function GET() {
@@ -13,6 +14,7 @@ export async function POST(req: Request) {
   await requireAdmin();
   try {
     const content = await req.json();
+    content.display = normalizeDisplay(content.display);
     const existing = await (await getDb())
       .select()
       .from(settings)

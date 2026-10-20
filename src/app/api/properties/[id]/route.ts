@@ -18,6 +18,7 @@ import { after, NextResponse } from "next/server";
 import { geocodeProperty } from "@/lib/property-geo";
 import { sanitizeResponsible } from "@/lib/responsible";
 import { setKmzPassword } from "@/lib/kmz-lock";
+import { cleanPropertyBadge } from "@/lib/badges";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -26,6 +27,22 @@ export async function PATCH(req: Request, { params }: Params) {
   try {
     const { id } = await params;
     const body = await req.json();
+
+    // Destaque ligado/desligado direto na lista
+    if (Object.keys(body).length === 1 && typeof body.featured === "boolean") {
+      const [updated] = await (await getDb())
+        .update(properties)
+        .set({ featured: body.featured, updatedAt: new Date() })
+        .where(eq(properties.id, id))
+        .returning();
+      await (await getDb()).insert(activities).values({
+        entity: "imovel",
+        entityId: id,
+        kind: "updated",
+        text: body.featured ? `${updated.code} marcado como destaque do site.` : `${updated.code} saiu dos destaques do site.`,
+      });
+      return NextResponse.json(updated);
+    }
 
     if (Object.keys(body).length === 1 && typeof body.published === "boolean") {
       const [updated] = await (await getDb())
@@ -64,6 +81,7 @@ export async function PATCH(req: Request, { params }: Params) {
     delete data.partnerSharePct;
     Object.assign(data, sanitizePropertyPartnerFields(body));
     if ("responsibleId" in data) data.responsibleId = await sanitizeResponsible(data.responsibleId);
+    cleanPropertyBadge(data);
     // Observações: texto livre, vazio = não aparece no site nem na ficha
     if ("notes" in data) data.notes = String(data.notes ?? "").trim().slice(0, 2000) || null;
     // Vídeo: só link válido do YouTube

@@ -1,6 +1,7 @@
 import { getDb } from "@/db";
 import { settings } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { DISPLAY_DEFAULTS, normalizeDisplay, type SiteDisplay } from "@/lib/site-display";
 
 /** Todo o conteúdo textual do site público — editável no painel. */
 export type SiteContent = {
@@ -33,6 +34,8 @@ export type SiteContent = {
     statsOnMobile: boolean;
   };
   collection: { eyebrow: string; title: string; linkLabel: string };
+  /** Exibição: quantidades, colunas, ordem e origem dos imóveis na home e na listagem */
+  display: SiteDisplay;
   /** Cards de categoria da home (imagem vazia = foto padrão) */
   categories: {
     urbanTitle: string;
@@ -177,6 +180,7 @@ export const DEFAULT_CONTENT: SiteContent = {
     landText: "Lotes e áreas com medidas, zoneamento e potencial construtivo",
     landImage: "",
   },
+  display: DISPLAY_DEFAULTS,
   collection: {
     eyebrow: "Destaques",
     title: "Imóveis em destaque",
@@ -348,6 +352,7 @@ export async function getSiteContent(): Promise<SiteContent> {
       },
       hero: { ...DEFAULT_CONTENT.hero, ...saved.hero },
       collection: { ...DEFAULT_CONTENT.collection, ...saved.collection },
+      display: normalizeDisplay(saved.display),
       categories: {
         ...DEFAULT_CONTENT.categories,
         ...saved.categories,

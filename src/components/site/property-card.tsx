@@ -53,9 +53,19 @@ export function PropertyCard({
           </div>
         )}
 
-        <div className="absolute inset-x-0 top-0 flex items-start justify-between p-4">
-          <span className="rounded-full bg-black/45 px-3 py-1.5 text-[11px] font-medium text-white backdrop-blur-md">
-            {p.purpose === "venda" ? "Venda" : "Aluguel"}
+        <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-4">
+          <span className="flex min-w-0 flex-wrap items-center gap-1.5">
+            {p.badgeView && (
+              <span
+                className="truncate rounded-full px-3 py-1.5 text-[11px] font-semibold shadow-sm"
+                style={{ background: p.badgeView.bg, color: p.badgeView.fg }}
+              >
+                {p.badgeView.label}
+              </span>
+            )}
+            <span className="rounded-full bg-black/45 px-3 py-1.5 text-[11px] font-medium text-white backdrop-blur-md">
+              {p.purpose === "venda" ? "Venda" : "Aluguel"}
+            </span>
           </span>
           {p.status !== "disponivel" && (
             <span className="rounded-full bg-black/45 px-3 py-1.5 text-[11px] font-medium text-white backdrop-blur-md">

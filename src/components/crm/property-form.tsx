@@ -7,6 +7,7 @@ import { PhotoManager } from "./photo-manager";
 import { KmzField, RuralFields } from "./rural-fields";
 import { LandFields, LandPricePerM2 } from "./land-fields";
 import { normalizeLand, type LandData } from "@/lib/land";
+import type { BadgeDef } from "@/lib/badges";
 import { SectionNav } from "./section-nav";
 import { useStickyAside } from "./use-sticky-aside";
 import { crmPropertyPath, kindOf, normalizeRural, pricePerAlq, RURAL_TYPES, type PropertyKind, type RuralData } from "@/lib/rural";
@@ -15,7 +16,7 @@ import { CommissionBreakdown } from "@/components/crm/commission-breakdown";
 import { PctInput, SharePicks } from "@/components/crm/share-picks";
 import { AmenityPicker } from "@/components/crm/amenity-picker";
 import { cn, formatBRL, parseYouTubeUrl } from "@/lib/utils";
-import { ArrowLeft, Check, Handshake, ImageIcon, Save, Sparkles } from "lucide-react";
+import { ArrowLeft, Check, Handshake, ImageIcon, Save, Sparkles, Star } from "lucide-react";
 import Link from "next/link";
 import { generateDescription } from "@/lib/description";
 import { useRouter } from "next/navigation";
@@ -42,7 +43,10 @@ export function PropertyForm({
   team = [],
   currentUserId,
   kmzPassword: initialKmzPassword = "",
+  badges = [],
 }: {
+  /** Selos de Configurações › Selos do site */
+  badges?: BadgeDef[];
   initial?: PropertyWithImages;
   /** Senha atual do KMZ no site (vazio = aberto) */
   kmzPassword?: string;
@@ -92,6 +96,9 @@ export function PropertyForm({
     features: initial?.features ?? ([] as string[]),
     images: (initial?.images ?? []).map((i) => i.url),
     published: initial?.published ?? true,
+    featured: initial?.featured ?? false,
+    badge: initial?.badge ?? "",
+    badgeLabel: initial?.badgeLabel ?? "",
     partnerId: initial?.partnerId ?? "",
     responsibleId: initial ? (initial.responsibleId ?? "") : (currentUserId ?? ""),
     commissionPct: initial?.commissionPct?.toString() ?? "",
@@ -218,6 +225,9 @@ export function PropertyForm({
         features: form.features,
         images: imageUrls,
         published: form.published,
+        featured: form.featured,
+        badge: form.badge || null,
+        badgeLabel: form.badge ? form.badgeLabel.trim() || null : null,
         partnerId: form.partnerId || null,
         responsibleId: form.responsibleId || null,
         commissionPct: form.commissionPct === "" ? null : form.commissionPct,
@@ -631,6 +641,49 @@ export function PropertyForm({
                   onChange={(v) => set("published", v)}
                 />
               </div>
+              <div className="flex items-center justify-between rounded-xl bg-soft px-4 py-3.5">
+                <div>
+                  <p className="flex items-center gap-1.5 text-sm font-medium">
+                    <Star className="size-3.5 text-accent" /> Destaque
+                  </p>
+                  <p className="text-[11px] text-subtle">Vai primeiro nas seções da home (Conteúdo do site › Exibição)</p>
+                </div>
+                <Switch checked={form.featured} onChange={(v) => set("featured", v)} />
+              </div>
+              <Field label="Selo no site" hint="Etiqueta colorida sobre a foto. Estilos em Configurações › Selos do site">
+                <Select value={form.badge} onChange={(e) => set("badge", e.target.value)}>
+                  <option value="">Sem selo</option>
+                  {badges.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.label}
+                    </option>
+                  ))}
+                  {form.badge && !badges.some((b) => b.id === form.badge) && <option value={form.badge}>{form.badge} (removido)</option>}
+                </Select>
+              </Field>
+              {form.badge && (
+                <div className="flex items-end gap-3">
+                  <Field label="Texto do selo neste imóvel" hint="Vazio = texto padrão do selo" className="flex-1">
+                    <Input
+                      value={form.badgeLabel}
+                      maxLength={32}
+                      placeholder={badges.find((b) => b.id === form.badge)?.label ?? ""}
+                      onChange={(e) => set("badgeLabel", e.target.value)}
+                    />
+                  </Field>
+                  {(() => {
+                    const b = badges.find((x) => x.id === form.badge);
+                    return b ? (
+                      <span
+                        className="mb-2 inline-flex h-7 items-center rounded-full px-3 text-[11px] font-semibold shadow-sm"
+                        style={{ background: b.bg, color: b.fg }}
+                      >
+                        {form.badgeLabel.trim() || b.label}
+                      </span>
+                    ) : null;
+                  })()}
+                </div>
+              )}
             </div>
           </section>
           {/* Parceria e comissão (uso interno, não aparece no site) */}

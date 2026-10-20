@@ -28,6 +28,8 @@ import {
 } from "@/db/schema";
 import { and, asc, count, countDistinct, desc, eq, gte, inArray, lte, ne, sql } from "drizzle-orm";
 import { isMainTenant } from "@/lib/tenant";
+import { resolveBadge, type BadgeView } from "@/lib/badges";
+import { getBadgeSettings } from "@/lib/features";
 
 /* ─────────────────────── White label ─────────────────────── */
 
@@ -142,6 +144,8 @@ export type PropertyWithImages = Property & {
   cover: string | null;
   /** Marca d'água das fotos no site (modo do parceiro; "padrao" = Configurações) */
   wm: string;
+  /** Selo do card no site (só nas listas públicas) */
+  badgeView?: BadgeView | null;
 };
 
 /** Modo de marca d'água de cada parceiro */
@@ -199,10 +203,10 @@ export async function listProperties(): Promise<PropertyWithImages[]> {
 
 /** Apenas imóveis publicados e comercialmente ativos (site público) */
 export async function listPublishedProperties(): Promise<PropertyWithImages[]> {
-  const all = await listProperties();
-  return all.filter(
-    (p) => p.published && ["disponivel", "reservado"].includes(p.status),
-  );
+  const [all, badges] = await Promise.all([listProperties(), getBadgeSettings()]);
+  return all
+    .filter((p) => p.published && ["disponivel", "reservado"].includes(p.status))
+    .map((p) => ({ ...p, badgeView: resolveBadge(p, badges) }));
 }
 
 export async function getPropertyById(id: string) {

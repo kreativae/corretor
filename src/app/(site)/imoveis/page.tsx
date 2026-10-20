@@ -54,6 +54,7 @@ export default async function ImoveisPage({
           properties={properties}
           initialCategoria={categoria === "rurais" || categoria === "terrenos" ? categoria : "urbanos"}
           initialSearch={sp}
+          display={content.display.listing}
         />
       </main>
       <SiteFooter

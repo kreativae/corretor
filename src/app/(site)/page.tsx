@@ -4,7 +4,8 @@ import { LAND_TYPES } from "@/lib/land";
 import { PropertyCard } from "@/components/site/property-card";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
-import { listDeals, listPublishedProperties, getWhiteLabel } from "@/lib/queries";
+import { listDeals, listPublishedProperties, listPropertyViewTotals, getWhiteLabel } from "@/lib/queries";
+import { gridCols, pickForBlock, type HomeBlock, type HomeSectionId } from "@/lib/site-display";
 import { getSiteContent } from "@/lib/site-content";
 import { searchHref } from "@/lib/site-search";
 import { cn, parseYouTubeUrl, plural, siteImage } from "@/lib/utils";
@@ -33,7 +34,15 @@ export default async function HomePage() {
   const lands = published.filter((p) => kindOf(p.type) === "terreno");
   const neighborhoods = [...new Set(published.map((p) => p.neighborhood).filter(Boolean))];
   const cities = [...new Set(published.map((p) => p.city).filter(Boolean))];
-  const featured = urban.slice(0, 6);
+  // Exibição (Conteúdo do site): quantos, colunas, ordem e origem de cada seção
+  const display = content.display;
+  const blocks = [display.imoveis, display.terrenos, display.rurais];
+  const views = blocks.some((b) => b.sort === "views")
+    ? Object.fromEntries(Object.entries(await listPropertyViewTotals().catch(() => ({}))).map(([k, v]) => [k, v.total]))
+    : {};
+  const featured = display.imoveis.show ? pickForBlock(urban, display.imoveis, views) : [];
+  const landPicks = display.terrenos.show ? pickForBlock(lands, display.terrenos, views) : [];
+  const ruralPicks = display.rurais.show ? pickForBlock(rural, display.rurais, views) : [];
   const closed = deals.filter((d) => d.deal.stage === "fechado").length;
   const vgv = published
     .filter((p) => p.purpose === "venda")
@@ -176,12 +185,118 @@ export default async function HomePage() {
 
   // Bairros com mais imóveis, com a foto de um deles
   const byHood = new Map<string, { n: number; cover: string | null; city: string }>();
-  for (const p of urban) {
+  for (const p of display.bairros.include === "todos" ? published : urban) {
     if (!p.neighborhood) continue;
     const cur = byHood.get(p.neighborhood) ?? { n: 0, cover: null, city: p.city };
     byHood.set(p.neighborhood, { n: cur.n + 1, cover: cur.cover ?? coverOf(p), city: cur.city });
   }
-  const hoods = [...byHood.entries()].sort((a, b) => b[1].n - a[1].n).slice(0, 8);
+  const hoods = display.bairros.show
+    ? [...byHood.entries()]
+        .filter(([, h]) => h.n >= display.bairros.minPerHood)
+        .sort((a, b) => b[1].n - a[1].n)
+        .slice(0, display.bairros.count)
+    : [];
+
+
+  /** Grade de cards de uma seção (celular: carrossel; colunas conforme a Exibição) */
+  const cards = (list: P[], b: HomeBlock) => (
+    <div
+      className={cn(
+        "-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-2 [scrollbar-width:none] sm:mx-0 sm:grid sm:snap-none sm:gap-x-6 sm:gap-y-10 sm:overflow-visible sm:px-0 sm:pb-0",
+        gridCols(b.columns),
+      )}
+    >
+      {list.map((p, i) => (
+        <div key={p.id} data-reveal data-delay={`${(i % b.columns) * 0.06}`} className="w-[84%] shrink-0 snap-center sm:w-auto">
+          <PropertyCard property={p} />
+        </div>
+      ))}
+    </div>
+  );
+  const moreLink = (href: string, label: string) => (
+    <Link
+      href={href}
+      className="group inline-flex items-center gap-2 text-sm font-medium text-subtle transition-colors hover:text-ink"
+    >
+      {label}
+      <ArrowUpRight className="size-4 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+    </Link>
+  );
+
+  const sections: Record<HomeSectionId, React.ReactNode> = {
+    imoveis: featured.length > 0 && (
+      <section key="imoveis" id="destaques" className="container-x scroll-mt-20 py-12 md:py-20">
+        <SectionHead eyebrow={display.imoveis.eyebrow || content.collection.eyebrow} title={display.imoveis.title || content.collection.title}>
+          {moreLink("/imoveis", content.collection.linkLabel)}
+        </SectionHead>
+        {cards(featured, display.imoveis)}
+        <Link
+          href="/imoveis"
+          className="mt-8 flex h-12 items-center justify-center gap-2 rounded-full border border-hairline-strong text-sm font-medium transition-colors hover:bg-soft sm:mx-auto sm:w-fit sm:px-8"
+        >
+          Ver todos os {urban.length} imóveis
+          <ArrowRight className="size-4" />
+        </Link>
+      </section>
+    ),
+    bairros: hoods.length > 1 && (
+      <section key="bairros" className="border-t border-hairline bg-soft/50">
+        <div className="container-x py-12 md:py-20">
+          <SectionHead eyebrow={display.bairros.eyebrow} title={display.bairros.title} />
+          <div
+            className={cn(
+              "grid grid-cols-2 gap-3 md:gap-4",
+              display.bairros.columns === 2 ? "" : display.bairros.columns === 3 ? "lg:grid-cols-3" : "sm:grid-cols-3 lg:grid-cols-4",
+            )}
+          >
+            {hoods.map(([name, h]) => (
+              <Link
+                key={name}
+                href={searchHref({ bairro: name })}
+                className="group relative aspect-[4/3] overflow-hidden rounded-2xl bg-soft"
+              >
+                {h.cover ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={h.cover}
+                    alt=""
+                    loading="lazy"
+                    className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-expo group-hover:scale-[1.06]"
+                  />
+                ) : (
+                  <div className="grid-bg absolute inset-0 opacity-60" />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
+                <div className="absolute inset-x-0 bottom-0 p-3.5 text-white md:p-4">
+                  <p className="font-display text-base font-semibold leading-tight tracking-tight md:text-lg">{name}</p>
+                  <p className="mt-0.5 text-[11px] text-white/75">
+                    {h.n} {plural(h.n, "imóvel", "imóveis")}
+                    {cities.length > 1 && ` · ${h.city}`}
+                  </p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+    ),
+    terrenos: landPicks.length > 0 && (
+      <section key="terrenos" className="container-x py-12 md:py-20">
+        <SectionHead eyebrow={display.terrenos.eyebrow} title={display.terrenos.title || cat.landTitle || "Terrenos"}>
+          {moreLink(searchHref({ categoria: "terrenos" }), `Ver ${lands.length} ${plural(lands.length, "terreno", "terrenos")}`)}
+        </SectionHead>
+        {cards(landPicks, display.terrenos)}
+      </section>
+    ),
+    rurais: ruralPicks.length > 0 && (
+      <section key="rurais" className="container-x py-12 md:py-20">
+        <SectionHead eyebrow={display.rurais.eyebrow} title={display.rurais.title || "Propriedades rurais"}>
+          {moreLink(searchHref({ categoria: "rurais" }), `Ver ${rural.length} ${plural(rural.length, "propriedade", "propriedades")}`)}
+        </SectionHead>
+        {cards(ruralPicks, display.rurais)}
+      </section>
+    ),
+  };
 
   const whatsapp = `https://wa.me/${wl.phone}?text=${encodeURIComponent(content.cta.whatsappMessage)}`;
 
@@ -338,116 +453,7 @@ export default async function HomePage() {
         </section>
       )}
 
-      {/* ───────────── DESTAQUES ───────────── */}
-      {featured.length > 0 && (
-        <section id="destaques" className="container-x scroll-mt-20 py-12 md:py-20">
-          <SectionHead eyebrow={content.collection.eyebrow} title={content.collection.title}>
-            <Link
-              href="/imoveis"
-              className="group inline-flex items-center gap-2 text-sm font-medium text-subtle transition-colors hover:text-ink"
-            >
-              {content.collection.linkLabel}
-              <ArrowUpRight className="size-4 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-            </Link>
-          </SectionHead>
-          <div className="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-2 [scrollbar-width:none] sm:mx-0 sm:grid sm:snap-none sm:grid-cols-2 sm:gap-x-6 sm:gap-y-10 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-3">
-            {featured.map((p, i) => (
-              <div key={p.id} data-reveal data-delay={`${(i % 3) * 0.06}`} className="w-[84%] shrink-0 snap-center sm:w-auto">
-                <PropertyCard property={p} />
-              </div>
-            ))}
-          </div>
-          <Link
-            href="/imoveis"
-            className="mt-8 flex h-12 items-center justify-center gap-2 rounded-full border border-hairline-strong text-sm font-medium transition-colors hover:bg-soft sm:mx-auto sm:w-fit sm:px-8"
-          >
-            Ver todos os {urban.length} imóveis
-            <ArrowRight className="size-4" />
-          </Link>
-        </section>
-      )}
-
-      {/* ───────────── BAIRROS ───────────── */}
-      {hoods.length > 1 && (
-        <section className="border-t border-hairline bg-soft/50">
-          <div className="container-x py-12 md:py-20">
-            <SectionHead eyebrow="Por região" title="Buscar por bairro" />
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 lg:grid-cols-4">
-              {hoods.map(([name, h]) => (
-                <Link
-                  key={name}
-                  href={searchHref({ bairro: name })}
-                  className="group relative aspect-[4/3] overflow-hidden rounded-2xl bg-soft"
-                >
-                  {h.cover ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img
-                      src={h.cover}
-                      alt=""
-                      loading="lazy"
-                      className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-expo group-hover:scale-[1.06]"
-                    />
-                  ) : (
-                    <div className="grid-bg absolute inset-0 opacity-60" />
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
-                  <div className="absolute inset-x-0 bottom-0 p-3.5 text-white md:p-4">
-                    <p className="font-display text-base font-semibold leading-tight tracking-tight md:text-lg">{name}</p>
-                    <p className="mt-0.5 text-[11px] text-white/75">
-                      {h.n} {plural(h.n, "imóvel", "imóveis")}
-                      {cities.length > 1 && ` · ${h.city}`}
-                    </p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ───────────── TERRENOS ───────────── */}
-      {lands.length > 0 && (
-        <section className="container-x py-12 md:py-20">
-          <SectionHead eyebrow="Para construir" title={cat.landTitle || "Terrenos"}>
-            <Link
-              href={searchHref({ categoria: "terrenos" })}
-              className="group inline-flex items-center gap-2 text-sm font-medium text-subtle transition-colors hover:text-ink"
-            >
-              Ver {lands.length} {plural(lands.length, "terreno", "terrenos")}
-              <ArrowUpRight className="size-4 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-            </Link>
-          </SectionHead>
-          <div className="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-2 [scrollbar-width:none] sm:mx-0 sm:grid sm:snap-none sm:grid-cols-2 sm:gap-x-6 sm:gap-y-10 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-3">
-            {lands.slice(0, 3).map((p) => (
-              <div key={p.id} className="w-[84%] shrink-0 snap-center sm:w-auto">
-                <PropertyCard property={p} />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* ───────────── RURAIS ───────────── */}
-      {rural.length > 0 && (
-        <section className="container-x py-12 md:py-20">
-          <SectionHead eyebrow="No campo" title="Propriedades rurais">
-            <Link
-              href={searchHref({ categoria: "rurais" })}
-              className="group inline-flex items-center gap-2 text-sm font-medium text-subtle transition-colors hover:text-ink"
-            >
-              Ver {rural.length} {plural(rural.length, "propriedade", "propriedades")}
-              <ArrowUpRight className="size-4 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-            </Link>
-          </SectionHead>
-          <div className="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-2 [scrollbar-width:none] sm:mx-0 sm:grid sm:snap-none sm:grid-cols-2 sm:gap-x-6 sm:gap-y-10 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-3">
-            {rural.slice(0, 3).map((p) => (
-              <div key={p.id} className="w-[84%] shrink-0 snap-center sm:w-auto">
-                <PropertyCard property={p} />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+      {display.order.map((id) => sections[id])}
 
       <SiteFooter
         orgName={wl.orgName}

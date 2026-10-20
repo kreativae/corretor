@@ -33,6 +33,7 @@ export async function POST(_req: Request, { params }: Params) {
         code,
         title: `${src.title} (cópia)`.slice(0, 200),
         published: false,
+        featured: false,
       })
       .returning();
 

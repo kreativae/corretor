@@ -20,12 +20,14 @@ import {
   Sparkles,
   Trash2,
   Images,
+  LayoutGrid,
   Upload,
   Loader2,
 } from "lucide-react";
 import { compressImage, MAX_UPLOAD_BYTES, sendFile } from "@/lib/upload-client";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
+import { DisplayEditor, type DisplayItem } from "@/components/admin/display-editor";
 import { toast } from "sonner";
 
 type TabId =
@@ -34,6 +36,7 @@ type TabId =
   | "hero"
   | "banners"
   | "collection"
+  | "display"
   | "cta"
   | "pages"
   | "visit"
@@ -44,6 +47,7 @@ const TABS: { id: TabId; label: string; icon: typeof Search }[] = [
   { id: "header", label: "Menu do topo", icon: Menu },
   { id: "hero", label: "Hero", icon: LayoutTemplate },
   { id: "banners", label: "Banners da home", icon: Images },
+  { id: "display", label: "Exibição", icon: LayoutGrid },
   { id: "collection", label: "Destaques", icon: Sparkles },
   { id: "cta", label: "Não encontrou?", icon: Megaphone },
   { id: "pages", label: "Listagem & imóvel", icon: LayoutTemplate },
@@ -54,12 +58,21 @@ const TABS: { id: TabId; label: string; icon: typeof Search }[] = [
 export function SiteEditor({
   initial,
   whiteLabel,
+  items = [],
+  views = {},
+  cities = [],
+  initialTab = "hero",
 }: {
   initial: SiteContent;
   whiteLabel: WhiteLabel;
+  /** Imóveis para a prévia da aba Exibição */
+  items?: DisplayItem[];
+  views?: Record<string, number>;
+  cities?: string[];
+  initialTab?: string;
 }) {
   const router = useRouter();
-  const [tab, setTab] = useState<TabId>("hero");
+  const [tab, setTab] = useState<TabId>(TABS.some((t) => t.id === initialTab) ? (initialTab as TabId) : "hero");
   const [c, setC] = useState<SiteContent>(initial);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -629,6 +642,21 @@ export function SiteEditor({
               })}
             </div>
           </section>
+        )}
+
+        {/* ─────── EXIBIÇÃO ─────── */}
+        {tab === "display" && (
+          <DisplayEditor
+            value={c.display}
+            onChange={(display) => {
+              setC((prev) => ({ ...prev, display }));
+              setDirty(true);
+            }}
+            items={items}
+            views={views}
+            cities={cities}
+            collectionTitle={c.collection.title}
+          />
         )}
 
         {/* ─────── COLEÇÃO ─────── */}

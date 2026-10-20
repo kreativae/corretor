@@ -37,6 +37,7 @@ import {
   Ruler,
   Wallet,
   Pencil,
+  Star,
   Plus,
   Search,
   LandPlot,
@@ -142,6 +143,40 @@ export function PropertiesTable({
       top: top && viewCounts[top.id]?.total ? top.code : null,
     };
   }, [filtered, viewCounts]);
+
+  async function toggleFeatured(p: PropertyWithImages) {
+    const v = !p.featured;
+    setItems((arr) => arr.map((x) => (x.id === p.id ? { ...x, featured: v } : x)));
+    try {
+      const res = await fetch(`/api/properties/${p.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ featured: v }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success(v ? `${p.code} em destaque no site` : `${p.code} saiu dos destaques`);
+      router.refresh();
+    } catch {
+      setItems((arr) => arr.map((x) => (x.id === p.id ? { ...x, featured: !v } : x)));
+      toast.error("Não foi possível atualizar o destaque.");
+    }
+  }
+
+  const starBtn = (p: PropertyWithImages) => (
+    <button
+      type="button"
+      onClick={() => toggleFeatured(p)}
+      aria-pressed={p.featured}
+      aria-label={p.featured ? "Tirar dos destaques" : "Marcar como destaque"}
+      title={p.featured ? "Em destaque na home · clique para tirar" : "Marcar como destaque na home"}
+      className={cn(
+        "grid size-9 place-items-center rounded-full transition-colors",
+        p.featured ? "text-accent hover:bg-accent/10" : "text-subtle/60 hover:bg-soft hover:text-ink",
+      )}
+    >
+      <Star className={cn("size-[18px]", p.featured && "fill-current")} />
+    </button>
+  );
 
   async function togglePublished(p: PropertyWithImages, v: boolean) {
     setItems((arr) =>
@@ -349,6 +384,7 @@ export function PropertiesTable({
                   <Switch checked={p.published} onChange={(v) => togglePublished(p, v)} />
                   {p.published ? "No site" : "Fora do site"}
                 </label>
+                {starBtn(p)}
                 <div className="flex items-center gap-0.5">
                   <Link href={crmPropertyPath(p, "/editar")}>
                     <Button variant="ghost" size="icon" aria-label="Editar">
@@ -406,6 +442,9 @@ export function PropertiesTable({
               <th className="px-4 py-3.5 text-right font-medium">Views</th>
               <th className="px-4 py-3.5 font-medium">Status</th>
               <th className="px-4 py-3.5 text-center font-medium">Site</th>
+              <th className="px-1 py-3.5 text-center font-medium" title="Destaque na home">
+                <Star className="mx-auto size-3.5" aria-label="Destaque" />
+              </th>
               <th className="px-4 py-3.5" />
             </tr>
           </thead>
@@ -494,6 +533,9 @@ export function PropertiesTable({
                       onChange={(v) => togglePublished(p, v)}
                     />
                   </div>
+                </td>
+                <td className="px-1 py-3">
+                  <div className="flex justify-center">{starBtn(p)}</div>
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-end gap-0.5 transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100">

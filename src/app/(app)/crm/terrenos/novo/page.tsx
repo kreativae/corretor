@@ -1,5 +1,5 @@
 import { PropertyForm } from "@/components/crm/property-form";
-import { getCustomFeatures } from "@/lib/features";
+import { getBadgeSettings, getCustomFeatures } from "@/lib/features";
 import { getCurrentUser } from "@/lib/auth";
 import { listResponsibles } from "@/lib/responsible";
 import { listPartners } from "@/lib/queries";
@@ -17,7 +17,7 @@ export default async function NovoTerrenoPage() {
   ]);
   return (
     <div className="mx-auto max-w-6xl">
-      <PropertyForm kind="terreno" partners={partners} customFeatures={customFeatures} team={team} currentUserId={me?.id} />
+      <PropertyForm badges={(await getBadgeSettings()).items} kind="terreno" partners={partners} customFeatures={customFeatures} team={team} currentUserId={me?.id} />
     </div>
   );
 }

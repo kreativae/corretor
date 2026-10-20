@@ -1,6 +1,6 @@
 import { PropertyForm } from "@/components/crm/property-form";
 import { getKmzPassword } from "@/lib/kmz-lock";
-import { getCustomFeatures } from "@/lib/features";
+import { getBadgeSettings, getCustomFeatures } from "@/lib/features";
 import { listResponsibles } from "@/lib/responsible";
 import { getPropertyById, listPartners } from "@/lib/queries";
 import { crmPropertyPath } from "@/lib/rural";
@@ -28,7 +28,7 @@ export default async function EditarTerrenoPage({
   if (!isLandType(property.type)) redirect(crmPropertyPath(property, "/editar"));
   return (
     <div className="mx-auto max-w-6xl">
-      <PropertyForm initial={property} partners={partners} customFeatures={customFeatures} team={team} kmzPassword={kmzPassword ?? ""} />
+      <PropertyForm badges={(await getBadgeSettings()).items} initial={property} partners={partners} customFeatures={customFeatures} team={team} kmzPassword={kmzPassword ?? ""} />
     </div>
   );
 }

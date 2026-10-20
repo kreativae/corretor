@@ -3,6 +3,7 @@ import { currentConn, dbFor, getDb } from "@/db";
 import { settings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { sanitizeWatermark, WATERMARK_DEFAULTS, type WatermarkSettings } from "@/lib/watermark-settings";
+import { BADGE_DEFAULTS, sanitizeBadges, type BadgeSettings } from "@/lib/badges";
 import { MAP_OPTIONS_DEFAULTS, sanitizeMapOptions, type MapOptions } from "@/lib/map-options";
 import { sanitizeStatCards, STAT_CARDS_DEFAULTS, type StatCards } from "@/lib/stat-cards";
 import { sanitizeSecurity, SECURITY_DEFAULTS, type SecuritySettings } from "@/lib/security-settings";
@@ -30,6 +31,15 @@ export async function getStatCards(): Promise<StatCards> {
     return sanitizeStatCards((row?.value ?? {}) as Record<string, unknown>);
   } catch {
     return STAT_CARDS_DEFAULTS;
+  }
+}
+
+export async function getBadgeSettings(): Promise<BadgeSettings> {
+  try {
+    const [row] = await (await getDb()).select().from(settings).where(eq(settings.key, "badges"));
+    return row ? sanitizeBadges(row.value as Record<string, unknown>) : BADGE_DEFAULTS;
+  } catch {
+    return BADGE_DEFAULTS;
   }
 }
 

@@ -16,6 +16,7 @@ import { APTIDAO_LABELS, kindOf, RURAL_TYPES } from "@/lib/rural";
 import { LAND_TYPES } from "@/lib/land";
 import { filtersFromSearch, type SiteSearchParams } from "@/lib/site-search";
 import { cn, plural } from "@/lib/utils";
+import { DISPLAY_DEFAULTS, gridCols, type ListingDisplay } from "@/lib/site-display";
 import { Building2, ChevronDown, LandPlot, Search, SlidersHorizontal, Tractor } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useMemo, useState, type ReactNode } from "react";
@@ -58,7 +59,10 @@ export function ImoveisBrowser({
   properties,
   initialCategoria = "urbanos",
   initialSearch = {},
+  display = DISPLAY_DEFAULTS.listing,
 }: {
+  /** Conteúdo do site › Exibição: colunas, ordem inicial, destaques no topo, quantos por vez */
+  display?: ListingDisplay;
   properties: PropertyWithImages[];
   initialCategoria?: Categoria;
   /** Parâmetros da URL (busca vinda da home) */
@@ -88,8 +92,10 @@ export function ImoveisBrowser({
 
   const [filters, setFilters] = useState<PropertyFilters>(() => ({
     ...EMPTY_PROPERTY_FILTERS,
+    sort: display.sort,
     ...filtersFromSearch(initialSearch),
   }));
+  const [limit, setLimit] = useState(display.perPage);
   const [showFilters, setShowFilters] = useState(false);
   // No celular, os atalhos de tipo/finalidade ficam recolhidos
   const [showQuick, setShowQuick] = useState(false);
@@ -99,14 +105,25 @@ export function ImoveisBrowser({
 
   function switchCategoria(c: Categoria) {
     setCategoria(c);
-    setFilters(EMPTY_PROPERTY_FILTERS);
+    setFilters({ ...EMPTY_PROPERTY_FILTERS, sort: display.sort });
+    setLimit(display.perPage);
     router.replace(c === "urbanos" ? pathname : `${pathname}?categoria=${c}`, { scroll: false });
   }
 
-  const filtered = useMemo(
-    () => applyPropertyFilters(base, filters, NO_VIEWS, rural),
-    [base, filters, rural],
-  );
+  const filtered = useMemo(() => {
+    const list = applyPropertyFilters(base, filters, NO_VIEWS, rural);
+    // Destaques no topo enquanto a ordem for a padrão (quem escolhe outra ordem vê só ela)
+    return display.featuredFirst && filters.sort === display.sort
+      ? [...list.filter((p) => p.featured), ...list.filter((p) => !p.featured)]
+      : list;
+  }, [base, filters, rural, display.featuredFirst, display.sort]);
+  // Filtro mudou: volta para a primeira "página"
+  const [seenFilters, setSeenFilters] = useState(filters);
+  if (seenFilters !== filters) {
+    setSeenFilters(filters);
+    setLimit(display.perPage);
+  }
+  const visible = limit > 0 ? filtered.slice(0, limit) : filtered;
   const chips = activePropertyChips(filters, rural);
   const quickCount =
     filters.types.length + (rural ? filters.aptidoes.length : filters.purpose !== "all" ? 1 : 0);
@@ -284,7 +301,7 @@ export function ImoveisBrowser({
             description="Tente ampliar os filtros ou fale com um corretor: temos imóveis que ainda não estão no site."
             action={
               <button
-                onClick={() => setFilters(EMPTY_PROPERTY_FILTERS)}
+                onClick={() => setFilters({ ...EMPTY_PROPERTY_FILTERS, sort: display.sort })}
                 className="rounded-full border border-hairline px-4 py-2 text-sm transition-colors hover:bg-soft"
               >
                 Limpar filtros
@@ -293,8 +310,9 @@ export function ImoveisBrowser({
           />
         </div>
       ) : (
-        <div className="mt-5 grid gap-x-6 gap-y-9 sm:grid-cols-2 md:mt-6 md:gap-y-12 lg:grid-cols-3">
-          {filtered.map((p, i) => (
+        <>
+        <div className={cn("mt-5 grid gap-x-6 gap-y-9 md:mt-6 md:gap-y-12", gridCols(display.columns))}>
+          {visible.map((p, i) => (
             <div
               key={p.id}
               className="animate-fade-in"
@@ -304,6 +322,19 @@ export function ImoveisBrowser({
             </div>
           ))}
         </div>
+        {visible.length < filtered.length && (
+          <button
+            type="button"
+            onClick={() => setLimit((n) => n + display.perPage)}
+            className="mx-auto mt-10 flex h-12 items-center justify-center gap-2 rounded-full border border-hairline-strong px-8 text-sm font-medium transition-colors hover:bg-soft"
+          >
+            Ver mais {Math.min(display.perPage, filtered.length - visible.length)}
+            <span className="font-mono text-xs text-subtle">
+              ({visible.length} de {filtered.length})
+            </span>
+          </button>
+        )}
+        </>
       )}
     </div>
   );

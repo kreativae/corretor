@@ -5,7 +5,8 @@ import { StatCardsCard } from "@/components/admin/stat-cards-card";
 import { MapOptionsCard } from "@/components/admin/map-options-card";
 import { WatermarkCard } from "@/components/admin/watermark-card";
 import { SecurityCard } from "@/components/admin/security-card";
-import { getFeatures, getMapOptions, getMessages, getSecuritySettings, getStatCards, getWatermarkSettings } from "@/lib/features";
+import { BadgesCard } from "@/components/admin/badges-card";
+import { getBadgeSettings, getFeatures, getMapOptions, getMessages, getSecuritySettings, getStatCards, getWatermarkSettings } from "@/lib/features";
 import { MessagesCard } from "@/components/admin/messages-card";
 import { WhatsAppCard } from "@/components/admin/whatsapp-card";
 import { WhiteLabelCard } from "@/components/admin/white-label-card";
@@ -25,7 +26,7 @@ export default async function ConfiguracoesPage() {
     (await getDb()).select().from(apiKeys).orderBy(apiKeys.createdAt),
     getWhiteLabel(),
   ]);
-  const [features, statCards, mapOptions, watermark, audit, messages, security] = await Promise.all([
+  const [features, statCards, mapOptions, watermark, audit, messages, security, badges] = await Promise.all([
     getFeatures(),
     getStatCards(),
     getMapOptions(),
@@ -33,6 +34,7 @@ export default async function ConfiguracoesPage() {
     listActivities(40),
     getMessages(),
     getSecuritySettings(),
+    getBadgeSettings(),
   ]);
 
   return (
@@ -66,6 +68,7 @@ export default async function ConfiguracoesPage() {
               : "Nome da marca, como no menu (envie um logo no White label para trocar)"
         }
       />
+      <BadgesCard initial={badges} />
       <WhatsAppCard />
       <MessagesCard initial={messages} />
       {/* Portais imobiliários: anúncios pelo feed XML e leads de volta para o CRM */}
