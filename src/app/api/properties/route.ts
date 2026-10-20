@@ -10,7 +10,8 @@ import { isLandType, sanitizeLand } from "@/lib/land";
 import { parseYouTubeUrl } from "@/lib/utils";
 import { propertyLimitError } from "@/lib/account";
 import { setKmzPassword } from "@/lib/kmz-lock";
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
+import { geocodeProperty } from "@/lib/property-geo";
 
 export async function POST(req: Request) {
   if (!(await apiUser())) return unauthorized();
@@ -87,6 +88,8 @@ export async function POST(req: Request) {
     // Senha do mapa/KMZ no site: guardada à parte, nunca nos dados do anúncio
     if (kmzPassword) await setKmzPassword(created.id, kmzPassword);
 
+    // Ponto no mapa a partir do endereço, depois de responder
+    after(() => geocodeProperty(created.id));
     return NextResponse.json(created, { status: 201 });
   } catch (e) {
     console.error(e);

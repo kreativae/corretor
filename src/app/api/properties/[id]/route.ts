@@ -14,7 +14,8 @@ import { alqToM2, isRuralType, kmzOnly, sanitizeRural } from "@/lib/rural";
 import { isLandType, sanitizeLand } from "@/lib/land";
 import { sanitizePropertyPartnerFields } from "@/lib/partners";
 import { parseYouTubeUrl } from "@/lib/utils";
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
+import { geocodeProperty } from "@/lib/property-geo";
 import { sanitizeResponsible } from "@/lib/responsible";
 import { setKmzPassword } from "@/lib/kmz-lock";
 
@@ -71,6 +72,20 @@ export async function PATCH(req: Request, { params }: Params) {
       data.videoUrl = parseYouTubeUrl(v) ? v.slice(0, 300) : null;
     }
 
+    // Endereço mudou (ou ainda sem ponto no mapa): localiza de novo depois de responder
+    let regeo = false;
+    if (["street", "neighborhood", "city", "state"].some((k) => k in data)) {
+      const [cur] = await (await getDb())
+        .select({ street: properties.street, neighborhood: properties.neighborhood, city: properties.city, state: properties.state, lat: properties.lat })
+        .from(properties)
+        .where(eq(properties.id, id));
+      const changed =
+        !!cur &&
+        (["street", "neighborhood", "city", "state"] as const).some((k) => k in data && String(data[k] ?? "") !== cur[k]);
+      if (changed) Object.assign(data, { lat: null, lng: null });
+      regeo = changed || cur?.lat == null;
+    }
+
     const [updated] = await (await getDb())
       .update(properties)
       .set({ ...data, updatedAt: new Date() })
@@ -102,6 +117,7 @@ export async function PATCH(req: Request, { params }: Params) {
       text: `Ficha do imóvel ${updated.code} atualizada.`,
     });
 
+    if (regeo) after(() => geocodeProperty(id));
     return NextResponse.json(updated);
   } catch (e) {
     console.error(e);

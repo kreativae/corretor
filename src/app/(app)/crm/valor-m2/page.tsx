@@ -2,6 +2,8 @@ import { MarketMap } from "@/components/crm/market-map";
 import { geoKey } from "@/lib/market";
 import { loadMarketSamples, loadRegionGeo } from "@/lib/market-data";
 import { getMapProvider, tilesFor } from "@/lib/map-provider";
+import { backfillPropertyGeo } from "@/lib/property-geo";
+import { after } from "next/server";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
@@ -9,6 +11,8 @@ export const metadata: Metadata = { title: "Valor do m²" };
 
 export default async function ValorM2Page() {
   const samples = await loadMarketSamples();
+  // Imóveis cadastrados antes de existir o ponto pelo endereço: localiza alguns por visita
+  after(() => backfillPropertyGeo());
   const now = new Date().getTime();
   const regions = [...new Map(samples.map((s) => [geoKey(s, s.rural), { key: geoKey(s, s.rural), city: s.city, state: s.state }])).values()];
   const [geo, mapCfg] = await Promise.all([loadRegionGeo(regions), getMapProvider()]);
