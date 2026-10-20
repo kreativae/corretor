@@ -171,8 +171,8 @@ export default async function ImovelPage({ params }: { params: Params }) {
                 <h2 className="mt-10 font-display text-xl font-semibold tracking-tight md:mt-12 md:text-2xl">
                   Sobre o imóvel
                 </h2>
-                <p className="mt-4 max-w-2xl whitespace-pre-line text-[15px] leading-relaxed text-subtle">
-                  {p.description}
+                <p className="mt-5 max-w-3xl whitespace-pre-line text-[15px] leading-relaxed text-subtle">
+                  {p.description.replace(/\n{3,}/g, "\n\n").trim()}
                 </p>
               </>
             )}
@@ -229,8 +229,8 @@ export default async function ImovelPage({ params }: { params: Params }) {
                 <h2 className="mt-10 font-display text-xl font-semibold tracking-tight md:mt-12 md:text-2xl">
                   Observações
                 </h2>
-                <p className="mt-5 max-w-3xl whitespace-pre-line text-sm leading-relaxed text-subtle md:text-base">
-                  {p.notes.trim()}
+                <p className="mt-5 max-w-3xl whitespace-pre-line text-[15px] leading-relaxed text-subtle">
+                  {p.notes.replace(/\n{3,}/g, "\n\n").trim()}
                 </p>
               </>
             )}
