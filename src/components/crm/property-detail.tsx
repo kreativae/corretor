@@ -1,5 +1,6 @@
 import { RuralDetails } from "@/components/rural-details";
 import { getKmzPassword } from "@/lib/kmz-lock";
+import { DetailTabs } from "@/components/crm/detail-tabs";
 import { commissionValues } from "@/lib/partners";
 import { CommissionBreakdown } from "@/components/crm/commission-breakdown";
 import { getMessages } from "@/lib/features";
@@ -16,7 +17,6 @@ import {
   ruralAreas, acceptsKmz } from "@/lib/rural";
 import { AdExporterModal } from "@/components/crm/ad-exporter-modal";
 import { DuplicatePropertyButton } from "@/components/crm/duplicate-property-button";
-import { MobileSection } from "@/components/crm/mobile-section";
 import { PortalPanel } from "@/components/crm/portal-panel";
 import { PropertyDocuments } from "@/components/crm/property-documents";
 import { isLocalStorage } from "@/lib/blob";
@@ -82,7 +82,7 @@ export async function PropertyDetail({
 
   const kmzPassword = acceptsKmz(p.type) ? await getKmzPassword(p.id) : null;
   const [activities, views, documents, partner, msgs, market] = await Promise.all([
-    listActivitiesFor("imovel", p.id, 15),
+    listActivitiesFor("imovel", p.id, 60),
     getPropertyViewStats(p.id),
     listPropertyDocuments(p.id),
     p.partnerId ? getPartner(p.partnerId) : null,
@@ -189,11 +189,89 @@ export async function PropertyDetail({
         </div>
       </div>
 
-      {/* No celular as colunas viram uma lista só, na ordem de uso */}
+      {/* Abas no conteúdo principal; lateral fixa com preço e últimas atividades */}
       <div className="grid gap-5 lg:grid-cols-[1.6fr_1fr]">
-        <div className="contents lg:block lg:space-y-5">
+        <aside className="space-y-5 lg:sticky lg:top-24 lg:col-start-2 lg:row-start-1 lg:max-h-[calc(100dvh-7rem)] lg:self-start lg:overflow-y-auto lg:pb-2">
+          {/* Preço — no celular logo depois das fotos */}
+          <div className="rounded-2xl border border-hairline bg-card p-4 md:p-5">
+            <p className="font-mono text-[10.5px] uppercase tracking-[0.18em] text-subtle">
+              {p.purpose === "aluguel" ? "Aluguel" : "Venda"}
+            </p>
+            <p className="mt-2 font-mono text-2xl font-medium tabular tracking-tight">
+              {formatBRL(p.price)}
+            </p>
+            <div className="mt-4 space-y-2 border-t border-hairline pt-4 text-sm">
+              {(rural
+                ? [["Por alqueire", pricePerAlq(p.price, r.totalAlq)]]
+                : [
+                    ["Condomínio", p.condoFee],
+                    ["IPTU /ano", p.iptu],
+                    ["Terreno", p.lotArea ? `${formatNumber(p.lotArea)} m²` : null],
+                    ["Suítes", p.suites ? String(p.suites) : null],
+                  ])
+                .filter(([, v]) => v != null)
+                .map(([k, v]) => (
+                  <div key={k as string} className="flex justify-between text-subtle">
+                    <span>{k}</span>
+                    <span className="font-mono tabular text-ink">
+                      {typeof v === "number" ? formatBRL(v) : v}
+                    </span>
+                  </div>
+                ))}
+            </div>
+            {market && (
+              <Link
+                href="/crm/valor-m2"
+                className="mt-4 block rounded-xl border border-hairline p-3.5 text-xs leading-relaxed transition-colors hover:bg-soft"
+                title="Comparado com anúncios, negócios fechados e amostras dos últimos 24 meses"
+              >
+                <p className="text-subtle">
+                  {formatBRL(Math.round(market.own))}
+                  {market.unit === "alq" ? "/alq" : "/m²"} · mediana {rural ? "do município" : "do bairro"}{" "}
+                  {formatBRL(Math.round(market.median))}
+                </p>
+                <p className="mt-1 font-medium text-ink">
+                  {Math.abs(market.diffPct) < 1
+                    ? `Na mediana de ${market.region}`
+                    : `${Math.abs(market.diffPct).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}% ${market.diffPct > 0 ? "acima" : "abaixo"} da mediana de ${market.region}`}
+                </p>
+                <p className="mt-0.5 text-[11px] text-subtle">
+                  {market.n} {market.n === 1 ? "amostra" : "amostras"}
+                  {market.n < MIN_SAMPLES ? " · poucas amostras, use só como indício" : ""}
+                </p>
+              </Link>
+            )}
+            <p className="mt-4 font-mono text-[10px] uppercase tracking-wider text-subtle">
+              Criado {timeAgo(p.createdAt)} · Atualizado {timeAgo(p.updatedAt)}
+            </p>
+          </div>
+
+          {/* Últimas atividades (completo na aba Histórico) */}
+          <div className="rounded-2xl border border-hairline bg-card p-4 md:p-5">
+            <div className="flex items-baseline justify-between gap-3">
+              <h3 className="font-display text-sm font-semibold tracking-tight">Últimas atividades</h3>
+              {activities.length > 5 && (
+                <a href="#historico" className="text-xs font-medium text-subtle hover:text-ink">
+                  Ver tudo
+                </a>
+              )}
+            </div>
+            <div className="mt-3">
+              <Timeline items={activities.slice(0, 5)} />
+            </div>
+          </div>
+        </aside>
+
+        <div className="min-w-0 lg:col-start-1 lg:row-start-1">
+          <DetailTabs
+            tabs={[
+              {
+                id: "geral",
+                label: "Visão geral",
+                content: (
+                  <>
           {/* Galeria */}
-          <div className="order-1 rounded-2xl border border-hairline bg-card p-3 md:p-4 lg:order-none">
+          <div className="rounded-2xl border border-hairline bg-card p-3 md:p-4">
             {p.images.length > 0 && (
               /* Celular: carrossel com todas as fotos, de arrastar para o lado */
               <div className="-mx-1 flex snap-x snap-mandatory gap-2 overflow-x-auto px-1 [scrollbar-width:none] md:hidden">
@@ -242,7 +320,7 @@ export async function PropertyDetail({
           </div>
 
           {/* Specs + descrição */}
-          <div className="order-3 rounded-2xl border border-hairline bg-card p-4 md:p-6 lg:order-none">
+          <div className="rounded-2xl border border-hairline bg-card p-4 md:p-6">
             <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-hairline bg-hairline sm:grid-cols-4">
               {specs.map((s) => (
                 <div key={s.label} className="bg-card p-4">
@@ -272,10 +350,16 @@ export async function PropertyDetail({
                 ))}
               </div>
             )}
+            {p.notes?.trim() && (
+              <div className="mt-6 border-t border-hairline pt-5">
+                <p className="font-mono text-[10.5px] uppercase tracking-[0.18em] text-subtle">Observações</p>
+                <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-subtle">{p.notes.trim()}</p>
+              </div>
+            )}
           </div>
 
           {rural && (
-            <div className="order-4 rounded-2xl border border-hairline bg-card p-4 md:p-6 lg:order-none">
+            <div className="rounded-2xl border border-hairline bg-card p-4 md:p-6">
               <h2 className="mb-5 font-display text-base font-semibold tracking-tight">
                 Dados da propriedade
               </h2>
@@ -283,9 +367,28 @@ export async function PropertyDetail({
             </div>
           )}
 
+          <div className="rounded-2xl border border-hairline bg-card p-4 text-sm leading-relaxed text-subtle md:p-5">
+            <p className="font-medium text-ink">{rural ? "Localização" : "Endereço"}</p>
+            <p className="mt-1">
+              {p.street ? `${p.street}, ` : ""}
+              {p.neighborhood}
+              <br />
+              {p.city} — {p.state}
+            </p>
+            <p className="mt-2 text-[11px]">Endereço completo só no CRM; no site e na ficha aparecem bairro e cidade.</p>
+          </div>
+                  </>
+                ),
+              },
+              {
+                id: "negocio",
+                label: "Negócio",
+                count: propertyVisits.length,
+                content: (
+                  <>
           {/* Parceria e comissão (uso interno) */}
           {(partner || commission.total != null) && (
-            <div className="order-5 rounded-2xl border border-hairline bg-card p-5 lg:order-none">
+            <div className="rounded-2xl border border-hairline bg-card p-5">
               <h2 className="flex items-center gap-2 font-display text-base font-semibold tracking-tight">
                 <Handshake className="size-4 text-subtle" />
                 {partner ? "Imóvel de parceiro" : "Comissão"}
@@ -314,13 +417,8 @@ export async function PropertyDetail({
             </div>
           )}
 
-          {/* Documentos internos */}
-          <div className="order-5 lg:order-none">
-            <PropertyDocuments propertyId={p.id} initial={documents} directUpload={!isLocalStorage()} />
-          </div>
-
           {/* Visitas */}
-          <div className="order-6 rounded-2xl border border-hairline bg-card p-4 md:p-6 lg:order-none">
+          <div className="rounded-2xl border border-hairline bg-card p-4 md:p-6">
             <h2 className="font-display text-base font-semibold tracking-tight">
               Visitas deste imóvel
               <span className="ml-2 font-mono text-[11px] font-normal text-subtle">
@@ -363,75 +461,8 @@ export async function PropertyDetail({
             )}
           </div>
 
-        </div>
-
-        {/* Coluna lateral */}
-        <div className="contents lg:block lg:space-y-5">
-          {/* Preço — no celular logo depois das fotos */}
-          <div className="order-2 rounded-2xl border border-hairline bg-card p-4 md:p-5 lg:order-none">
-            <p className="font-mono text-[10.5px] uppercase tracking-[0.18em] text-subtle">
-              {p.purpose === "aluguel" ? "Aluguel" : "Venda"}
-            </p>
-            <p className="mt-2 font-mono text-2xl font-medium tabular tracking-tight">
-              {formatBRL(p.price)}
-            </p>
-            <div className="mt-4 space-y-2 border-t border-hairline pt-4 text-sm">
-              {(rural
-                ? [["Por alqueire", pricePerAlq(p.price, r.totalAlq)]]
-                : [
-                    ["Condomínio", p.condoFee],
-                    ["IPTU /ano", p.iptu],
-                    ["Terreno", p.lotArea ? `${formatNumber(p.lotArea)} m²` : null],
-                    ["Suítes", p.suites ? String(p.suites) : null],
-                  ])
-                .filter(([, v]) => v != null)
-                .map(([k, v]) => (
-                  <div key={k as string} className="flex justify-between text-subtle">
-                    <span>{k}</span>
-                    <span className="font-mono tabular text-ink">
-                      {typeof v === "number" ? formatBRL(v) : v}
-                    </span>
-                  </div>
-                ))}
-            </div>
-            {market && (
-              <Link
-                href="/crm/valor-m2"
-                className="mt-4 block rounded-xl border border-hairline p-3.5 text-xs leading-relaxed transition-colors hover:bg-soft"
-                title="Comparado com anúncios, negócios fechados e amostras dos últimos 24 meses"
-              >
-                <p className="text-subtle">
-                  {formatBRL(Math.round(market.own))}
-                  {market.unit === "alq" ? "/alq" : "/m²"} · mediana {rural ? "do município" : "do bairro"}{" "}
-                  {formatBRL(Math.round(market.median))}
-                </p>
-                <p className="mt-1 font-medium text-ink">
-                  {Math.abs(market.diffPct) < 1
-                    ? `Na mediana de ${market.region}`
-                    : `${Math.abs(market.diffPct).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}% ${market.diffPct > 0 ? "acima" : "abaixo"} da mediana de ${market.region}`}
-                </p>
-                <p className="mt-0.5 text-[11px] text-subtle">
-                  {market.n} {market.n === 1 ? "amostra" : "amostras"}
-                  {market.n < MIN_SAMPLES ? " · poucas amostras, use só como indício" : ""}
-                </p>
-              </Link>
-            )}
-            <div className="mt-4 rounded-xl bg-soft p-3.5 text-xs leading-relaxed text-subtle">
-              <p className="font-medium text-ink">{rural ? "Localização" : "Endereço"}</p>
-              <p className="mt-1">
-                {p.street ? `${p.street}, ` : ""}
-                {p.neighborhood}
-                <br />
-                {p.city} — {p.state}
-              </p>
-            </div>
-            <p className="mt-4 font-mono text-[10px] uppercase tracking-wider text-subtle">
-              Criado {timeAgo(p.createdAt)} · Atualizado {timeAgo(p.updatedAt)}
-            </p>
-          </div>
-
           {/* Desempenho (analytics) */}
-          <div className="card-elev order-7 rounded-2xl border border-hairline bg-card p-4 md:p-5 lg:order-none">
+          <div className="card-elevrounded-2xl border border-hairline bg-card p-4 md:p-5">
             <h3 className="font-display text-sm font-semibold tracking-tight">
               Desempenho
             </h3>
@@ -482,18 +513,34 @@ export async function PropertyDetail({
             </div>
           </div>
 
-          {/* Linha do tempo — sanfona no celular */}
-          <MobileSection
-            className="order-8 rounded-2xl border border-hairline bg-card p-4 md:p-5 lg:order-none"
-            title="Linha do tempo"
-            meta={activities[0] ? timeAgo(activities[0].createdAt) : undefined}
-          >
-            <Timeline items={activities} />
-          </MobileSection>
-
-          <div className="order-9 lg:order-none">
+          <div className="">
             <PortalPanel portals={portals} propertyCode={p.code} />
           </div>
+                  </>
+                ),
+              },
+              {
+                id: "historico",
+                label: "Histórico",
+                count: documents.length,
+                content: (
+                  <>
+          <div className="rounded-2xl border border-hairline bg-card p-4 md:p-6">
+            <h2 className="font-display text-base font-semibold tracking-tight">Linha do tempo</h2>
+            <div className="mt-4">
+              <Timeline items={activities} />
+            </div>
+          </div>
+          {/* Documentos internos */}
+          <div className="">
+            <PropertyDocuments propertyId={p.id} initial={documents} directUpload={!isLocalStorage()} />
+          </div>
+
+                  </>
+                ),
+              },
+            ]}
+          />
         </div>
       </div>
     </div>

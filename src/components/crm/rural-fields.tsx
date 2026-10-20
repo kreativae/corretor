@@ -19,11 +19,11 @@ import {
 } from "@/lib/rural";
 import { MAX_UPLOAD_BYTES, sendFile } from "@/lib/upload-client";
 import { cn } from "@/lib/utils";
-import { AlertTriangle, Check, FileUp, Loader2, Map as MapIcon, ShieldCheck, Trash2 } from "lucide-react";
+import { AlertTriangle, Check, ChevronDown, FileUp, Loader2, Map as MapIcon, ShieldCheck, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
-const sectionCls = "rounded-2xl border border-hairline bg-card p-6";
+const sectionCls = "scroll-mt-32 rounded-2xl border border-hairline bg-card p-6";
 const h2Cls = "mb-5 font-display text-base font-semibold tracking-tight";
 
 /** "12,5" / "12.5" / "1.200,75" → número; vazio → null */
@@ -322,25 +322,81 @@ export function KmzField({
   );
 }
 
-/** Seções do cadastro rural (coluna principal do formulário). */
+/** Seção que recolhe: fechada mostra um resumo do que já foi preenchido. */
+function Collapsible({
+  id,
+  title,
+  summary,
+  defaultOpen,
+  children,
+}: {
+  id: string;
+  title: string;
+  summary: string;
+  defaultOpen: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <section id={id} className={sectionCls}>
+      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="flex w-full items-center gap-3 text-left">
+        <span className="min-w-0 flex-1">
+          <span className="block font-display text-base font-semibold tracking-tight">{title}</span>
+          {!open && <span className="mt-1 block truncate text-xs text-subtle">{summary || "Nada preenchido — clique para preencher"}</span>}
+        </span>
+        <ChevronDown className={cn("size-4 shrink-0 text-subtle transition-transform", open && "rotate-180")} />
+      </button>
+      {open && <div className="mt-5">{children}</div>}
+    </section>
+  );
+}
+
+/**
+ * Seções do cadastro rural (coluna principal do formulário).
+ * part "uso": áreas e aptidão · "tecnico": terreno, documentação e KMZ · vazio: todas.
+ */
 export function RuralFields({
   value,
   onChange,
   kmzPassword,
   onKmzPasswordChange,
+  part,
 }: {
   value: RuralData;
   onChange: (next: RuralData) => void;
   kmzPassword?: string;
   onKmzPasswordChange?: (v: string) => void;
+  part?: "uso" | "tecnico";
 }) {
   const set = <K extends keyof RuralData>(k: K, v: RuralData[K]) => onChange({ ...value, [k]: v });
   const showCabecas = value.aptidao === "pecuaria" || value.aptidao === "dupla";
+  const uso = part !== "tecnico";
+  const tecnico = part !== "uso";
+  const infraSummary = [
+    value.topografia && TOPOGRAFIA_LABELS[value.topografia],
+    value.solo && SOLO_LABELS[value.solo],
+    value.energia && ENERGIA_LABELS[value.energia],
+    value.acesso && ACESSO_LABELS[value.acesso],
+    value.distanciaCidadeKm != null && `${value.distanciaCidadeKm.toLocaleString("pt-BR")} km da cidade`,
+    value.agua.length ? `${value.agua.length} recurso(s) hídrico(s)` : "",
+    value.benfeitorias.length ? `${value.benfeitorias.length} benfeitoria(s)` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const docsSummary = [
+    value.matricula && `Matrícula ${value.matricula}`,
+    value.car && "CAR",
+    value.ccir && "CCIR",
+    value.nirf && "NIRF",
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <>
+      {uso && (<>
       {/* Áreas */}
-      <section className={sectionCls}>
+      <section id="sec-areas" className={sectionCls}>
         <h2 className={h2Cls}>
           Áreas
           <span className="ml-2 font-mono text-[11px] font-normal text-subtle">
@@ -370,7 +426,7 @@ export function RuralFields({
       </section>
 
       {/* Aptidão */}
-      <section className={sectionCls}>
+      <section id="sec-uso" className={sectionCls}>
         <h2 className={h2Cls}>Aptidão e uso</h2>
         <div className="flex flex-wrap gap-2">
           {Object.entries(APTIDAO_LABELS).map(([k, label]) => (
@@ -409,9 +465,11 @@ export function RuralFields({
         </div>
       </section>
 
+      </>)}
+
+      {tecnico && (<>
       {/* Terreno e infraestrutura */}
-      <section className={sectionCls}>
-        <h2 className={h2Cls}>Terreno e infraestrutura</h2>
+      <Collapsible id="sec-infra" title="Terreno e infraestrutura" summary={infraSummary} defaultOpen={!infraSummary}>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Topografia">
             <Select value={value.topografia} onChange={(e) => set("topografia", e.target.value as RuralData["topografia"])}>
@@ -462,11 +520,10 @@ export function RuralFields({
             <Chips options={BENFEITORIAS_OPCOES} value={value.benfeitorias} onChange={(v) => set("benfeitorias", v)} />
           </div>
         </div>
-      </section>
+      </Collapsible>
 
       {/* Documentação */}
-      <section className={sectionCls}>
-        <h2 className={h2Cls}>Documentação</h2>
+      <Collapsible id="sec-docs" title="Documentação" summary={docsSummary} defaultOpen={!docsSummary}>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Matrícula">
             <Input value={value.matricula} onChange={(e) => set("matricula", e.target.value)} className="h-10" />
@@ -484,10 +541,10 @@ export function RuralFields({
         <p className="mt-3 text-[11px] text-subtle">
           Documentos ficam só no CRM — não aparecem no site nem na ficha.
         </p>
-      </section>
+      </Collapsible>
 
       {/* KMZ */}
-      <section className={sectionCls}>
+      <section id="sec-mapa" className={sectionCls}>
         <h2 className={h2Cls}>Mapa do perímetro (KMZ)</h2>
         <KmzField
           url={value.kmzUrl}
@@ -497,6 +554,7 @@ export function RuralFields({
           onPasswordChange={onKmzPasswordChange}
         />
       </section>
+      </>)}
     </>
   );
 }

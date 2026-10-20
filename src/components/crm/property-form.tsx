@@ -5,6 +5,7 @@ import { PURPOSE_LABELS, STATUS_LABELS, TYPE_LABELS } from "@/lib/labels";
 import type { PropertyWithImages } from "@/lib/queries";
 import { PhotoManager } from "./photo-manager";
 import { KmzField, RuralFields } from "./rural-fields";
+import { SectionNav } from "./section-nav";
 import { crmPropertyPath, isRuralType, normalizeRural, pricePerAlq, RURAL_TYPES, type RuralData } from "@/lib/rural";
 import { TAX_BASE, type TaxBase } from "@/lib/partners";
 import { CommissionBreakdown } from "@/components/crm/commission-breakdown";
@@ -241,7 +242,29 @@ export function PropertyForm({
     }
   }
 
-  const sectionCls = "rounded-2xl border border-hairline bg-card p-6";
+  // Menu de seções (fica fixo no topo ao rolar)
+  const sections = rural
+    ? [
+        ["sec-dados", "Dados"],
+        ["sec-local", "Localização"],
+        ["sec-fotos", "Fotos"],
+        ["sec-areas", "Áreas"],
+        ["sec-uso", "Aptidão"],
+        ["sec-descricao", "Descrição"],
+        ["sec-infra", "Infraestrutura"],
+        ["sec-docs", "Documentos"],
+        ["sec-mapa", "Mapa"],
+      ]
+    : [
+        ["sec-dados", "Dados"],
+        ["sec-local", "Endereço"],
+        ["sec-fotos", "Fotos"],
+        ["sec-caract", "Características"],
+        ["sec-comodidades", "Comodidades"],
+        ["sec-descricao", "Descrição"],
+        ...(form.type === "terreno" ? [["sec-mapa", "Mapa"]] : []),
+      ];
+  const sectionCls = "scroll-mt-32 rounded-2xl border border-hairline bg-card p-6";
   const h2Cls = "mb-5 font-display text-base font-semibold tracking-tight";
 
   return (
@@ -270,10 +293,12 @@ export function PropertyForm({
         </div>
       </div>
 
+      <SectionNav sections={sections} />
+
       <div className="grid gap-5 lg:grid-cols-[1.5fr_1fr]">
-        <div className="space-y-5">
+        <div className="min-w-0 space-y-5">
           {/* Identificação */}
-          <section className={sectionCls}>
+          <section id="sec-dados" className={sectionCls}>
             <h2 className={h2Cls}>Identificação</h2>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Título do anúncio" className="sm:col-span-2">
@@ -305,12 +330,48 @@ export function PropertyForm({
             </div>
           </section>
 
+          {/* Endereço */}
+          <section id="sec-local" className={sectionCls}>
+            <h2 className={h2Cls}>{rural ? "Localização" : "Endereço"}</h2>
+            <div className="space-y-4">
+              <Field label={rural ? "Estrada / acesso" : "Rua e número"}>
+                <Input value={form.street} onChange={(e) => set("street", e.target.value)} className={inputCls} />
+              </Field>
+              <Field label={rural ? "Região / distrito / bairro rural" : "Bairro"}>
+                <Input value={form.neighborhood} onChange={(e) => set("neighborhood", e.target.value)} className={inputCls} />
+              </Field>
+              <div className="grid grid-cols-[1fr_90px] gap-3">
+                <Field label="Cidade">
+                  <Input value={form.city} onChange={(e) => set("city", e.target.value)} className={inputCls} />
+                </Field>
+                <Field label="UF">
+                  <Input value={form.state} onChange={(e) => set("state", e.target.value)} maxLength={2} className={inputCls} />
+                </Field>
+              </div>
+            </div>
+          </section>
+
+          {/* Fotos */}
+          <section id="sec-fotos" className={sectionCls}>
+            <h2 className={h2Cls}>
+              Fotos
+              <span className="ml-2 font-mono text-[11px] font-normal text-subtle">
+                {imageUrls.length} {imageUrls.length === 1 ? "foto" : "fotos"}
+              </span>
+            </h2>
+            <PhotoManager images={form.images} onChange={setImages} />
+            <p className="mt-3 flex items-center gap-1.5 text-[11px] text-subtle">
+              <ImageIcon className="size-3.5" />
+              A primeira foto vira a capa do anúncio.
+            </p>
+          </section>
+
           {rural ? (
-            <RuralFields value={ruralData} onChange={setRuralData} kmzPassword={kmzPassword} onKmzPasswordChange={setKmzPassword} />
+            <RuralFields part="uso" value={ruralData} onChange={setRuralData} />
           ) : (
             <>
           {/* Características */}
-          <section className={sectionCls}>
+          <section id="sec-caract" className={sectionCls}>
             <h2 className={h2Cls}>Características</h2>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <Field label="Área construída (m²)">
@@ -335,7 +396,7 @@ export function PropertyForm({
           </section>
 
           {/* Comodidades */}
-          <section className={sectionCls}>
+          <section id="sec-comodidades" className={sectionCls}>
             <h2 className={h2Cls}>
               Comodidades
               <span className="ml-2 font-mono text-[11px] font-normal text-subtle">
@@ -350,25 +411,12 @@ export function PropertyForm({
             />
           </section>
 
-          {/* Terreno: perímetro em KMZ (mapa no site e QR code na ficha) */}
-          {form.type === "terreno" && (
-            <section className={sectionCls}>
-              <h2 className={h2Cls}>Perímetro do terreno (KMZ)</h2>
-              <KmzField
-                url={ruralData.kmzUrl}
-                name={ruralData.kmzName}
-                onChange={(url, name) => setRuralData((cur) => ({ ...cur, kmzUrl: url, kmzName: name }))}
-                password={kmzPassword}
-                onPasswordChange={setKmzPassword}
-              />
-            </section>
-          )}
 
             </>
           )}
 
           {/* Descrição */}
-          <section className={sectionCls}>
+          <section id="sec-descricao" className={sectionCls}>
             <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
               <h2 className="font-display text-base font-semibold tracking-tight">Descrição</h2>
               <Button type="button" variant="outline" size="sm" onClick={autoDescription}>
@@ -425,9 +473,27 @@ export function PropertyForm({
                 ))}
             </div>
           </section>
+          {rural ? (
+            <RuralFields part="tecnico" value={ruralData} onChange={setRuralData} kmzPassword={kmzPassword} onKmzPasswordChange={setKmzPassword} />
+          ) : (
+            // Terreno: perímetro em KMZ (mapa no site e QR code na ficha)
+            form.type === "terreno" && (
+            <section id="sec-mapa" className={sectionCls}>
+              <h2 className={h2Cls}>Perímetro do terreno (KMZ)</h2>
+              <KmzField
+                url={ruralData.kmzUrl}
+                name={ruralData.kmzName}
+                onChange={(url, name) => setRuralData((cur) => ({ ...cur, kmzUrl: url, kmzName: name }))}
+                password={kmzPassword}
+                onPasswordChange={setKmzPassword}
+              />
+            </section>
+            )
+          )}
         </div>
 
-        <div className="space-y-5">
+        {/* Lateral fixa ao rolar: valores, publicação e parceria */}
+        <aside className="space-y-5 lg:sticky lg:top-32 lg:max-h-[calc(100dvh-10rem)] lg:self-start lg:overflow-y-auto lg:pb-2">
           {/* Valores */}
           <section className={sectionCls}>
             <h2 className={h2Cls}>Valores</h2>
@@ -458,6 +524,31 @@ export function PropertyForm({
             </div>
           </section>
 
+          {/* Publicação */}
+          <section className={sectionCls}>
+            <h2 className={h2Cls}>Publicação</h2>
+            <div className="space-y-4">
+              <Field label="Status comercial">
+                <Select value={form.status} onChange={(e) => set("status", e.target.value)}>
+                  {Object.entries(STATUS_LABELS).map(([k, v]) => (
+                    <option key={k} value={k}>{v}</option>
+                  ))}
+                </Select>
+              </Field>
+              <div className="flex items-center justify-between rounded-xl bg-soft px-4 py-3.5">
+                <div>
+                  <p className="text-sm font-medium">Visível no site</p>
+                  <p className="text-[11px] text-subtle">
+                    Aparece na vitrine pública
+                  </p>
+                </div>
+                <Switch
+                  checked={form.published}
+                  onChange={(v) => set("published", v)}
+                />
+              </div>
+            </div>
+          </section>
           {/* Parceria e comissão (uso interno, não aparece no site) */}
           <section className={sectionCls}>
             <h2 className={cn(h2Cls, "flex items-center gap-2")}>
@@ -555,68 +646,7 @@ export function PropertyForm({
             </div>
           </section>
 
-          {/* Endereço */}
-          <section className={sectionCls}>
-            <h2 className={h2Cls}>{rural ? "Localização" : "Endereço"}</h2>
-            <div className="space-y-4">
-              <Field label={rural ? "Estrada / acesso" : "Rua e número"}>
-                <Input value={form.street} onChange={(e) => set("street", e.target.value)} className={inputCls} />
-              </Field>
-              <Field label={rural ? "Região / distrito / bairro rural" : "Bairro"}>
-                <Input value={form.neighborhood} onChange={(e) => set("neighborhood", e.target.value)} className={inputCls} />
-              </Field>
-              <div className="grid grid-cols-[1fr_90px] gap-3">
-                <Field label="Cidade">
-                  <Input value={form.city} onChange={(e) => set("city", e.target.value)} className={inputCls} />
-                </Field>
-                <Field label="UF">
-                  <Input value={form.state} onChange={(e) => set("state", e.target.value)} maxLength={2} className={inputCls} />
-                </Field>
-              </div>
-            </div>
-          </section>
-
-          {/* Fotos */}
-          <section className={sectionCls}>
-            <h2 className={h2Cls}>
-              Fotos
-              <span className="ml-2 font-mono text-[11px] font-normal text-subtle">
-                {imageUrls.length} {imageUrls.length === 1 ? "foto" : "fotos"}
-              </span>
-            </h2>
-            <PhotoManager images={form.images} onChange={setImages} />
-            <p className="mt-3 flex items-center gap-1.5 text-[11px] text-subtle">
-              <ImageIcon className="size-3.5" />
-              A primeira foto vira a capa do anúncio.
-            </p>
-          </section>
-
-          {/* Publicação */}
-          <section className={sectionCls}>
-            <h2 className={h2Cls}>Publicação</h2>
-            <div className="space-y-4">
-              <Field label="Status comercial">
-                <Select value={form.status} onChange={(e) => set("status", e.target.value)}>
-                  {Object.entries(STATUS_LABELS).map(([k, v]) => (
-                    <option key={k} value={k}>{v}</option>
-                  ))}
-                </Select>
-              </Field>
-              <div className="flex items-center justify-between rounded-xl bg-soft px-4 py-3.5">
-                <div>
-                  <p className="text-sm font-medium">Visível no site</p>
-                  <p className="text-[11px] text-subtle">
-                    Aparece na vitrine pública
-                  </p>
-                </div>
-                <Switch
-                  checked={form.published}
-                  onChange={(v) => set("published", v)}
-                />
-              </div>
-            </div>
-          </section>
-        </div>
+        </aside>
       </div>
 
       {/* Barra de ação fixa */}
