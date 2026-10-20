@@ -128,7 +128,7 @@ export async function PropertyDetail({
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       {/* Cabeçalho */}
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="space-y-5">
         <div className="flex items-start gap-4">
           <Link
             href={`/crm/${section}`}
@@ -141,7 +141,7 @@ export async function PropertyDetail({
             <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-subtle">
               {p.code} · {TYPE_LABELS[p.type]} · {PURPOSE_LABELS[p.purpose]}
             </p>
-            <h1 className="mt-1.5 max-w-xl font-display text-2xl font-semibold tracking-tight md:text-3xl">
+            <h1 className="mt-1.5 text-balance font-display text-2xl font-semibold tracking-tight md:text-4xl">
               {p.title}
             </h1>
             <div className="mt-2.5 flex flex-wrap items-center gap-2">
@@ -161,8 +161,8 @@ export async function PropertyDetail({
             </div>
           </div>
         </div>
-        {/* Ações: no celular em grade de 2 colunas, botões largos */}
-        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center [&_button]:w-full sm:[&_button]:w-auto">
+        {/* Ações de fora a fora (da Visão geral até o preço): o título fica livre para ocupar a largura */}
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:[&>*]:flex-1 [&_button]:w-full">
           <AdExporterModal property={p} whiteLabel={wl} />
           <Link href={crmPropertyPath(p, "/editar")}>
             <Button variant="outline" size="sm">
