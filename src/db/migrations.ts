@@ -245,6 +245,17 @@ export const RUNTIME_MIGRATIONS = [
    ALTER TABLE users ADD COLUMN IF NOT EXISTS recovery_codes text NOT NULL DEFAULT '';
    ALTER TABLE sessions ADD COLUMN IF NOT EXISTS user_agent text;
    ALTER TABLE sessions ADD COLUMN IF NOT EXISTS ip text;`,
+  // Biometria (Face ID, Touch ID, Windows Hello): chaves de acesso (passkeys) por aparelho
+  `CREATE TABLE IF NOT EXISTS passkeys (
+     id text PRIMARY KEY,
+     user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     public_key text NOT NULL,
+     counter bigint NOT NULL DEFAULT 0,
+     transports jsonb NOT NULL DEFAULT '[]'::jsonb,
+     name text NOT NULL,
+     created_at timestamptz NOT NULL DEFAULT now(),
+     last_used_at timestamptz
+   );`,
 ];
 
 /** Só no banco principal (esquema public): cadastro de empresas da gerência */

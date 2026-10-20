@@ -9,6 +9,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@simplewebauthn/browser": "14.0.0",
+    "@simplewebauthn/server": "14.0.2",
     "@tmcw/togeojson": "7.1.2",
     "@vercel/blob": "2.8.0",
     "clsx": "^2.1.1",

@@ -1,6 +1,7 @@
 import { AccountSecurity } from "@/components/crm/account-security";
 import { getDb } from "@/db";
-import { sessions, users } from "@/db/schema";
+import { passkeys, sessions, users } from "@/db/schema";
+import { getSecuritySettings } from "@/lib/features";
 import { loggedUser, SESSION_COOKIE } from "@/lib/auth";
 import { recoveryCount } from "@/lib/totp";
 import { and, desc, eq, gt } from "drizzle-orm";
@@ -46,24 +47,37 @@ export default async function ContaPage() {
   if (!me) redirect("/login?next=/crm/conta");
   const db = await getDb();
   const token = (await cookies()).get(SESSION_COOKIE)?.value ?? "";
-  const [[u], list] = await Promise.all([
+  const [[u], list, keys, security] = await Promise.all([
     db.select({ enabled: users.totpEnabledAt, codes: users.recoveryCodes }).from(users).where(eq(users.id, me.id)),
     db
       .select({ token: sessions.token, ua: sessions.userAgent, ip: sessions.ip, createdAt: sessions.createdAt })
       .from(sessions)
       .where(and(eq(sessions.userId, me.id), gt(sessions.expiresAt, new Date())))
       .orderBy(desc(sessions.createdAt)),
+    db
+      .select({ id: passkeys.id, name: passkeys.name, createdAt: passkeys.createdAt, lastUsedAt: passkeys.lastUsedAt })
+      .from(passkeys)
+      .where(eq(passkeys.userId, me.id))
+      .orderBy(desc(passkeys.createdAt)),
+    getSecuritySettings(),
   ]);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-6xl space-y-6">
       <div>
         <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-subtle">{me.email}</p>
         <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight">Minha conta e segurança</h1>
-        <p className="mt-1 text-sm text-subtle">Senha, verificação em duas etapas e aparelhos conectados.</p>
+        <p className="mt-1 text-sm text-subtle">Senha, biometria, verificação em duas etapas e aparelhos conectados.</p>
       </div>
       <AccountSecurity
         twoFactor={!!u?.enabled}
+        passkeysEnabled={security.passkeys}
+        passkeys={keys.map((k) => ({
+          id: k.id,
+          name: k.name,
+          createdAt: k.createdAt.toISOString(),
+          lastUsedAt: k.lastUsedAt?.toISOString() ?? null,
+        }))}
         recoveryLeft={u ? recoveryCount(u.codes) : 0}
         devices={list.map((s) => ({
           id: s.token.slice(0, 8),

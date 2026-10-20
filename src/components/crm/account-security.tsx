@@ -2,14 +2,18 @@
 
 import { Button, Field, Input } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import { Copy, KeyRound, LogOut, MonitorSmartphone, ShieldCheck, ShieldOff } from "lucide-react";
+import { browserSupportsWebAuthn, startRegistration, WebAuthnError } from "@simplewebauthn/browser";
+import type { PublicKeyCredentialCreationOptionsJSON } from "@simplewebauthn/browser";
+import { Copy, Fingerprint, KeyRound, LogOut, MonitorSmartphone, ShieldCheck, ShieldOff, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+type Passkey = { id: string; name: string; createdAt: string; lastUsedAt: string | null };
 type Device = { id: string; label: string; ip: string | null; createdAt: string; current: boolean };
 
 const sectionCls = "rounded-2xl border border-hairline bg-card p-5 md:p-6";
+const fmt = (iso: string) => new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 const h2Cls = "flex items-center gap-2 font-display text-lg font-semibold tracking-tight";
 
 async function call(url: string, method: string, body?: unknown) {
@@ -28,17 +32,118 @@ export function AccountSecurity({
   twoFactor,
   recoveryLeft,
   devices,
+  passkeys,
+  passkeysEnabled,
 }: {
   twoFactor: boolean;
   recoveryLeft: number;
   devices: Device[];
+  passkeys: Passkey[];
+  passkeysEnabled: boolean;
 }) {
   return (
-    <>
-      <PasswordCard />
-      <TwoFactorCard enabled={twoFactor} recoveryLeft={recoveryLeft} />
-      <DevicesCard devices={devices} />
-    </>
+    <div className="grid items-start gap-6 lg:grid-cols-2">
+      <div className="space-y-6">
+        <PasswordCard />
+        <TwoFactorCard enabled={twoFactor} recoveryLeft={recoveryLeft} />
+      </div>
+      <div className="space-y-6">
+        <PasskeysCard list={passkeys} enabled={passkeysEnabled} />
+        <DevicesCard devices={devices} />
+      </div>
+    </div>
+  );
+}
+
+function PasskeysCard({ list, enabled }: { list: Passkey[]; enabled: boolean }) {
+  const router = useRouter();
+  const [supported, setSupported] = useState<boolean | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    // Só dá para saber no navegador
+    queueMicrotask(() => setSupported(browserSupportsWebAuthn()));
+  }, []);
+
+  async function add() {
+    setBusy(true);
+    try {
+      const options = await call("/api/account/passkeys", "POST", { step: "options" });
+      const response = await startRegistration({ optionsJSON: options as PublicKeyCredentialCreationOptionsJSON });
+      await call("/api/account/passkeys", "POST", { step: "verify", response });
+      toast.success("Biometria cadastrada. Na próxima vez, use “Entrar com biometria” no login.");
+      router.refresh();
+    } catch (err) {
+      if (err instanceof WebAuthnError && err.code === "ERROR_AUTHENTICATOR_PREVIOUSLY_REGISTERED") {
+        toast.error("Este aparelho já está cadastrado.");
+      } else if (err instanceof Error && (err.name === "NotAllowedError" || (err instanceof WebAuthnError && err.code === "ERROR_CEREMONY_ABORTED"))) {
+        toast.error("Cadastro cancelado.");
+      } else toast.error((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remove(p: Passkey) {
+    if (!confirm(`Remover a biometria de "${p.name}"? Esse aparelho volta a entrar só com e-mail e senha.`)) return;
+    try {
+      await call(`/api/account/passkeys?id=${encodeURIComponent(p.id)}`, "DELETE");
+      toast.success("Biometria removida.");
+      router.refresh();
+    } catch (err) {
+      toast.error((err as Error).message);
+    }
+  }
+
+  return (
+    <section className={sectionCls}>
+      <h2 className={h2Cls}>
+        <Fingerprint className="size-4.5 text-subtle" />
+        Entrar com biometria
+      </h2>
+      <p className="mt-1 text-xs text-subtle">
+        Face ID, Touch ID, Windows Hello ou digital no Android: entra sem digitar e-mail nem senha. A biometria fica
+        no aparelho; o sistema só guarda uma chave pública. Cadastre cada aparelho que você usa.
+      </p>
+      {!enabled ? (
+        <p className="mt-4 rounded-xl border border-hairline bg-soft/50 px-3.5 py-2.5 text-xs text-subtle">
+          Desligado pelo administrador em Configurações › Segurança.
+        </p>
+      ) : (
+        <>
+          {list.length > 0 && (
+            <ul className="mt-4 divide-y divide-hairline rounded-xl border border-hairline">
+              {list.map((p) => (
+                <li key={p.id} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
+                  <div className="min-w-0">
+                    <p className="font-medium">{p.name}</p>
+                    <p className="text-xs text-subtle">
+                      Cadastrada em {fmt(p.createdAt)}
+                      {p.lastUsedAt ? ` · usada em ${fmt(p.lastUsedAt)}` : ""}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void remove(p)}
+                    aria-label={`Remover ${p.name}`}
+                    className="rounded-full p-2 text-subtle transition-colors hover:bg-red-500/10 hover:text-red-500"
+                  >
+                    <Trash2 className="size-4" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="mt-4 flex items-center justify-end gap-3">
+            {supported === false && <p className="text-xs text-subtle">Este navegador não aceita biometria.</p>}
+            <Button variant="accent" onClick={add} loading={busy} disabled={!supported}>
+              <Fingerprint className="size-4" />
+              Cadastrar este aparelho
+            </Button>
+          </div>
+        </>
+      )}
+    </section>
   );
 }
 
@@ -74,7 +179,7 @@ function PasswordCard() {
         Senha
       </h2>
       <p className="mt-1 text-xs text-subtle">Mínimo de 8 caracteres, com letras e números. Ao trocar, os outros aparelhos saem.</p>
-      <div className="mt-4 grid gap-4 sm:grid-cols-3">
+      <div className="mt-4 grid gap-4">
         <Field label="Senha atual">
           <Input type="password" value={current} onChange={(e) => setCurrent(e.target.value)} autoComplete="current-password" />
         </Field>
@@ -320,7 +425,7 @@ function DevicesCard({ devices }: { devices: Device[] }) {
         Aparelhos conectados
       </h2>
       <p className="mt-1 text-xs text-subtle">Se aparecer um aparelho que não é seu, troque a senha: todos os outros saem.</p>
-      <ul className="mt-4 divide-y divide-hairline rounded-xl border border-hairline">
+      <ul className="mt-4 max-h-96 divide-y divide-hairline overflow-y-auto rounded-xl border border-hairline">
         {devices.map((d) => (
           <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
             <div className="min-w-0">
@@ -329,7 +434,7 @@ function DevicesCard({ devices }: { devices: Device[] }) {
                 {d.current && <span className="ml-2 text-xs font-normal text-accent">este aparelho</span>}
               </p>
               <p className="text-xs text-subtle">
-                Entrou em {new Date(d.createdAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+                Entrou em {fmt(d.createdAt)}
                 {d.ip ? ` · IP ${d.ip}` : ""}
               </p>
             </div>

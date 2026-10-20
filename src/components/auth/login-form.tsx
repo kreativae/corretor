@@ -1,11 +1,13 @@
 "use client";
 
 import { Button, Field, Input } from "@/components/ui";
-import { AlertCircle, ArrowRight, Eye, EyeOff, ShieldCheck } from "lucide-react";
+import { browserSupportsWebAuthn, startAuthentication, WebAuthnError } from "@simplewebauthn/browser";
+import type { PublicKeyCredentialRequestOptionsJSON } from "@simplewebauthn/browser";
+import { AlertCircle, ArrowRight, Eye, EyeOff, Fingerprint, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-export function LoginForm({ nextPath }: { nextPath?: string }) {
+export function LoginForm({ nextPath, passkeys = false }: { nextPath?: string; passkeys?: boolean }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -17,6 +19,42 @@ export function LoginForm({ nextPath }: { nextPath?: string }) {
   const [code, setCode] = useState("");
   // Só caminhos internos: ?next= não pode levar para outro site
   const next = nextPath && nextPath.startsWith("/") && !nextPath.startsWith("//") ? nextPath : null;
+  const [bioSupported, setBioSupported] = useState(false);
+  const [bioBusy, setBioBusy] = useState(false);
+
+  useEffect(() => {
+    // Só dá para saber no navegador
+    if (passkeys) queueMicrotask(() => setBioSupported(browserSupportsWebAuthn()));
+  }, [passkeys]);
+
+  /** Face ID / Touch ID / Windows Hello: sem e-mail e senha */
+  async function biometric() {
+    setError(null);
+    setBioBusy(true);
+    try {
+      const post = async (body: unknown) => {
+        const res = await fetch("/api/auth/passkey", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "Não foi possível entrar com biometria.");
+        return data;
+      };
+      const options = await post({ step: "options" });
+      const response = await startAuthentication({ optionsJSON: options as PublicKeyCredentialRequestOptionsJSON });
+      const data = await post({ step: "verify", response });
+      router.push(next || data.redirect || "/crm");
+      router.refresh();
+    } catch (e) {
+      if (e instanceof WebAuthnError && e.code === "ERROR_CEREMONY_ABORTED") setError(null);
+      else if (e instanceof Error && e.name === "NotAllowedError") {
+        setError("Cancelado, ou nenhuma biometria cadastrada neste aparelho. Entre com e-mail e senha e ative em Minha conta.");
+      } else setError(e instanceof Error ? e.message : "Não foi possível entrar com biometria.");
+      setBioBusy(false);
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -105,13 +143,26 @@ export function LoginForm({ nextPath }: { nextPath?: string }) {
 
   return (
     <form onSubmit={submit} className="mt-8 space-y-4">
+      {bioSupported && (
+        <>
+          <Button type="button" variant="outline" size="lg" loading={bioBusy} onClick={biometric} className="w-full">
+            <Fingerprint className="size-4.5 text-accent" />
+            {bioBusy ? "Aguardando biometria…" : "Entrar com biometria"}
+          </Button>
+          <div className="flex items-center gap-3 text-[11px] uppercase tracking-[0.16em] text-subtle">
+            <span className="h-px flex-1 bg-hairline" />
+            ou com e-mail
+            <span className="h-px flex-1 bg-hairline" />
+          </div>
+        </>
+      )}
       <Field label="E-mail corporativo">
         <Input
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="voce@imobiliaria.com.br"
-          autoComplete="email"
+          autoComplete="username webauthn"
           autoFocus
           className="h-11"
         />

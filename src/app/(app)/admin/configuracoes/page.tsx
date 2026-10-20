@@ -3,7 +3,8 @@ import { FeaturesCard } from "@/components/admin/features-card";
 import { StatCardsCard } from "@/components/admin/stat-cards-card";
 import { MapOptionsCard } from "@/components/admin/map-options-card";
 import { WatermarkCard } from "@/components/admin/watermark-card";
-import { getFeatures, getMapOptions, getMessages, getStatCards, getWatermarkSettings } from "@/lib/features";
+import { SecurityCard } from "@/components/admin/security-card";
+import { getFeatures, getMapOptions, getMessages, getSecuritySettings, getStatCards, getWatermarkSettings } from "@/lib/features";
 import { MessagesCard } from "@/components/admin/messages-card";
 import { WhatsAppCard } from "@/components/admin/whatsapp-card";
 import { WhiteLabelCard } from "@/components/admin/white-label-card";
@@ -23,13 +24,14 @@ export default async function ConfiguracoesPage() {
     (await getDb()).select().from(apiKeys).orderBy(apiKeys.createdAt),
     getWhiteLabel(),
   ]);
-  const [features, statCards, mapOptions, watermark, audit, messages] = await Promise.all([
+  const [features, statCards, mapOptions, watermark, audit, messages, security] = await Promise.all([
     getFeatures(),
     getStatCards(),
     getMapOptions(),
     getWatermarkSettings(true),
     listActivities(40),
     getMessages(),
+    getSecuritySettings(),
   ]);
 
   return (
@@ -49,6 +51,7 @@ export default async function ConfiguracoesPage() {
         </p>
       </div>
       <WhiteLabelCard initial={wl} />
+      <SecurityCard initial={security} />
       <FeaturesCard initial={features} />
       <StatCardsCard initial={statCards} />
       <MapOptionsCard initial={mapOptions} />

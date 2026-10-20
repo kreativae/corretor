@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { sanitizeWatermark, WATERMARK_DEFAULTS, type WatermarkSettings } from "@/lib/watermark-settings";
 import { MAP_OPTIONS_DEFAULTS, sanitizeMapOptions, type MapOptions } from "@/lib/map-options";
 import { sanitizeStatCards, STAT_CARDS_DEFAULTS, type StatCards } from "@/lib/stat-cards";
+import { sanitizeSecurity, SECURITY_DEFAULTS, type SecuritySettings } from "@/lib/security-settings";
 
 /** Módulos opcionais do CRM, ligados em Configurações. */
 export type Features = {
@@ -94,5 +95,14 @@ export async function getMessages() {
     return mergeMessages(row?.value);
   } catch {
     return mergeMessages({});
+  }
+}
+
+export async function getSecuritySettings(): Promise<SecuritySettings> {
+  try {
+    const [row] = await (await getDb()).select().from(settings).where(eq(settings.key, "security"));
+    return sanitizeSecurity((row?.value ?? {}) as Record<string, unknown>);
+  } catch {
+    return SECURITY_DEFAULTS;
   }
 }

@@ -1,6 +1,7 @@
 import type { RuralData } from "@/lib/rural";
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   boolean,
   integer,
   jsonb,
@@ -205,6 +206,21 @@ export const propertyImages = pgTable("property_images", {
     .references(() => properties.id, { onDelete: "cascade" }),
   url: text("url").notNull(),
   position: integer("position").notNull().default(0),
+});
+
+/** Biometria do login (passkey): uma chave pública por aparelho cadastrado em Minha conta */
+export const passkeys = pgTable("passkeys", {
+  id: text("id").primaryKey(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  /** Chave pública em base64url */
+  publicKey: text("public_key").notNull(),
+  counter: bigint("counter", { mode: "number" }).notNull().default(0),
+  transports: jsonb("transports").$type<string[]>().notNull().default([]),
+  name: text("name").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
 });
 
 /** Documentos internos do imóvel (escritura, matrícula…) — nunca vão para o site. */

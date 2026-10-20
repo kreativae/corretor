@@ -4,6 +4,7 @@ import { Monogram } from "@/components/monogram";
 import { getCurrentUser } from "@/lib/auth";
 import { getWhiteLabel } from "@/lib/queries";
 import { safeNext } from "@/lib/two-factor";
+import { getSecuritySettings } from "@/lib/features";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -16,10 +17,11 @@ export default async function LoginPage({
 }: {
   searchParams: Promise<{ next?: string }>;
 }) {
-  const [user, wl, sp] = await Promise.all([
+  const [user, wl, sp, security] = await Promise.all([
     getCurrentUser(),
     getWhiteLabel(),
     searchParams,
+    getSecuritySettings(),
   ]);
   if (user) redirect(safeNext(sp.next) || "/crm");
 
@@ -79,7 +81,7 @@ export default async function LoginPage({
             Use as credenciais fornecidas pela administração.
           </p>
 
-          <LoginForm nextPath={sp.next} />
+          <LoginForm nextPath={sp.next} passkeys={security.passkeys} />
 
           <p className="mt-8 text-center text-xs text-subtle">
             <Link href="/" className="transition-colors hover:text-ink">

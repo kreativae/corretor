@@ -3,20 +3,16 @@ import { getDb } from "@/db";
 import { users } from "@/db/schema";
 import { consumeRecoveryCode, verifyTotp } from "@/lib/totp";
 import { eq } from "drizzle-orm";
-import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { serverSign, serverVerify } from "@/lib/server-secret";
 
 /** Login esperando o código do app: cookie assinado com usuário, empresa e validade (10 min) */
 export const PENDING_2FA_COOKIE = "imob_2fa";
 export const PENDING_2FA_SECONDS = 600;
 
-// Sem segredo no ambiente, um aleatório por processo: reiniciar o servidor só pede o login de novo
-const fallback = randomBytes(32).toString("hex");
-const secret = () => process.env.AUTH_SECRET || process.env.CRON_SECRET || process.env.GERENCIA_KEY || fallback;
-const sign = (data: string) => createHmac("sha256", secret()).update(`2fa:${data}`).digest("base64url");
 
 export function pendingToken(userId: string, tenantSlug: string) {
   const data = `${userId}.${tenantSlug}.${Date.now() + PENDING_2FA_SECONDS * 1000}`;
-  return `${data}.${sign(data)}`;
+  return `${data}.${serverSign("2fa", data)}`;
 }
 
 export function readPendingToken(token: string | undefined) {
@@ -24,8 +20,7 @@ export function readPendingToken(token: string | undefined) {
   const parts = token.split(".");
   if (parts.length !== 4) return null;
   const [userId, tenantSlug, exp, mac] = parts;
-  const want = sign(`${userId}.${tenantSlug}.${exp}`);
-  if (mac.length !== want.length || !timingSafeEqual(Buffer.from(mac), Buffer.from(want))) return null;
+  if (!serverVerify("2fa", `${userId}.${tenantSlug}.${exp}`, mac)) return null;
   if (Number(exp) < Date.now()) return null;
   return { userId, tenantSlug };
 }
