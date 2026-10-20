@@ -128,7 +128,7 @@ export default async function ImovelPage({ params }: { params: Params }) {
             </h1>
             <p data-reveal className="mt-3 flex items-center gap-1.5 text-sm text-subtle">
               <MapPin className="size-4" />
-              {p.street ? `${p.street}, ` : ""}
+              {/* Sem rua e número: o endereço exato é informado pelo corretor */}
               {p.neighborhood} — {p.city}/{p.state}
             </p>
           </div>

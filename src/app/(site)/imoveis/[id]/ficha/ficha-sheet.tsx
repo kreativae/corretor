@@ -171,7 +171,7 @@ export function FichaSheet({
             {p.title}
           </h1>
           <p className="mt-1 truncate text-xs text-[#6A6A86]">
-            {p.street ? `${p.street}, ` : ""}
+            {/* Sem rua e número: o endereço exato é informado pelo corretor */}
             {p.neighborhood} — {p.city}/{p.state}
           </p>
         </div>
