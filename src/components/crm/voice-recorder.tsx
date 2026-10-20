@@ -50,8 +50,15 @@ export function VoiceRecorder({
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch {
-      toast.error("Permita o uso do microfone para gravar.");
+    } catch (e) {
+      const name = e instanceof DOMException ? e.name : "";
+      toast.error(
+        name === "NotFoundError"
+          ? "Nenhum microfone encontrado neste aparelho."
+          : name === "NotReadableError"
+            ? "O microfone está em uso por outro programa."
+            : "O navegador bloqueou o microfone. Libere no cadeado ao lado do endereço do site.",
+      );
       return;
     }
     const r = new MediaRecorder(stream, { mimeType: mime });
