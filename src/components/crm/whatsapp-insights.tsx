@@ -74,6 +74,7 @@ export function WhatsAppInsights({
   phone,
   version,
   open,
+  pinned = true,
   onClose,
   onSent,
 }: {
@@ -82,6 +83,8 @@ export function WhatsAppInsights({
   version: number;
   /** Telas menores: painel por cima da conversa */
   open: boolean;
+  /** Tela grande: coluna fixa ligada */
+  pinned?: boolean;
   onClose: () => void;
   onSent: () => void;
 }) {
@@ -152,7 +155,9 @@ export function WhatsAppInsights({
         "min-h-0 min-w-0 flex-col border-hairline bg-card xl:border-l",
         open
           ? "flex max-xl:absolute max-xl:inset-y-0 max-xl:right-0 max-xl:z-20 max-xl:w-full max-xl:max-w-sm max-xl:border-l max-xl:shadow-2xl"
-          : "hidden xl:flex",
+          : pinned
+            ? "hidden xl:flex"
+            : "hidden",
       )}
       aria-label="Resumo e smart match"
     >

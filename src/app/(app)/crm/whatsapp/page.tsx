@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: "WhatsApp" };
 export default async function WhatsAppPage({ searchParams }: { searchParams: Promise<{ tel?: string }> }) {
   const [{ tel }, user, cfg] = await Promise.all([searchParams, getCurrentUser(), getWhatsAppConfig()]);
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="mx-auto max-w-[1920px]">
       <WhatsAppInbox
         ready={whatsappReady(cfg)}
         isAdmin={isAdmin(user)}

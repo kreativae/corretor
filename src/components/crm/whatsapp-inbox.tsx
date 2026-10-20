@@ -219,6 +219,27 @@ export function WhatsAppInbox({
   const [linking, setLinking] = useState<"lead" | "contato" | null>(null);
   // Resumo e smart match: fixo na tela grande; nas menores, abre por cima da conversa
   const [insightsOpen, setInsightsOpen] = useState(false);
+  // Tela grande: coluna fixa, que dá para recolher (lembrado neste navegador)
+  const [insightsPinned, setInsightsPinned] = useState(true);
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("wa_insights") === "0") window.setTimeout(() => setInsightsPinned(false), 0);
+    } catch {
+      /* sem armazenamento: fica aberta */
+    }
+  }, []);
+  function toggleInsights() {
+    if (window.matchMedia("(min-width: 1280px)").matches) {
+      setInsightsPinned((v) => {
+        try {
+          localStorage.setItem("wa_insights", v ? "0" : "1");
+        } catch {
+          /* ignora */
+        }
+        return !v;
+      });
+    } else setInsightsOpen((v) => !v);
+  }
   const bottom = useRef<HTMLDivElement>(null);
 
   const loadThreads = useCallback(async () => {
@@ -452,7 +473,7 @@ export function WhatsAppInbox({
       <div
         className={cn(
           "relative mt-6 grid h-[calc(100dvh-230px)] min-h-[520px] grid-cols-1 overflow-hidden rounded-2xl border border-hairline bg-card md:grid-cols-[340px_1fr]",
-          thread && "xl:grid-cols-[300px_1fr_320px] 2xl:grid-cols-[340px_1fr_360px]",
+          thread && insightsPinned && "xl:grid-cols-[300px_1fr_340px] 2xl:grid-cols-[360px_1fr_400px]",
         )}
       >
         {/* Lista */}
@@ -573,8 +594,8 @@ export function WhatsAppInbox({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="xl:hidden"
-                  onClick={() => setInsightsOpen((v) => !v)}
+                  className={cn(insightsPinned && "xl:bg-accent/10")}
+                  onClick={toggleInsights}
                   aria-label="Resumo e smart match"
                   title="Resumo e smart match"
                 >
@@ -624,7 +645,7 @@ export function WhatsAppInbox({
                           onClick={out ? () => setInfoId((v) => (v === m.id ? null : m.id)) : undefined}
                           title={out ? "Ver dados da mensagem" : undefined}
                           className={cn(
-                            "max-w-[80%] rounded-2xl px-3.5 py-2 text-sm shadow-sm",
+                            "max-w-[min(80%,36rem)] break-words rounded-2xl px-3.5 py-2 text-sm shadow-sm",
                             out ? "cursor-pointer rounded-br-md bg-emerald-600 text-white" : "rounded-bl-md bg-card",
                             m.type === "deleted" && "italic opacity-70",
                           )}
@@ -758,6 +779,7 @@ export function WhatsAppInbox({
             phone={thread.phone}
             version={messages.length}
             open={insightsOpen}
+            pinned={insightsPinned}
             onClose={() => setInsightsOpen(false)}
             onSent={() => {
               loadMessages(thread.phone, true);
