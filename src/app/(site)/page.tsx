@@ -405,6 +405,28 @@ export default async function HomePage() {
         </section>
       )}
 
+      {/* ───────────── TERRENOS ───────────── */}
+      {lands.length > 0 && (
+        <section className="container-x py-12 md:py-20">
+          <SectionHead eyebrow="Para construir" title={cat.landTitle || "Terrenos"}>
+            <Link
+              href={searchHref({ categoria: "terrenos" })}
+              className="group inline-flex items-center gap-2 text-sm font-medium text-subtle transition-colors hover:text-ink"
+            >
+              Ver {lands.length} {plural(lands.length, "terreno", "terrenos")}
+              <ArrowUpRight className="size-4 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+            </Link>
+          </SectionHead>
+          <div className="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-2 [scrollbar-width:none] sm:mx-0 sm:grid sm:snap-none sm:grid-cols-2 sm:gap-x-6 sm:gap-y-10 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-3">
+            {lands.slice(0, 3).map((p) => (
+              <div key={p.id} className="w-[84%] shrink-0 snap-center sm:w-auto">
+                <PropertyCard property={p} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* ───────────── RURAIS ───────────── */}
       {rural.length > 0 && (
         <section className="container-x py-12 md:py-20">

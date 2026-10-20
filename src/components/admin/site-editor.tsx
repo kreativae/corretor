@@ -19,15 +19,20 @@ import {
   Search,
   Sparkles,
   Trash2,
+  Images,
+  Upload,
+  Loader2,
 } from "lucide-react";
+import { compressImage, MAX_UPLOAD_BYTES, sendFile } from "@/lib/upload-client";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 type TabId =
   | "seo"
   | "header"
   | "hero"
+  | "banners"
   | "collection"
   | "cta"
   | "pages"
@@ -38,6 +43,7 @@ const TABS: { id: TabId; label: string; icon: typeof Search }[] = [
   { id: "seo", label: "SEO & meta", icon: Search },
   { id: "header", label: "Menu do topo", icon: Menu },
   { id: "hero", label: "Hero", icon: LayoutTemplate },
+  { id: "banners", label: "Banners da home", icon: Images },
   { id: "collection", label: "Destaques", icon: Sparkles },
   { id: "cta", label: "Não encontrou?", icon: Megaphone },
   { id: "pages", label: "Listagem & imóvel", icon: LayoutTemplate },
@@ -576,83 +582,56 @@ export function SiteEditor({
           </>
         )}
 
-        {/* ─────── COLEÇÃO ─────── */}
-        {tab === "collection" && (
+        {/* ─────── BANNERS DA HOME ─────── */}
+        {tab === "banners" && (
           <section className={card}>
-            <h2 className="mb-1 font-display text-base font-semibold tracking-tight">
-              Categorias da home
-            </h2>
+            <h2 className="mb-1 font-display text-base font-semibold tracking-tight">Banners da home</h2>
             <p className="mb-5 text-xs text-subtle">
-              Cards com foto: Imóveis (overlay laranja), Propriedades rurais (overlay marinho) e Terrenos
-              (overlay verde). Sem imagem informada, usa a foto padrão. Cada card só aparece com anúncios publicados.
+              Os cards com foto logo abaixo da busca: Imóveis, Propriedades rurais e Terrenos. Cada um só aparece
+              quando há anúncios publicados da categoria. Sem foto, usa a padrão (ou a capa de um anúncio).
             </p>
-            <div className="grid gap-6 md:grid-cols-3">
-              <div className="space-y-4">
-                <p className="text-xs font-medium uppercase tracking-[0.16em] text-[#F47525]">Imóveis</p>
-                <Field label="Título">
-                  <Input
-                    value={c.categories.urbanTitle}
-                    onChange={(e) => patch("categories", { urbanTitle: e.target.value })}
-                  />
-                </Field>
-                <Field label="Texto">
-                  <Input
-                    value={c.categories.urbanText}
-                    onChange={(e) => patch("categories", { urbanText: e.target.value })}
-                  />
-                </Field>
-                <Field label="Imagem (URL)" hint="Vazio = foto padrão (prédios)">
-                  <Input
-                    value={c.categories.urbanImage}
-                    onChange={(e) => patch("categories", { urbanImage: e.target.value })} className="font-mono text-xs"
-                  />
-                </Field>
-              </div>
-              <div className="space-y-4">
-                <p className="text-xs font-medium uppercase tracking-[0.16em] text-[#2B2B5D] dark:text-white">Propriedades rurais</p>
-                <Field label="Título">
-                  <Input
-                    value={c.categories.ruralTitle}
-                    onChange={(e) => patch("categories", { ruralTitle: e.target.value })}
-                  />
-                </Field>
-                <Field label="Texto">
-                  <Input
-                    value={c.categories.ruralText}
-                    onChange={(e) => patch("categories", { ruralText: e.target.value })}
-                  />
-                </Field>
-                <Field label="Imagem (URL)" hint="Vazio = foto padrão (paisagem rural)">
-                  <Input
-                    value={c.categories.ruralImage}
-                    onChange={(e) => patch("categories", { ruralImage: e.target.value })} className="font-mono text-xs"
-                  />
-                </Field>
-              </div>
-              <div className="space-y-4">
-                <p className="text-xs font-medium uppercase tracking-[0.16em] text-[#2B2B5D] dark:text-white">Terrenos</p>
-                <Field label="Título">
-                  <Input
-                    value={c.categories.landTitle}
-                    onChange={(e) => patch("categories", { landTitle: e.target.value })}
-                  />
-                </Field>
-                <Field label="Texto">
-                  <Input
-                    value={c.categories.landText}
-                    onChange={(e) => patch("categories", { landText: e.target.value })}
-                  />
-                </Field>
-                <Field label="Imagem (URL)" hint="Vazio = capa de um terreno publicado">
-                  <Input
-                    value={c.categories.landImage}
-                    onChange={(e) => patch("categories", { landImage: e.target.value })} className="font-mono text-xs"
-                  />
-                </Field>
-              </div>
+            <div className="grid gap-6 lg:grid-cols-3">
+              {(
+                [
+                  { k: "urban", name: "Imóveis", overlay: "from-[#F47525]/95 via-[#F47525]/75 to-[#F47525]/35", hint: "Vazio = foto padrão (prédios)" },
+                  { k: "rural", name: "Propriedades rurais", overlay: "from-[#2B2B5D]/95 via-[#2B2B5D]/75 to-[#2B2B5D]/35", hint: "Vazio = foto padrão (paisagem rural)" },
+                  { k: "land", name: "Terrenos", overlay: "from-[#1E5E46]/95 via-[#1E5E46]/75 to-[#1E5E46]/35", hint: "Vazio = capa de um terreno publicado" },
+                ] as const
+              ).map((b) => {
+                const title = c.categories[`${b.k}Title`];
+                const text = c.categories[`${b.k}Text`];
+                const image = c.categories[`${b.k}Image`];
+                return (
+                  <div key={b.k} className="space-y-4">
+                    {/* Prévia do banner */}
+                    <div className="relative isolate flex aspect-[16/10] flex-col justify-end overflow-hidden rounded-2xl bg-[#2B2B5D] p-4 text-white">
+                      {image && (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img src={image} alt="" className="absolute inset-0 -z-20 h-full w-full object-cover" />
+                      )}
+                      <div className={cn("absolute inset-0 -z-10 bg-gradient-to-t", b.overlay)} />
+                      <p className="font-display text-xl font-semibold tracking-tight">{title || b.name}</p>
+                      {text && <p className="mt-1 line-clamp-2 text-xs text-white/85">{text}</p>}
+                    </div>
+                    <Field label="Título">
+                      <Input value={title} onChange={(e) => patch("categories", { [`${b.k}Title`]: e.target.value })} />
+                    </Field>
+                    <Field label="Texto">
+                      <Input value={text} onChange={(e) => patch("categories", { [`${b.k}Text`]: e.target.value })} />
+                    </Field>
+                    <BannerImageField
+                      value={image}
+                      hint={b.hint}
+                      onChange={(url) => patch("categories", { [`${b.k}Image`]: url })}
+                    />
+                  </div>
+                );
+              })}
             </div>
           </section>
         )}
+
+        {/* ─────── COLEÇÃO ─────── */}
         {tab === "collection" && (
           <section className={card}>
             <h2 className="mb-5 font-display text-base font-semibold tracking-tight">
@@ -1005,5 +984,58 @@ function LinksEditor({
         Adicionar link
       </Button>
     </div>
+  );
+}
+
+/** Foto do banner: enviar arquivo ou colar o endereço */
+function BannerImageField({ value, hint, onChange }: { value: string; hint: string; onChange: (url: string) => void }) {
+  const input = useRef<HTMLInputElement>(null);
+  const [progress, setProgress] = useState<number | null>(null);
+
+  async function upload(file: File) {
+    if (!file.type.startsWith("image/") || file.type === "image/svg+xml") {
+      toast.error("Envie uma foto em JPG, PNG ou WebP.");
+      return;
+    }
+    setProgress(0);
+    try {
+      const ready = await compressImage(file);
+      if (ready.size > MAX_UPLOAD_BYTES) throw new Error("Arquivo acima de 4 MB.");
+      // Pasta da marca: banner sai sem marca d'água
+      onChange(await sendFile(ready, setProgress, "marca"));
+      toast.success("Foto enviada. Clique em Salvar para publicar.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha no envio.");
+    } finally {
+      setProgress(null);
+    }
+  }
+
+  return (
+    <Field label="Foto" hint={hint}>
+      <div className="flex gap-2">
+        <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder="https://…" className="min-w-0 font-mono text-xs" />
+        <Button type="button" variant="outline" size="sm" className="h-10 shrink-0" onClick={() => input.current?.click()} disabled={progress !== null}>
+          {progress !== null ? <Loader2 className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />}
+          {progress !== null ? `${Math.round(progress)}%` : "Enviar"}
+        </Button>
+        {value && (
+          <Button type="button" variant="ghost" size="sm" className="h-10 shrink-0" onClick={() => onChange("")} aria-label="Usar a foto padrão">
+            <Trash2 className="size-3.5" />
+          </Button>
+        )}
+      </div>
+      <input
+        ref={input}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          e.target.value = "";
+          if (f) void upload(f);
+        }}
+      />
+    </Field>
   );
 }
