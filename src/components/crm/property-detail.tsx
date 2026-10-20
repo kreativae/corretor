@@ -162,7 +162,7 @@ export async function PropertyDetail({
           </div>
         </div>
         {/* Ações de fora a fora (da Visão geral até o preço): o título fica livre para ocupar a largura */}
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:[&>*]:flex-1 [&_button]:w-full">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:[&>a]:flex-1 sm:[&>button]:flex-1 [&>a>button]:w-full [&>button]:w-full">
           <AdExporterModal property={p} whiteLabel={wl} />
           <Link href={crmPropertyPath(p, "/editar")}>
             <Button variant="outline" size="sm">

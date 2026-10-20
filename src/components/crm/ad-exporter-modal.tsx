@@ -124,7 +124,19 @@ ${p.description ? `${p.description.slice(0, 180)}...\n\n` : ""}${ruralLines.map(
 Código: ${p.code}
 
 #fazenda #fazendaavenda #imoveisrurais #agro #${p.type} #${p.city.toLowerCase().replace(/\s+/g, "")} #${wl.orgName.toLowerCase().replace(/\s+/g, "")}`
-    : `🏡 ${p.title} | ${p.neighborhood.toUpperCase()}
+    : land
+      ? `📐 ${p.title} | ${p.neighborhood.toUpperCase()}
+
+${p.description ? `${p.description.slice(0, 180)}...\n\n` : ""}✨ Sobre o terreno:
+${landLines.map((x) => x.replace(/\*/g, "")).join("\n")}
+${l.vantagens.length ? `\n🌟 Vantagens: ${l.vantagens.slice(0, 6).join(" • ")}\n` : ""}
+💎 ${p.purpose === "venda" ? "Valor de Venda" : "Locação"}: ${formatBRL(p.price)}
+
+📲 Agende sua visita pelo link na bio ou direct.
+Código de referência: ${p.code}
+
+#terreno #terrenoavenda #lote #investimento #${p.neighborhood.toLowerCase().replace(/\s+/g, "")} #${p.city.toLowerCase().replace(/\s+/g, "")} #${wl.orgName.toLowerCase().replace(/\s+/g, "")}`
+      : `🏡 ${p.title} | ${p.neighborhood.toUpperCase()}
 
 ${p.description ? `${p.description.slice(0, 180)}...\n\n` : ""}✨ Detalhes do imóvel:
 • ${formatNumber(p.area)} m² de área privativa
@@ -159,7 +171,24 @@ CONTATO:
 ${wl.orgName}${wl.phone ? `\nWhatsApp: +${wl.phone}` : ""}
 Ref: ${p.code}
 Link: ${propertyUrl}${r.kmzUrl ? `\nMapa (KMZ): ${mapaUrl}` : ""}`
-    : `[${p.code}] ${TYPE_LABELS[p.type] || "Imóvel"} com ${formatNumber(p.area)}m², ${p.bedrooms} quartos em ${p.neighborhood} - ${p.city}
+    : land
+      ? `[${p.code}] ${TYPE_LABELS[p.type] || "Terreno"} com ${formatNumber(p.area)} m² em ${p.neighborhood} - ${p.city}
+
+VALOR: ${formatBRL(p.price)}${landNums.pricePerM2 ? ` (${formatBRL(landNums.pricePerM2)}/m²)` : ""}
+${p.condoFee ? `Condomínio: ${formatBRL(p.condoFee)} | ` : ""}${p.iptu ? `IPTU: ${formatBRL(p.iptu)}/ano` : ""}
+
+CARACTERÍSTICAS:
+${landLines.map((x) => `- ${x.replace(/^\S+\s/, "").replace(/\*/g, "")}`).join("\n")}
+${l.vantagens.length ? `\nVANTAGENS:\n${l.vantagens.map((v) => `- ${v}`).join("\n")}\n` : ""}
+DESCRIÇÃO:
+${p.description || "Excelente oportunidade."}
+
+CONTATO & VISITAS:
+${wl.orgName}
+WhatsApp: +${wl.phone}
+Ref: ${p.code}
+Link completo: ${propertyUrl}${r.kmzUrl ? `\nMapa (KMZ): ${mapaUrl}` : ""}`
+      : `[${p.code}] ${TYPE_LABELS[p.type] || "Imóvel"} com ${formatNumber(p.area)}m², ${p.bedrooms} quartos em ${p.neighborhood} - ${p.city}
 
 VALOR: ${formatBRL(p.price)}${p.purpose === "aluguel" ? "/mês" : ""}
 ${p.condoFee ? `Condomínio: ${formatBRL(p.condoFee)} | ` : ""}${p.iptu ? `IPTU: ${formatBRL(p.iptu)}/ano` : ""}
@@ -169,7 +198,7 @@ CARACTERÍSTICAS:
 - Quartos: ${p.bedrooms} (Suítes: ${p.suites})
 - Banheiros: ${p.bathrooms}
 - Vagas: ${p.garage}
-${p.street ? `- Endereço aproximado: ${p.street}, ${p.neighborhood}\n` : ""}
+- Localização: ${p.neighborhood} - ${p.city}/${p.state}\n
 DESCRIÇÃO:
 ${p.description || "Excelente oportunidade em localização privilegiada."}
 
