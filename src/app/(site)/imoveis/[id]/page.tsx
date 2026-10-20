@@ -167,6 +167,7 @@ export default async function ImovelPage({ params }: { params: Params }) {
             images={p.images.map((i) => siteImage(i.url, p.wm))}
             title={p.title}
             videoId={parseYouTubeUrl(p.videoUrl)}
+            videoWatermark={`/api/watermark/overlay?wm=${p.wm}`}
           />
         </div>
 

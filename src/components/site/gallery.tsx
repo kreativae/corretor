@@ -10,11 +10,14 @@ export function Gallery({
   images,
   title,
   videoId,
+  videoWatermark,
 }: {
   images: string[];
   title: string;
   /** Id do vídeo do YouTube (botão "Ver vídeo") */
   videoId?: string | null;
+  /** Marca d'água (PNG transparente) por cima do vídeo */
+  videoWatermark?: string | null;
 }) {
   const [open, setOpen] = useState(false);
   const [video, setVideo] = useState(false);
@@ -146,8 +149,16 @@ export function Gallery({
         )}
       </div>
 
+      {/* Computador: com 1 ou 2 fotos a principal define a altura (antes ficava uma faixa fina) */}
       <div className="hidden gap-3 lg:grid lg:grid-cols-3">
-        <div className="relative lg:col-span-2 lg:row-span-2">
+        <div
+          className={cn(
+            "relative",
+            images.length === 1 ? "lg:col-span-3 lg:aspect-[21/9]" : "lg:col-span-2",
+            images.length === 2 && "lg:aspect-[16/10]",
+            images.length > 2 && "lg:row-span-2",
+          )}
+        >
         <button
           onClick={() => openAt(0)}
           className="group relative block h-full min-h-full w-full overflow-hidden rounded-2xl bg-soft"
@@ -168,7 +179,7 @@ export function Gallery({
             className="flex items-center gap-2 rounded-full bg-black/45 px-3.5 py-2 text-xs font-medium text-white backdrop-blur-md transition-colors hover:bg-black/65"
           >
             <Expand className="size-3.5" />
-            {images.length} fotos
+            {images.length} {images.length === 1 ? "foto" : "fotos"}
           </button>
         </div>
         </div>
@@ -176,7 +187,10 @@ export function Gallery({
           <button
             key={src + i}
             onClick={() => openAt(i + 1)}
-            className="group relative hidden aspect-[16/10] overflow-hidden rounded-2xl bg-soft lg:block"
+            className={cn(
+              "group relative hidden overflow-hidden rounded-2xl bg-soft lg:block",
+              images.length === 2 ? "h-full" : "aspect-[16/10]",
+            )}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -308,16 +322,25 @@ export function Gallery({
               <X className="size-5" />
             </button>
             <div
-              className="aspect-video w-full max-w-[min(92vw,calc((100dvh-120px)*16/9))] overflow-hidden rounded-xl bg-black"
+              className="relative aspect-video w-full max-w-[min(92vw,calc((100dvh-120px)*16/9))] overflow-hidden rounded-xl bg-black"
               onClick={(e) => e.stopPropagation()}
             >
+              {/* Sem tela cheia do YouTube: nela a marca d'água por cima não apareceria */}
               <iframe
-                src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1&playsinline=1`}
+                src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1&playsinline=1&fs=0`}
                 title={`Vídeo — ${title}`}
-                allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-                allowFullScreen
+                allow="autoplay; encrypted-media; picture-in-picture"
                 className="h-full w-full"
               />
+              {videoWatermark && (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={videoWatermark}
+                  alt=""
+                  draggable={false}
+                  className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover"
+                />
+              )}
             </div>
           </div>,
           document.body,
