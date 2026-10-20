@@ -382,7 +382,7 @@ export async function PropertyDetail({
                     ["Condomínio", p.condoFee],
                     ["IPTU /ano", p.iptu],
                     ["Terreno", p.lotArea ? `${formatNumber(p.lotArea)} m²` : null],
-                    ["Suítes", p.suites || null],
+                    ["Suítes", p.suites ? String(p.suites) : null],
                   ])
                 .filter(([, v]) => v != null)
                 .map(([k, v]) => (
