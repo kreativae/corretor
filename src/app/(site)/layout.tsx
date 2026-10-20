@@ -1,4 +1,5 @@
 import { AdminBar } from "@/components/site/admin-bar";
+import { ImageGuard } from "@/components/site/image-guard";
 import { SiteTheme } from "@/components/theme-provider";
 import { getSiteEditor } from "@/lib/auth";
 import { getSiteContent } from "@/lib/site-content";
@@ -33,8 +34,9 @@ export default async function SiteLayout({ children }: { children: ReactNode }) 
   return (
     <SiteTheme>
       {editor && mode !== "desligada" && <AdminBar name={editor.name} admin={isAdmin(editor)} hidden={mode === "oculta"} />}
+      <ImageGuard />
       {/* Conteúdo começa abaixo da faixa do relógio (o header fixo cobre essa faixa) */}
-      <div className="pt-[var(--site-safe,env(safe-area-inset-top))]">{children}</div>
+      <div className="site-protect pt-[var(--site-safe,env(safe-area-inset-top))]">{children}</div>
     </SiteTheme>
   );
 }

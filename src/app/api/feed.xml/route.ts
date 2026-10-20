@@ -1,5 +1,6 @@
 import { listPublishedProperties, getWhiteLabel } from "@/lib/queries";
 import { siteBaseUrl } from "@/lib/tenant";
+import { signedMediaUrl } from "@/lib/media-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -20,12 +21,18 @@ export async function GET() {
 
   const baseUrl = await siteBaseUrl(wl.domain);
 
+  // Portais recebem a foto original por um endereço assinado; o site público só vê a versão protegida
+  const feedImage = (url: string) => {
+    const own = url.match(/\/api\/media\/.+$/);
+    return own ? signedMediaUrl(`${baseUrl}${own[0].split("?")[0]}`) : url;
+  };
+
   const items = props
     .map((p) => {
       const images = p.images
         .map(
           (i) =>
-            `        <Item medium="image" caption="${esc(p.title)}" primary="${i.position === 0 ? "true" : "false"}">${esc(i.url)}</Item>`,
+            `        <Item medium="image" caption="${esc(p.title)}" primary="${i.position === 0 ? "true" : "false"}">${esc(feedImage(i.url))}</Item>`,
         )
         .join("\n");
 

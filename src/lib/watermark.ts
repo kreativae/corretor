@@ -167,7 +167,16 @@ export async function watermark(
   input: Buffer,
   s: WatermarkSettings = WATERMARK_DEFAULTS,
   logo: WatermarkLogo = { kind: "padrao" },
+  /** Maior lado da foto entregue (site público); sem valor = tamanho original */
+  maxPx?: number,
 ): Promise<{ data: Buffer; type: string }> {
+  if (maxPx) {
+    input = await sharp(input, { failOn: "none" })
+      .rotate()
+      .resize({ width: maxPx, height: maxPx, fit: "inside", withoutEnlargement: true })
+      .toBuffer();
+  }
+  // Reprocessada sem metadados: GPS, data e aparelho da foto não saem para o site
   const img = sharp(input, { failOn: "none" }).rotate();
   const meta = await img.metadata();
   // Orientação EXIF 5–8 troca largura e altura
