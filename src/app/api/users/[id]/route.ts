@@ -1,6 +1,7 @@
 import { getDb } from "@/db";
 import { activities, sessions, users } from "@/db/schema";
 import { hashPassword, requireAdmin } from "@/lib/auth";
+import { passwordProblem } from "@/lib/password";
 import { ROLE_LABELS } from "@/lib/labels";
 import { isAdmin, isSuperadmin } from "@/lib/roles";
 import { and, eq, ne } from "drizzle-orm";
@@ -59,13 +60,17 @@ export async function PATCH(
       patch.active = body.active;
     }
     if (body.password) {
-      if (String(body.password).length < 6) {
-        return NextResponse.json(
-          { error: "A senha deve ter ao menos 6 caracteres." },
-          { status: 400 },
-        );
-      }
+      const weak = passwordProblem(String(body.password));
+      if (weak) return NextResponse.json({ error: weak }, { status: 400 });
       patch.passwordHash = hashPassword(String(body.password));
+    }
+
+    // Perdeu o celular: o administrador desliga as duas etapas e a pessoa ativa de novo
+    if (body.resetTwoFactor === true) {
+      patch.totpSecret = null;
+      patch.totpEnabledAt = null;
+      patch.totpLastStep = null;
+      patch.recoveryCodes = "";
     }
 
     const [updated] = await (await getDb())
@@ -79,11 +84,13 @@ export async function PATCH(
     }
 
     // Senha trocada ou conta desativada → encerra sessões ativas
-    if (body.password || body.active === false) {
+    if (body.password || body.active === false || body.resetTwoFactor === true) {
       await (await getDb()).delete(sessions).where(eq(sessions.userId, id));
     }
 
-    const what = body.password
+    const what = body.resetTwoFactor === true
+      ? "teve a verificação em duas etapas desativada pelo administrador"
+      : body.password
       ? "teve a senha redefinida"
       : body.active === false
         ? "foi desativado"

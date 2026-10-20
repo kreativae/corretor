@@ -36,7 +36,7 @@ A Evolution tem Postgres próprio dentro do compose — não usa o banco do CRM.
 | Variável | Obrigatória | Observação |
 |---|---|---|
 | `DATABASE_URL` | sim | connection string do Neon (a mesma da Vercel) |
-| `AUTH_OPEN` | sim | `0` em produção |
+| `AUTH_OPEN` | não | login é obrigatório por padrão; `1` abre os painéis sem login (só para desenvolvimento) |
 | `CRON_SECRET` | sim | segredo do agendador (passo 3) |
 | `NEXT_PUBLIC_SITE_URL` | recomendada | `https://dominio-do-crm` — marque **Is Build Variable** |
 | `BLOB_READ_WRITE_TOKEN` | sim | token do Vercel Blob (fotos, logos, KMZ) |

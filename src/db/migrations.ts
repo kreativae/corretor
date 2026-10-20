@@ -238,6 +238,13 @@ export const RUNTIME_MIGRATIONS = [
      password text NOT NULL,
      updated_at timestamptz NOT NULL DEFAULT now()
    );`,
+  // Verificação em duas etapas e aparelhos conectados
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_secret text;
+   ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_enabled_at timestamptz;
+   ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_last_step integer;
+   ALTER TABLE users ADD COLUMN IF NOT EXISTS recovery_codes text NOT NULL DEFAULT '';
+   ALTER TABLE sessions ADD COLUMN IF NOT EXISTS user_agent text;
+   ALTER TABLE sessions ADD COLUMN IF NOT EXISTS ip text;`,
 ];
 
 /** Só no banco principal (esquema public): cadastro de empresas da gerência */

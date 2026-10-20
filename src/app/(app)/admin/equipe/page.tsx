@@ -44,6 +44,7 @@ export default async function EquipePage() {
           mailbox: u.mailbox,
           active: u.active,
           hasPassword: !!u.passwordHash,
+          twoFactor: !!u.totpEnabledAt,
           lastLoginAt: u.lastLoginAt ? u.lastLoginAt.toISOString() : null,
           createdAt: u.createdAt.toISOString(),
         }))}

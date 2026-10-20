@@ -4,6 +4,9 @@ const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "SAMEORIGIN" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  // Só HTTPS por 1 ano depois da primeira visita (o Traefik já redireciona o HTTP)
+  { key: "Strict-Transport-Security", value: "max-age=31536000" },
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
   {
     key: "Permissions-Policy",
     value: "camera=(), microphone=(), geolocation=(self), interest-cohort=()",

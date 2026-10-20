@@ -202,17 +202,19 @@ export function AppShell({
 
       <div className="border-t border-hairline p-3">
         <div className="flex items-center justify-between gap-2 rounded-xl px-2 py-1.5">
-          <div className="flex min-w-0 items-center gap-3">
+          <Link
+            href="/crm/conta"
+            title="Minha conta e segurança"
+            className="-m-1 flex min-w-0 items-center gap-3 rounded-xl p-1 transition-colors hover:bg-soft/60"
+          >
             <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent font-mono text-[11px] font-semibold text-on-accent">
               {initials(user.name)}
             </span>
             <div className="min-w-0">
               <p className="truncate text-[13px] font-medium">{user.name}</p>
-              <p className="truncate text-[11px] text-subtle">
-                {roleLabel(user.role)}
-              </p>
+              <p className="truncate text-[11px] text-subtle">Minha conta</p>
             </div>
-          </div>
+          </Link>
           <div className="flex items-center gap-1">
             <ThemeToggle />
             <button

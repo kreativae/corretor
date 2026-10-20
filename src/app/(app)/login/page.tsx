@@ -3,6 +3,7 @@ import { Mark, Wordmark } from "@/components/brand";
 import { Monogram } from "@/components/monogram";
 import { getCurrentUser } from "@/lib/auth";
 import { getWhiteLabel } from "@/lib/queries";
+import { safeNext } from "@/lib/two-factor";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -20,7 +21,7 @@ export default async function LoginPage({
     getWhiteLabel(),
     searchParams,
   ]);
-  if (user) redirect(sp.next || "/crm");
+  if (user) redirect(safeNext(sp.next) || "/crm");
 
   return (
     <div className="flex min-h-screen">

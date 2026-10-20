@@ -1,4 +1,5 @@
 import { getDb } from "@/db";
+import { passwordProblem } from "@/lib/password";
 import { activities, users } from "@/db/schema";
 import { hashPassword, requireAdmin } from "@/lib/auth";
 import { ROLE_LABELS } from "@/lib/labels";
@@ -14,12 +15,8 @@ export async function POST(req: Request) {
     if (!body.name?.trim() || !body.email?.trim()) {
       return NextResponse.json({ error: "Nome e e-mail obrigatórios" }, { status: 400 });
     }
-    if (body.password && String(body.password).length < 6) {
-      return NextResponse.json(
-        { error: "A senha deve ter ao menos 6 caracteres." },
-        { status: 400 },
-      );
-    }
+    const weak = body.password ? passwordProblem(String(body.password), String(body.email)) : null;
+    if (weak) return NextResponse.json({ error: weak }, { status: 400 });
 
     // Limite de usuários do plano (definido pela gerência)
     const acct = await getAccount();

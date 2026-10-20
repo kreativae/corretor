@@ -6,7 +6,7 @@ import { randomBytes } from "node:crypto";
 import { hashPassword, verifyPassword } from "./password";
 import { isAdmin, isSuperadmin } from "./roles";
 import { isMainTenant } from "./tenant";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 export const SESSION_COOKIE = "imob_session";
@@ -14,11 +14,11 @@ const SESSION_DAYS = 7;
 
 /**
  * Controle de acesso por ambiente.
- * AUTH_OPEN=1 (padrão atual) → painéis abertos, agindo como admin logado
- * AUTH_OPEN=0 (produção)     → login obrigatório + RBAC por papel
+ * AUTH_OPEN=1 (só desenvolvimento) → painéis abertos, agindo como admin logado
+ * qualquer outro valor (padrão)    → login obrigatório + RBAC por papel
  * Espelhar a mesma variável em src/middleware.ts.
  */
-export const AUTH_TEMP_DISABLED = process.env.AUTH_OPEN !== "0";
+export const AUTH_TEMP_DISABLED = process.env.AUTH_OPEN === "1";
 
 /* ─────────────────────── Senhas ─────────────────────── */
 
@@ -29,7 +29,10 @@ export { hashPassword, verifyPassword };
 export async function createSession(userId: string) {
   const token = randomBytes(32).toString("hex");
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 864e5);
-  await (await getDb()).insert(sessions).values({ token, userId, expiresAt });
+  const h = await headers();
+  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || null;
+  const userAgent = h.get("user-agent")?.slice(0, 300) || null;
+  await (await getDb()).insert(sessions).values({ token, userId, expiresAt, ip, userAgent });
 
   const jar = await cookies();
   jar.set(SESSION_COOKIE, token, {

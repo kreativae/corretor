@@ -5,7 +5,7 @@ const SESSION_COOKIE = "imob_session";
 const CRM_MARK_COOKIE = "imob_crm";
 
 /** Espelho de AUTH_OPEN em src/lib/auth.ts. */
-const AUTH_TEMP_DISABLED = process.env.AUTH_OPEN !== "0";
+const AUTH_TEMP_DISABLED = process.env.AUTH_OPEN === "1";
 
 /** Espelho de TENANT_HEADER em src/lib/tenant.ts. */
 const TENANT_HEADER = "x-imob-tenant";

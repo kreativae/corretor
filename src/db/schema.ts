@@ -31,6 +31,12 @@ export const users = pgTable("users", {
   mailbox: text("mailbox"),
   active: boolean("active").notNull().default(true),
   lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+  /** Verificação em duas etapas (app autenticador): segredo base32, ativa desde, último passo usado */
+  totpSecret: text("totp_secret"),
+  totpEnabledAt: timestamp("totp_enabled_at", { withTimezone: true }),
+  totpLastStep: integer("totp_last_step"),
+  /** Hashes dos códigos de recuperação, separados por vírgula */
+  recoveryCodes: text("recovery_codes").notNull().default(""),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -42,6 +48,9 @@ export const sessions = pgTable("sessions", {
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  /** Aparelho e IP de onde entrou (Minha conta › Aparelhos conectados) */
+  userAgent: text("user_agent"),
+  ip: text("ip"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

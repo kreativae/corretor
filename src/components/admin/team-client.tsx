@@ -20,6 +20,8 @@ export type TeamMember = {
   mailbox: string | null;
   active: boolean;
   hasPassword: boolean;
+  /** Verificação em duas etapas ativada */
+  twoFactor: boolean;
   lastLoginAt: string | null;
   createdAt: string;
 };
@@ -76,8 +78,8 @@ export function TeamClient({
   });
 
   async function createUser() {
-    if (!form.name.trim() || !form.email.trim() || form.password.length < 6) {
-      toast.error("Nome, e-mail e senha (mín. 6 caracteres) são obrigatórios.");
+    if (!form.name.trim() || !form.email.trim() || form.password.length < 8) {
+      toast.error("Nome, e-mail e senha (mín. 8 caracteres) são obrigatórios.");
       return;
     }
     setSaving(true);
@@ -142,8 +144,8 @@ export function TeamClient({
   }
 
   async function resetPassword() {
-    if (!pwTarget || newPassword.length < 6) {
-      toast.error("A senha deve ter ao menos 6 caracteres.");
+    if (!pwTarget || newPassword.length < 8) {
+      toast.error("A senha deve ter ao menos 8 caracteres.");
       return;
     }
     setSaving(true);
@@ -253,6 +255,19 @@ export function TeamClient({
                     >
                       {u.hasPassword ? "definida" : "pendente"}
                     </Badge>
+                    {u.twoFactor && (
+                      <button
+                        type="button"
+                        title="Verificação em duas etapas ativada. Clique para desligar (ex.: perdeu o celular)."
+                        onClick={async () => {
+                          if (!confirm(`Desligar a verificação em duas etapas de ${u.name}? A pessoa entra só com a senha até ativar de novo.`)) return;
+                          if (await updateUser(u.id, { resetTwoFactor: true })) toast.success("Verificação em duas etapas desligada.");
+                        }}
+                        className="inline-flex h-6 items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 text-[11px] font-medium text-emerald-500 transition-colors hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-500"
+                      >
+                        <ShieldCheck className="size-3" />2 etapas
+                      </button>
+                    )}
                     <Button
                       size="sm"
                       variant="outline"
@@ -314,7 +329,7 @@ export function TeamClient({
               placeholder="ana@imobiliaria.com.br"
             />
           </Field>
-          <Field label="Senha inicial" hint="Mínimo 6 caracteres">
+          <Field label="Senha inicial" hint="Mínimo 8, com letras e números">
             <Input
               type="text"
               value={form.password}
@@ -446,7 +461,7 @@ export function TeamClient({
           <span className="font-medium text-ink">{pwTarget?.name}</span>. Informe
           ao usuário por canal seguro.
         </p>
-        <Field label="Nova senha" className="mt-4" hint="Mínimo 6 caracteres">
+        <Field label="Nova senha" className="mt-4" hint="Mínimo 8, com letras e números">
           <Input
             type="text"
             value={newPassword}
