@@ -171,40 +171,119 @@ export function FichaSheet({
         ]
   ).filter(Boolean);
 
-  return (
-    <article className="ficha-sheet mx-auto flex h-[297mm] w-[210mm] flex-col overflow-hidden bg-white px-[13mm] pb-[10mm] pt-[12mm] text-[#2B2B5D] shadow-sm print:shadow-none">
-      {/* Cabeçalho */}
-      <header className="flex shrink-0 items-center justify-between border-b-2 border-[#2B2B5D] pb-[4mm]">
-        {logoUrl ? (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img src={logoUrl} alt={orgName} className="h-9 w-auto max-w-[60mm] object-contain" />
-        ) : (
-          <div className="flex items-center gap-3">
-            {!showIcon ? null : iconUrl ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img src={iconUrl} alt="" className="size-8 rounded-[22%] object-cover" />
-            ) : (
-              <Monogram className="size-9" color={BRAND_NAVY} />
+  // Terreno com bastante informação: duas folhas, para nada ficar cortado.
+  // Folha 1 = fotos, números, descrição e vantagens · folha 2 = ficha técnica completa
+  const twoPages =
+    land &&
+    (landRows.length > 5 ||
+      l.infraestrutura.length + l.documentacao.length + p.features.length > 0 ||
+      !!p.notes?.trim() ||
+      imgs.length > 3);
+  const fmtM = (v: number | null) => (v ? `${String(v).replace(".", ",")} m` : "");
+  const page2Rows: [string, string][] = twoPages
+    ? ([
+        ["Área do terreno", `${formatNumber(p.area)} m²`],
+        ["Frente × fundo", landDimensions(l)],
+        ["Laterais", [fmtM(l.ladoEsqM) && `esq. ${fmtM(l.ladoEsqM)}`, fmtM(l.ladoDirM) && `dir. ${fmtM(l.ladoDirM)}`].filter(Boolean).join(" · ")],
+        ["Preço por m²", landNums.pricePerM2 ? formatBRL(landNums.pricePerM2) : ""],
+        ["Topografia", l.topografia ? TOPOGRAFIA_TERRENO[l.topografia] : ""],
+        ["Zoneamento", l.zoneamento],
+        ["Área construível", landNums.buildable ? `${formatNumber(landNums.buildable)} m²` : ""],
+        ["Até o centro", l.distanciaCentroKm != null ? `${String(l.distanciaCentroKm).replace(".", ",")} km` : ""],
+        ...landRows,
+      ].filter(([, v]) => v) as [string, string][])
+    : [];
+  const sheetCls =
+    "ficha-sheet mx-auto flex h-[297mm] w-[210mm] flex-col overflow-hidden bg-white px-[13mm] pb-[10mm] pt-[12mm] text-[#2B2B5D] shadow-sm print:shadow-none";
+
+  const header = (
+    <header className="flex shrink-0 items-center justify-between border-b-2 border-[#2B2B5D] pb-[4mm]">
+      {logoUrl ? (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img src={logoUrl} alt={orgName} className="h-9 w-auto max-w-[60mm] object-contain" />
+      ) : (
+        <div className="flex items-center gap-3">
+          {!showIcon ? null : iconUrl ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img src={iconUrl} alt="" className="size-8 rounded-[22%] object-cover" />
+          ) : (
+            <Monogram className="size-9" color={BRAND_NAVY} />
+          )}
+          <div>
+            {showName && (
+              /* Nome no estilo do logotipo: primeiro nome fino, resto pesado */
+              <p className="font-brand text-[15px] uppercase leading-none">
+                <span className="font-extralight">{orgName.split(" ")[0]}</span>{" "}
+                <span className="font-extrabold">{orgName.split(" ").slice(1).join(" ")}</span>
+              </p>
             )}
-            <div>
-              {showName && (
-                /* Nome no estilo do logotipo: primeiro nome fino, resto pesado */
-                <p className="font-brand text-[15px] uppercase leading-none">
-                  <span className="font-extralight">{orgName.split(" ")[0]}</span>{" "}
-                  <span className="font-extrabold">{orgName.split(" ").slice(1).join(" ")}</span>
-                </p>
-              )}
-              {showDomain && (
-                <p className="mt-1 text-[9px] uppercase tracking-[0.2em] text-[#6A6A86]">{domain}</p>
-              )}
-            </div>
+            {showDomain && (
+              <p className="mt-1 text-[9px] uppercase tracking-[0.2em] text-[#6A6A86]">{domain}</p>
+            )}
           </div>
-        )}
-        <div className="text-right font-mono text-[10px] uppercase tracking-wider text-[#6A6A86]">
-          <p>Ref. {p.code}</p>
-          <p>{today}</p>
         </div>
-      </header>
+      )}
+      <div className="text-right font-mono text-[10px] uppercase tracking-wider text-[#6A6A86]">
+        <p>Ref. {p.code}</p>
+        <p>{today}</p>
+      </div>
+    </header>
+  );
+
+  const footer = (
+    <footer
+      className={`mt-[5mm] flex shrink-0 items-center justify-between gap-4 rounded-md bg-[#2B2B5D] px-4 text-white ${
+        qrSvg ? "py-2.5" : "py-3"
+      }`}
+    >
+      <div className="min-w-0">
+        <p className="truncate text-[12px] font-semibold">{brokerName}</p>
+        <p className="truncate text-[10px] text-[#9A9AB5]">{brokerRole}</p>
+      </div>
+      {phone && (
+        <a
+          href={whatsappUrl}
+          target="_blank"
+          rel="noreferrer"
+          data-pdf-link={whatsappUrl}
+          className="flex shrink-0 items-center gap-2"
+        >
+          <MessageCircle className="size-4 text-emerald-400" />
+          <span className="font-mono text-[13px] tabular">{phone}</span>
+        </a>
+      )}
+      {qrSvg && (
+        <a
+          href={qrUrl}
+          target="_blank"
+          rel="noreferrer"
+          data-pdf-link={qrUrl}
+          className="flex shrink-0 items-center gap-3"
+        >
+          <div className="text-right">
+            <p className="text-[11px] font-semibold leading-tight">
+              {qrKind === "mapa" ? (land ? "Veja o terreno no mapa" : "Veja a propriedade no mapa") : "Fale com um consultor"}
+            </p>
+            <p className="mt-0.5 text-[9px] leading-snug text-[#9A9AB5]">
+              {qrKind === "mapa"
+                ? "Perímetro em satélite, rota e KMZ"
+                : "Aponte a câmera e deixe seu contato"}
+            </p>
+          </div>
+          <div
+            className="size-[24mm] shrink-0 rounded-[2mm] bg-white p-[1.6mm] [&>svg]:size-full"
+            dangerouslySetInnerHTML={{ __html: qrSvg }}
+          />
+        </a>
+      )}
+    </footer>
+  );
+
+  return (
+    <>
+    <article className={sheetCls}>
+      {/* Cabeçalho */}
+      {header}
 
       {/* Título + preço */}
       <div className="mt-[5mm] flex shrink-0 items-start justify-between gap-6">
@@ -308,13 +387,13 @@ export function FichaSheet({
             </dl>
           </section>
         )}
-        {land && (l.vantagens.length > 0 || landRows.length > 0) && (
+        {land && (l.vantagens.length > 0 || (!twoPages && landRows.length > 0)) && (
           <section className="flex min-h-0 flex-col overflow-hidden">
             {l.vantagens.length > 0 && (
               <>
                 <h2 className="shrink-0 text-[9.5px] font-semibold uppercase tracking-[0.2em] text-[#D9601A]">Vantagens</h2>
                 <ul className="mt-2 grid shrink-0 grid-cols-2 gap-x-3 gap-y-1.5">
-                  {l.vantagens.slice(0, 12).map((v) => (
+                  {l.vantagens.slice(0, twoPages ? 20 : 12).map((v) => (
                     <li key={v} className="flex min-w-0 items-start gap-1.5 text-[10.5px] font-medium leading-snug">
                       <Check className="mt-0.5 size-3 shrink-0 text-[#F47525]" />
                       <span className="line-clamp-2">{v}</span>
@@ -323,7 +402,7 @@ export function FichaSheet({
                 </ul>
               </>
             )}
-            {landRows.length > 0 && (
+            {!twoPages && landRows.length > 0 && (
               <>
                 <h2 className={`shrink-0 text-[9.5px] font-semibold uppercase tracking-[0.2em] text-[#9A9AB5] ${l.vantagens.length ? "mt-[4mm]" : ""}`}>
                   O terreno
@@ -362,8 +441,8 @@ export function FichaSheet({
         )}
       </div>
 
-      {/* Observações do anúncio (só quando preenchidas) */}
-      {p.notes?.trim() && (
+      {/* Observações do anúncio (só quando preenchidas; no terreno de duas folhas, vão na segunda) */}
+      {p.notes?.trim() && !twoPages && (
         <section className="mt-[4mm] shrink-0">
           <h2 className="text-[9.5px] font-semibold uppercase tracking-[0.2em] text-[#9A9AB5]">Observações</h2>
           <p className="mt-1.5 line-clamp-4 whitespace-pre-line text-[10.5px] leading-[1.5] text-[#45456E]">
@@ -373,52 +452,51 @@ export function FichaSheet({
       )}
 
       {/* Rodapé */}
-      <footer
-        className={`mt-[5mm] flex shrink-0 items-center justify-between gap-4 rounded-md bg-[#2B2B5D] px-4 text-white ${
-          qrSvg ? "py-2.5" : "py-3"
-        }`}
-      >
-        <div className="min-w-0">
-          <p className="truncate text-[12px] font-semibold">{brokerName}</p>
-          <p className="truncate text-[10px] text-[#9A9AB5]">{brokerRole}</p>
-        </div>
-        {phone && (
-          <a
-            href={whatsappUrl}
-            target="_blank"
-            rel="noreferrer"
-            data-pdf-link={whatsappUrl}
-            className="flex shrink-0 items-center gap-2"
-          >
-            <MessageCircle className="size-4 text-emerald-400" />
-            <span className="font-mono text-[13px] tabular">{phone}</span>
-          </a>
-        )}
-        {qrSvg && (
-          <a
-            href={qrUrl}
-            target="_blank"
-            rel="noreferrer"
-            data-pdf-link={qrUrl}
-            className="flex shrink-0 items-center gap-3"
-          >
-            <div className="text-right">
-              <p className="text-[11px] font-semibold leading-tight">
-                {qrKind === "mapa" ? (land ? "Veja o terreno no mapa" : "Veja a propriedade no mapa") : "Fale com um consultor"}
-              </p>
-              <p className="mt-0.5 text-[9px] leading-snug text-[#9A9AB5]">
-                {qrKind === "mapa"
-                  ? "Perímetro em satélite, rota e KMZ"
-                  : "Aponte a câmera e deixe seu contato"}
-              </p>
-            </div>
-            <div
-              className="size-[24mm] shrink-0 rounded-[2mm] bg-white p-[1.6mm] [&>svg]:size-full"
-              dangerouslySetInnerHTML={{ __html: qrSvg }}
-            />
-          </a>
-        )}
-      </footer>
+      {footer}
     </article>
+    {twoPages && (
+      <article className={`${sheetCls} mt-6 break-before-page print:mt-0`}>
+        {header}
+        <div className="mt-[5mm] flex shrink-0 items-end justify-between gap-6">
+          <div className="min-w-0">
+            <p className="text-[9.5px] font-medium uppercase tracking-[0.18em] text-[#D9601A]">Ficha técnica do terreno</p>
+            <h2 className="mt-1.5 line-clamp-1 font-display text-[18px] font-bold leading-tight tracking-tight">{p.title}</h2>
+          </div>
+          <p className="shrink-0 font-mono text-[15px] font-medium tabular">{formatBRL(p.price)}</p>
+        </div>
+
+        {imgs.length > 3 && (
+          <div className="mt-[5mm] grid h-[52mm] shrink-0 grid-cols-3 gap-[2mm]">
+            {imgs.slice(3, 6).map((src, i) => (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img key={i} src={src} alt="" className="size-full rounded-md object-cover" />
+            ))}
+          </div>
+        )}
+
+        <div className="mt-[5mm] min-h-0 flex-1 overflow-hidden">
+          {page2Rows.length > 0 && (
+            <dl className="grid grid-cols-2 gap-x-[7mm] gap-y-1.5 text-[10.5px] leading-snug">
+              {page2Rows.map(([k, v]) => (
+                <div key={k} className="flex gap-2 border-b border-[#EAEAF2] pb-1">
+                  <dt className="w-[28mm] shrink-0 text-[#6A6A86]">{k}</dt>
+                  <dd className="min-w-0 font-medium">{v}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
+          {p.notes?.trim() && (
+            <section className="mt-[5mm]">
+              <h2 className="text-[9.5px] font-semibold uppercase tracking-[0.2em] text-[#9A9AB5]">Observações</h2>
+              <p className="mt-1.5 line-clamp-[10] whitespace-pre-line text-[10.5px] leading-[1.5] text-[#45456E]">
+                {p.notes.trim()}
+              </p>
+            </section>
+          )}
+        </div>
+        {footer}
+      </article>
+    )}
+    </>
   );
 }

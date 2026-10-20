@@ -12,7 +12,7 @@ import { crmPropertyPath, isRuralType, normalizeRural, acceptsKmz } from "@/lib/
 import { headers } from "next/headers";
 import QRCode from "qrcode";
 import { getSiteContent } from "@/lib/site-content";
-import { formatBRL, TIME_ZONE } from "@/lib/utils";
+import { formatBRL, siteImage, TIME_ZONE } from "@/lib/utils";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -110,8 +110,8 @@ export default async function FichaPage({
         brokerName={broker.name}
         brokerRole={broker.role}
         today={today}
-        logoUrl={wl.logoUrl}
-        iconUrl={wl.iconUrl}
+        logoUrl={siteImage(wl.logoUrl)}
+        iconUrl={siteImage(wl.iconUrl)}
         showIcon={wl.fichaShowIcon && (!!wl.iconUrl || wl.showMark)}
         showName={wl.fichaShowName}
         showDomain={wl.fichaShowDomain}
