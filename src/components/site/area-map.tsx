@@ -17,6 +17,7 @@ function RegionMap({ center, radiusKm, zoom, tiles, className }: { center: [numb
 
   useEffect(() => {
     let map: import("leaflet").Map | null = null;
+    let ro: ResizeObserver | null = null;
     let cancelled = false;
     void import("leaflet").then(({ default: L }) => {
       if (cancelled || !el.current) return;
@@ -27,11 +28,21 @@ function RegionMap({ center, radiusKm, zoom, tiles, className }: { center: [numb
       const color = accent ? `rgb(${accent.split(/\s+/).join(",")})` : "#f47525";
       const circle = L.circle(center, { radius: radiusKm * 1000, color, weight: 2, fillColor: color, fillOpacity: 0.15 }).addTo(map);
       // Zoom escolhido em Configurações › Mapa; 0 = enquadrar o círculo
-      if (zoom) map.setView(center, zoom);
-      else map.fitBounds(circle.getBounds(), { padding: [24, 24] });
+      const frame = () => {
+        if (!map) return;
+        // A janela (lightbox) e a sanfona ainda estão abrindo quando o mapa nasce:
+        // sem medir de novo, o Leaflet usa o tamanho antigo e o círculo sai do centro
+        map.invalidateSize();
+        if (zoom) map.setView(center, zoom);
+        else map.fitBounds(circle.getBounds(), { padding: [24, 24] });
+      };
+      frame();
+      ro = new ResizeObserver(frame);
+      ro.observe(el.current);
     });
     return () => {
       cancelled = true;
+      ro?.disconnect();
       map?.remove();
     };
   }, [center, radiusKm, zoom, tiles, dark]);
