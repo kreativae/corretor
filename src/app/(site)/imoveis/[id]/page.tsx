@@ -1,4 +1,6 @@
 import { RuralDetails } from "@/components/rural-details";
+import { LandDetails } from "@/components/land-details";
+import { landDimensions, landNumbers, normalizeLand, TOPOGRAFIA_TERRENO } from "@/lib/land";
 import { getMapOptions, getMessages } from "@/lib/features";
 import { areaCenter } from "@/lib/area-center";
 import { getMapProvider, tilesFor } from "@/lib/map-provider";
@@ -9,6 +11,7 @@ import {
   formatAlq,
   formatHa,
   isRuralType,
+  kindOf,
   normalizeRural,
   pricePerAlq,
   ruralAreas,
@@ -42,6 +45,10 @@ import {
   Sprout,
   Trees,
   Wheat,
+  Maximize2,
+  Tag,
+  Building2,
+  Mountain,
 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -85,9 +92,21 @@ export default async function ImovelPage({ params }: { params: Params }) {
     .slice(0, 3);
 
   const rural = isRuralType(p.type);
+  const land = kindOf(p.type) === "terreno";
+  const l = normalizeLand(p.land);
+  const landNums = landNumbers(p.price, p.area, l);
   const r = normalizeRural(p.rural);
   const areas = ruralAreas(r);
-  const specs = rural
+  const specs = land
+    ? [
+        { icon: Ruler, label: "Área do terreno", value: `${formatNumber(p.area)} m²` },
+        { icon: Maximize2, label: "Frente × fundo", value: landDimensions(l) || "—" },
+        { icon: Tag, label: "Preço por m²", value: landNums.pricePerM2 ? formatBRL(landNums.pricePerM2) : "—" },
+        landNums.buildable
+          ? { icon: Building2, label: "Área construível", value: `${formatNumber(landNums.buildable)} m²` }
+          : { icon: Mountain, label: "Topografia", value: l.topografia ? TOPOGRAFIA_TERRENO[l.topografia].replace(/ \(.*\)$/, "") : "—" },
+      ]
+    : rural
     ? [
         { icon: Ruler, label: `Área total · ${formatHa(areas.total)} ha`, value: `${formatAlq(areas.total)} alq` },
         { icon: Sprout, label: "Aptidão", value: r.aptidao ? APTIDAO_LABELS[r.aptidao] : "—" },
@@ -108,7 +127,7 @@ export default async function ImovelPage({ params }: { params: Params }) {
   return (
     <div>
       <PropertyTracker propertyId={p.id} />
-      <SiteHeader orgName={wl.orgName} menu={content.header} hasRural={published.some((x) => isRuralType(x.type))} />
+      <SiteHeader orgName={wl.orgName} menu={content.header} hasRural={published.some((x) => isRuralType(x.type))} hasLand={published.some((x) => kindOf(x.type) === "terreno")} />
       <main className="container-x pb-32 pt-24 md:pt-32 lg:pb-24">
         {/* Breadcrumb + título */}
         <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-subtle">
@@ -169,7 +188,7 @@ export default async function ImovelPage({ params }: { params: Params }) {
             {p.description && (
               <>
                 <h2 className="mt-10 font-display text-xl font-semibold tracking-tight md:mt-12 md:text-2xl">
-                  Sobre o imóvel
+                  {land ? "Sobre o terreno" : "Sobre o imóvel"}
                 </h2>
                 <p className="mt-5 max-w-3xl whitespace-pre-line text-[15px] leading-relaxed text-subtle">
                   {p.description.replace(/\n{3,}/g, "\n\n").trim()}
@@ -194,6 +213,17 @@ export default async function ImovelPage({ params }: { params: Params }) {
               </Link>
             )}
 
+            {land && (
+              <>
+                <h2 className="mt-10 font-display text-xl font-semibold tracking-tight md:mt-12 md:text-2xl">
+                  O terreno
+                </h2>
+                <div className="mt-5 rounded-2xl border border-hairline bg-card p-4 md:p-6">
+                  <LandDetails l={l} area={p.area} price={p.price} hideHighlights />
+                </div>
+              </>
+            )}
+
             {rural && (
               <>
                 <h2 className="mt-10 font-display text-xl font-semibold tracking-tight md:mt-12 md:text-2xl">
@@ -208,7 +238,7 @@ export default async function ImovelPage({ params }: { params: Params }) {
             {p.features.length > 0 && (
               <>
                 <h2 className="mt-10 font-display text-xl font-semibold tracking-tight md:mt-12 md:text-2xl">
-                  Comodidades
+                  {land ? "No condomínio" : "Comodidades"}
                 </h2>
                 <div className="mt-5 flex flex-wrap gap-2">
                   {p.features.map((f) => (
@@ -270,6 +300,12 @@ export default async function ImovelPage({ params }: { params: Params }) {
                     <span className="font-mono tabular text-ink">
                       {formatBRL(pricePerAlq(p.price, r.totalAlq))}
                     </span>
+                  </div>
+                )}
+                {land && landNums.pricePerM2 != null && (
+                  <div className="flex justify-between text-subtle">
+                    <span>Por m²</span>
+                    <span className="font-mono tabular text-ink">{formatBRL(landNums.pricePerM2)}</span>
                   </div>
                 )}
                 {p.condoFee != null && (

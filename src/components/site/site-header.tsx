@@ -18,6 +18,7 @@ export function SiteHeader({
   orgName,
   menu,
   hasRural = false,
+  hasLand = false,
   overHero = false,
 }: {
   orgName: string;
@@ -25,6 +26,8 @@ export function SiteHeader({
   menu: SiteContent["header"];
   /** Exibe o link "Rurais" só quando há propriedades rurais publicadas */
   hasRural?: boolean;
+  /** Exibe o link de terrenos só quando há terrenos publicados */
+  hasLand?: boolean;
   /** Header transparente sobre o hero escuro: usa o tema escuro até rolar */
   overHero?: boolean;
 }) {
@@ -32,7 +35,8 @@ export function SiteHeader({
     (l) =>
       l.label.trim() &&
       safeHref(l.href) &&
-      (hasRural || !l.href.includes("categoria=rurais")),
+      (hasRural || !l.href.includes("categoria=rurais")) &&
+      (hasLand || !l.href.includes("categoria=terrenos")),
   );
   const ext = (h: string) => (isExternal(h) ? { target: "_blank", rel: "noreferrer" } : {});
   const [scrolled, setScrolled] = useState(false);

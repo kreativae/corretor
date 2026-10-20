@@ -63,6 +63,8 @@ export type WhiteLabel = {
   codePrefix: string;
   /** Prefixo do código das propriedades rurais (RUR-2401) */
   codePrefixRural: string;
+  /** Prefixo do código dos terrenos (vazio = o mesmo dos imóveis) */
+  codePrefixLand: string;
 };
 
 export const WL_DEFAULTS: WhiteLabel = {
@@ -85,6 +87,7 @@ export const WL_DEFAULTS: WhiteLabel = {
   fichaShowDomain: true,
   codePrefix: "NRD",
   codePrefixRural: "RUR",
+  codePrefixLand: "",
 };
 
 /** "ca " → "CA" (letras e números, até 6) */

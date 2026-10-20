@@ -37,6 +37,7 @@ function sanitizeWhiteLabel(input: Record<string, unknown>): WhiteLabel {
   if (!out.orgName) out.orgName = WL_DEFAULTS.orgName;
   out.codePrefix = cleanCodePrefix(out.codePrefix, WL_DEFAULTS.codePrefix);
   out.codePrefixRural = cleanCodePrefix(out.codePrefixRural, WL_DEFAULTS.codePrefixRural);
+  out.codePrefixLand = out.codePrefixLand ? cleanCodePrefix(out.codePrefixLand, "") : "";
   return out;
 }
 

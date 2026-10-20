@@ -39,6 +39,7 @@ import {
   Pencil,
   Plus,
   Search,
+  LandPlot,
   Tractor,
   Trash2,
 } from "lucide-react";
@@ -54,13 +55,15 @@ export function PropertiesTable({
 }: {
   initial: PropertyWithImages[];
   viewCounts?: Record<string, { total: number; unique: number }>;
-  kind?: "urbano" | "rural";
+  kind?: "urbano" | "rural" | "terreno";
 }) {
   const rural = kind === "rural";
-  const noun = rural ? "propriedades" : "imóveis";
+  const land = kind === "terreno";
+  const noun = rural ? "propriedades" : land ? "terrenos" : "imóveis";
+  const KindIcon = rural ? Tractor : land ? LandPlot : Building2;
   const router = useRouter();
   const [items, setItems] = useState(initial);
-  const filtersKey = rural ? "crm-rural-filters" : "crm-property-filters";
+  const filtersKey = rural ? "crm-rural-filters" : land ? "crm-land-filters" : "crm-property-filters";
   const [filters, setFilters] = useState<PropertyFilters>(EMPTY_PROPERTY_FILTERS);
   const [showFilters, setShowFilters] = useState(false);
   const patch = (p: Partial<PropertyFilters>) => setFilters((f) => ({ ...f, ...p }));
@@ -214,11 +217,11 @@ export function PropertiesTable({
             <option value="title">Título (A–Z)</option>
           </Select>
         </MobileCollapse>
-        <Link href={rural ? "/crm/propriedades/nova" : "/crm/imoveis/novo"}>
+        <Link href={rural ? "/crm/propriedades/nova" : land ? "/crm/terrenos/novo" : "/crm/imoveis/novo"}>
           <Button variant="primary" size="md">
             <Plus className="size-4" />
             {rural ? "Nova" : "Novo"}
-            <span className="hidden sm:inline">{rural ? " propriedade" : " imóvel"}</span>
+            <span className="hidden sm:inline">{rural ? " propriedade" : land ? " terreno" : " imóvel"}</span>
           </Button>
         </Link>
       </div>
@@ -228,10 +231,10 @@ export function PropertiesTable({
       {/* Indicadores */}
       <StatsGrid className="mt-5" gridClassName="gap-3 lg:grid-cols-5">
         <StatCard
-          label={rural ? "Propriedades" : "Imóveis"}
+          label={rural ? "Propriedades" : land ? "Terrenos" : "Imóveis"}
           value={stats.total}
           caption={`${stats.disponiveis} ${stats.disponiveis === 1 ? "disponível" : "disponíveis"}${stats.reservados ? ` · ${stats.reservados} ${stats.reservados === 1 ? "reservado" : "reservados"}` : ""}`}
-          icon={rural ? <Tractor className="size-4" /> : <Building2 className="size-4" />}
+          icon={<KindIcon className="size-4" />}
         />
         <StatCard
           label="VGV disponível"
@@ -277,9 +280,9 @@ export function PropertiesTable({
         open={showFilters}
         onClose={closeFilters}
         onReset={resetFilters}
-        title={rural ? "Filtrar propriedades" : "Filtrar imóveis"}
+        title={`Filtrar ${noun}`}
         activeCount={chips.length}
-        resultLabel={`Ver ${filtered.length} ${filtered.length === 1 ? (rural ? "propriedade" : "imóvel") : noun}`}
+        resultLabel={`Ver ${filtered.length} ${filtered.length === 1 ? (rural ? "propriedade" : land ? "terreno" : "imóvel") : noun}`}
       >
         <PropertyFiltersPanel
           value={filters}
@@ -287,6 +290,7 @@ export function PropertiesTable({
           items={items}
           views={viewCounts}
           rural={rural}
+          land={land}
         />
       </FilterSheet>
 
@@ -306,10 +310,8 @@ export function PropertiesTable({
                   {p.cover ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img src={p.cover} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
-                  ) : rural ? (
-                    <Tractor className="absolute inset-0 m-auto size-5 text-subtle" />
                   ) : (
-                    <Building2 className="absolute inset-0 m-auto size-5 text-subtle" />
+                    <KindIcon className="absolute inset-0 m-auto size-5 text-subtle" />
                   )}
                 </span>
                 <span className="min-w-0 flex-1">
@@ -382,7 +384,11 @@ export function PropertiesTable({
               ? items.length
                 ? "Nenhuma propriedade com esses filtros."
                 : "Nenhuma propriedade rural cadastrada ainda."
-              : "Nenhum imóvel com esses filtros."}
+              : land
+                ? items.length
+                  ? "Nenhum terreno com esses filtros."
+                  : "Nenhum terreno cadastrado ainda."
+                : "Nenhum imóvel com esses filtros."}
           </p>
         )}
       </div>
@@ -392,7 +398,7 @@ export function PropertiesTable({
         <table className="w-full min-w-[940px] text-left text-sm">
           <thead>
             <tr className="border-b border-hairline font-mono text-[10px] uppercase tracking-[0.16em] text-subtle">
-              <th className="px-5 py-3.5 font-medium">{rural ? "Propriedade" : "Imóvel"}</th>
+              <th className="px-5 py-3.5 font-medium">{rural ? "Propriedade" : land ? "Terreno" : "Imóvel"}</th>
               <th className="px-4 py-3.5 font-medium">Tipo</th>
               <th className="px-4 py-3.5 font-medium">{rural ? "Aptidão" : "Finalidade"}</th>
               <th className="px-4 py-3.5 text-right font-medium">Área</th>
@@ -424,11 +430,7 @@ export function PropertiesTable({
                           className="absolute inset-0 h-full w-full object-cover"
                         />
                       ) : (
-                        rural ? (
-                          <Tractor className="absolute inset-0 m-auto size-4 text-subtle" />
-                        ) : (
-                          <Building2 className="absolute inset-0 m-auto size-4 text-subtle" />
-                        )
+                        <KindIcon className="absolute inset-0 m-auto size-4 text-subtle" />
                       )}
                     </span>
                     <span className="min-w-0">
@@ -462,6 +464,9 @@ export function PropertiesTable({
                     <span className="block text-[10.5px] font-normal text-subtle">
                       {formatBRL(pricePerAlq(p.price, normalizeRural(p.rural).totalAlq))}/alq
                     </span>
+                  )}
+                  {land && p.area > 0 && (
+                    <span className="block text-[10.5px] font-normal text-subtle">{formatBRL(Math.round(p.price / p.area))}/m²</span>
                   )}
                 </td>
                 <td className="px-4 py-3 text-right">
@@ -532,7 +537,11 @@ export function PropertiesTable({
               ? items.length
                 ? "Nenhuma propriedade com esses filtros."
                 : "Nenhuma propriedade rural cadastrada ainda."
-              : "Nenhum imóvel com esses filtros."}
+              : land
+                ? items.length
+                  ? "Nenhum terreno com esses filtros."
+                  : "Nenhum terreno cadastrado ainda."
+                : "Nenhum imóvel com esses filtros."}
           </p>
         )}
       </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { isLandType, landDimensions, landNumbers, normalizeLand, TOPOGRAFIA_TERRENO } from "@/lib/land";
 import {
   APTIDAO_LABELS,
   formatAlq,
@@ -47,6 +48,17 @@ export function AdExporterModal({
   const xmlFeedUrl = `${siteUrl}/api/feed.xml`;
 
   const rural = isRuralType(p.type);
+  const land = isLandType(p.type);
+  const l = normalizeLand(p.land);
+  const landNums = landNumbers(p.price, p.area, l);
+  const landLines = [
+    `📐 *Área do terreno:* ${formatNumber(p.area)} m²${landDimensions(l) ? ` (${landDimensions(l)})` : ""}`,
+    landNums.pricePerM2 ? `📊 *Preço do m²:* ${formatBRL(landNums.pricePerM2)}` : "",
+    l.topografia ? `⛰️ *Topografia:* ${TOPOGRAFIA_TERRENO[l.topografia]}` : "",
+    l.zoneamento || l.usoPermitido.length ? `🏙️ *Zoneamento:* ${[l.zoneamento, l.usoPermitido.join("/")].filter(Boolean).join(" · ")}` : "",
+    landNums.buildable ? `🏗️ *Área construível:* ${formatNumber(landNums.buildable)} m²` : "",
+    l.infraestrutura.length ? `⚡ *Infraestrutura:* ${l.infraestrutura.join(", ")}` : "",
+  ].filter(Boolean);
   const r = normalizeRural(p.rural);
   const ra = ruralAreas(r);
   const mapaUrl = `${siteUrl}/imoveis/${p.code}/mapa`;
@@ -81,14 +93,18 @@ _Atendimento exclusivo ${wl.orgName}_`
     : `✨ *${p.title.toUpperCase()}* (${p.code})
 📍 *Localização:* ${p.neighborhood} — ${p.city}/${p.state}
 
-📐 *Área:* ${formatNumber(p.area)} m² construídos
+${
+  land
+    ? landLines.join("\n")
+    : `📐 *Área:* ${formatNumber(p.area)} m² construídos
 🛏️ *Quartos:* ${p.bedrooms}${p.suites ? ` (${p.suites} suíte${p.suites > 1 ? "s" : ""})` : ""}
 🚿 *Banheiros:* ${p.bathrooms}
-🚗 *Vagas:* ${p.garage}
+🚗 *Vagas:* ${p.garage}`
+}
 
 💰 *Valor:* ${formatBRL(p.price)}${p.purpose === "aluguel" ? "/mês" : ""}
 ${p.condoFee ? `🏢 *Condomínio:* ${formatBRL(p.condoFee)}/mês\n` : ""}${p.iptu ? `🏛️ *IPTU:* ${formatBRL(p.iptu)}/ano\n` : ""}
-${p.features.length ? `🌟 *Destaques:* ${p.features.slice(0, 5).join(" • ")}\n` : ""}
+${land && l.vantagens.length ? `🌟 *Vantagens:* ${l.vantagens.slice(0, 6).join(" • ")}\n` : p.features.length ? `🌟 *Destaques:* ${p.features.slice(0, 5).join(" • ")}\n` : ""}
 🔗 *Ver fotos e agendar visita:*
 ${propertyUrl}
 

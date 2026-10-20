@@ -1,4 +1,5 @@
 import { isRuralType } from "@/lib/rural";
+import { isLandType } from "@/lib/land";
 import { ImoveisBrowser } from "@/components/site/imoveis-browser";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
@@ -28,7 +29,7 @@ export default async function ImoveisPage({
 
   return (
     <div>
-      <SiteHeader orgName={wl.orgName} menu={content.header} hasRural={properties.some((x) => isRuralType(x.type))} />
+      <SiteHeader orgName={wl.orgName} menu={content.header} hasRural={properties.some((x) => isRuralType(x.type))} hasLand={properties.some((x) => isLandType(x.type))} />
       <main className="container-x pb-24 pt-24 md:pt-36">
         <p
           data-reveal
@@ -36,20 +37,22 @@ export default async function ImoveisPage({
         >
           {content.listing.eyebrow}
         </p>
-        {/* key: troca limpa do título ao alternar Imóveis / Propriedades rurais */}
+        {/* key: troca limpa do título ao alternar Imóveis / Terrenos / Propriedades rurais */}
         <h1
-          key={categoria === "rurais" ? "r" : "u"}
+          key={String(categoria ?? "u")}
           data-words
           className="mt-3 text-balance font-display text-4xl font-semibold tracking-[-0.02em] sm:text-5xl md:text-7xl"
         >
           {categoria === "rurais" && content.listing.titleRural.trim()
             ? content.listing.titleRural
-            : content.listing.title}
+            : categoria === "terrenos" && content.listing.titleLand.trim()
+              ? content.listing.titleLand
+              : content.listing.title}
         </h1>
         <ImoveisBrowser
           key={JSON.stringify(sp)}
           properties={properties}
-          initialCategoria={categoria === "rurais" ? "rurais" : "urbanos"}
+          initialCategoria={categoria === "rurais" || categoria === "terrenos" ? categoria : "urbanos"}
           initialSearch={sp}
         />
       </main>

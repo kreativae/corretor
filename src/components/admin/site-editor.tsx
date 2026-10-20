@@ -440,6 +440,13 @@ export function SiteEditor({
                     className="font-display text-base"
                   />
                 </Field>
+                <Field label="Título na aba Terrenos" hint="Troca quando o visitante escolhe Terrenos">
+                  <Input
+                    value={c.hero.titleLand}
+                    onChange={(e) => patch("hero", { titleLand: e.target.value })}
+                    className="font-display text-base"
+                  />
+                </Field>
                 <Field label="Subtítulo" className="sm:col-span-2">
                   <Textarea
                     rows={3}
@@ -576,10 +583,10 @@ export function SiteEditor({
               Categorias da home
             </h2>
             <p className="mb-5 text-xs text-subtle">
-              Dois cards com foto: Imóveis (overlay laranja) e Propriedades rurais (overlay marinho).
-              Sem imagem informada, usa a foto padrão.
+              Cards com foto: Imóveis (overlay laranja), Propriedades rurais (overlay marinho) e Terrenos
+              (overlay verde). Sem imagem informada, usa a foto padrão. Cada card só aparece com anúncios publicados.
             </p>
-            <div className="grid gap-6 md:grid-cols-2">
+            <div className="grid gap-6 md:grid-cols-3">
               <div className="space-y-4">
                 <p className="text-xs font-medium uppercase tracking-[0.16em] text-[#F47525]">Imóveis</p>
                 <Field label="Título">
@@ -619,6 +626,27 @@ export function SiteEditor({
                   <Input
                     value={c.categories.ruralImage}
                     onChange={(e) => patch("categories", { ruralImage: e.target.value })} className="font-mono text-xs"
+                  />
+                </Field>
+              </div>
+              <div className="space-y-4">
+                <p className="text-xs font-medium uppercase tracking-[0.16em] text-[#2B2B5D] dark:text-white">Terrenos</p>
+                <Field label="Título">
+                  <Input
+                    value={c.categories.landTitle}
+                    onChange={(e) => patch("categories", { landTitle: e.target.value })}
+                  />
+                </Field>
+                <Field label="Texto">
+                  <Input
+                    value={c.categories.landText}
+                    onChange={(e) => patch("categories", { landText: e.target.value })}
+                  />
+                </Field>
+                <Field label="Imagem (URL)" hint="Vazio = capa de um terreno publicado">
+                  <Input
+                    value={c.categories.landImage}
+                    onChange={(e) => patch("categories", { landImage: e.target.value })} className="font-mono text-xs"
                   />
                 </Field>
               </div>
@@ -717,6 +745,12 @@ export function SiteEditor({
                   <Input
                     value={c.listing.titleRural}
                     onChange={(e) => patch("listing", { titleRural: e.target.value })}
+                  />
+                </Field>
+                <Field label="Título na aba Terrenos">
+                  <Input
+                    value={c.listing.titleLand}
+                    onChange={(e) => patch("listing", { titleLand: e.target.value })}
                   />
                 </Field>
               </div>

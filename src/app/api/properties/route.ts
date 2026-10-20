@@ -5,7 +5,8 @@ import { getCurrentUser } from "@/lib/auth";
 import { sanitizePropertyPartnerFields } from "@/lib/partners";
 import { sanitizeResponsible } from "@/lib/responsible";
 import { nextPropertyCode } from "@/lib/property-code";
-import { alqToM2, isRuralType, sanitizeRural, kmzOnly } from "@/lib/rural";
+import { alqToM2, isRuralType, kindOf, sanitizeRural, kmzOnly } from "@/lib/rural";
+import { isLandType, sanitizeLand } from "@/lib/land";
 import { parseYouTubeUrl } from "@/lib/utils";
 import { propertyLimitError } from "@/lib/account";
 import { setKmzPassword } from "@/lib/kmz-lock";
@@ -44,18 +45,20 @@ export async function POST(req: Request) {
       const ruralData = sanitizeRural(data.rural);
       data.rural = ruralData;
       data.area = alqToM2(ruralData.totalAlq ?? 0);
-    } else if (data.type === "terreno") {
-      // Terreno: só o KMZ do perímetro
+    } else if (isLandType(data.type as string)) {
+      // Terreno: em `rural` só o KMZ do perímetro; o resto em `land`
       data.rural = kmzOnly(data.rural);
     } else {
       data.rural = null;
     }
+    data.land = isLandType(data.type as string) ? sanitizeLand(data.land) : null;
+    if (isLandType(data.type as string)) Object.assign(data, { bedrooms: 0, suites: 0, bathrooms: 0, garage: 0 });
 
     if (!data.title || typeof data.price !== "number" || typeof data.area !== "number") {
       return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
     }
 
-    const code = await nextPropertyCode(rural);
+    const code = await nextPropertyCode(kindOf(data.type as string));
 
     const [created] = await (await getDb())
       .insert(properties)

@@ -1,4 +1,5 @@
 import type { RuralData } from "@/lib/rural";
+import type { LandData } from "@/lib/land";
 import { sql } from "drizzle-orm";
 import {
   bigint,
@@ -141,6 +142,9 @@ export const properties = pgTable("properties", {
       "cobertura",
       "estudio",
       "terreno",
+      "lote_condominio",
+      "terreno_comercial",
+      "area",
       "fazenda",
       "sitio",
       "chacara",
@@ -179,6 +183,8 @@ export const properties = pgTable("properties", {
   published: boolean("published").notNull().default(true),
   /** Dados de propriedade rural (fazenda, sítio, chácara) — ver src/lib/rural.ts */
   rural: jsonb("rural").$type<RuralData>(),
+  /** Dados de terreno (medidas, zoneamento, vantagens…) — ver src/lib/land.ts */
+  land: jsonb("land").$type<LandData>(),
   /** Imóvel de parceiro (captado por outro corretor/imobiliária) */
   videoUrl: text("video_url"),
   partnerId: uuid("partner_id").references(() => partners.id, { onDelete: "set null" }),

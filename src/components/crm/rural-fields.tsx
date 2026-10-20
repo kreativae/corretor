@@ -39,7 +39,7 @@ const toText = (v: number | null) =>
   v == null ? "" : v.toLocaleString("pt-BR", { maximumFractionDigits: 4, useGrouping: false });
 
 /** Campo numérico com vírgula decimal (ex.: 12,5 alqueires). */
-function DecimalInput({
+export function DecimalInput({
   value,
   onChange,
   suffix,
@@ -74,7 +74,7 @@ function DecimalInput({
   );
 }
 
-function Chips({
+export function Chips({
   options,
   value,
   onChange,
@@ -323,7 +323,7 @@ export function KmzField({
 }
 
 /** Seção que recolhe: fechada mostra um resumo do que já foi preenchido. */
-function Collapsible({
+export function Collapsible({
   id,
   title,
   summary,

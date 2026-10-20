@@ -5,9 +5,11 @@ import { PURPOSE_LABELS, STATUS_LABELS, TYPE_LABELS } from "@/lib/labels";
 import type { PropertyWithImages } from "@/lib/queries";
 import { PhotoManager } from "./photo-manager";
 import { KmzField, RuralFields } from "./rural-fields";
+import { LandFields, LandPricePerM2 } from "./land-fields";
+import { normalizeLand, type LandData } from "@/lib/land";
 import { SectionNav } from "./section-nav";
 import { useStickyAside } from "./use-sticky-aside";
-import { crmPropertyPath, isRuralType, normalizeRural, pricePerAlq, RURAL_TYPES, type RuralData } from "@/lib/rural";
+import { crmPropertyPath, kindOf, normalizeRural, pricePerAlq, RURAL_TYPES, type PropertyKind, type RuralData } from "@/lib/rural";
 import { TAX_BASE, type TaxBase } from "@/lib/partners";
 import { CommissionBreakdown } from "@/components/crm/commission-breakdown";
 import { PctInput, SharePicks } from "@/components/crm/share-picks";
@@ -52,22 +54,23 @@ export function PropertyForm({
   partners?: PartnerOption[];
   /** Comodidades extras cadastradas pela equipe */
   customFeatures?: string[];
-  /** Novo cadastro: urbano (padrão) ou rural. Na edição, vem do tipo. */
-  kind?: "urbano" | "rural";
+  /** Novo cadastro: urbano (padrão), rural ou terreno. Na edição, vem do tipo. */
+  kind?: PropertyKind;
 }) {
   const router = useRouter();
   const { ref: asideRef, style: asideStyle } = useStickyAside();
   const isEdit = !!initial;
-  const rural = initial ? isRuralType(initial.type) : kind === "rural";
-  const typeOptions = Object.entries(TYPE_LABELS).filter(
-    ([k]) => isRuralType(k) === rural,
-  );
+  const category: PropertyKind = initial ? kindOf(initial.type) : (kind ?? "urbano");
+  const rural = category === "rural";
+  const land = category === "terreno";
+  const typeOptions = Object.entries(TYPE_LABELS).filter(([k]) => kindOf(k) === category);
   const [ruralData, setRuralData] = useState<RuralData>(() => normalizeRural(initial?.rural));
+  const [landData, setLandData] = useState<LandData>(() => normalizeLand(initial?.land));
   const [saving, setSaving] = useState(false);
   const [kmzPassword, setKmzPassword] = useState(initialKmzPassword);
   const [form, setForm] = useState({
     title: initial?.title ?? "",
-    type: initial?.type ?? (rural ? RURAL_TYPES[0] : "apartamento"),
+    type: initial?.type ?? (rural ? RURAL_TYPES[0] : land ? "terreno" : "apartamento"),
     purpose: initial?.purpose ?? "venda",
     status: initial?.status ?? "disponivel",
     price: initial?.price?.toString() ?? "",
@@ -141,6 +144,8 @@ export function PropertyForm({
         state: form.state.trim(),
         features: form.features,
         rural: rural ? ruralData : undefined,
+        land: land ? landData : undefined,
+        price: Number(form.price) || 0,
       },
       variant,
     );
@@ -169,7 +174,7 @@ export function PropertyForm({
         return;
       }
     } else if (!form.title.trim() || !form.price || !form.area || !form.neighborhood.trim()) {
-      toast.error("Preencha título, preço, área e bairro.");
+      toast.error(land ? "Preencha título, preço, área do terreno e bairro." : "Preencha título, preço, área e bairro.");
       return;
     }
     setSaving(true);
@@ -217,12 +222,20 @@ export function PropertyForm({
               features: [],
             }
           : {}),
-        // Terreno: KMZ do perímetro
-        ...(!rural && form.type === "terreno"
-          ? { rural: { kmzUrl: ruralData.kmzUrl, kmzName: ruralData.kmzName } }
+        // Terreno: dados próprios e o KMZ do perímetro
+        ...(land
+          ? {
+              land: landData,
+              rural: { kmzUrl: ruralData.kmzUrl, kmzName: ruralData.kmzName },
+              lotArea: null,
+              bedrooms: 0,
+              suites: 0,
+              bathrooms: 0,
+              garage: 0,
+            }
           : {}),
         // Senha do mapa/KMZ no site (guardada à parte, fora dos dados do anúncio)
-        ...(rural || form.type === "terreno" ? { kmzPassword: ruralData.kmzUrl ? kmzPassword : "" } : {}),
+        ...(rural || land ? { kmzPassword: ruralData.kmzUrl ? kmzPassword : "" } : {}),
       };
       const res = await fetch(
         isEdit ? `/api/properties/${initial.id}` : "/api/properties",
@@ -234,7 +247,7 @@ export function PropertyForm({
       );
       if (!res.ok) throw new Error();
       const data = await res.json();
-      toast.success(isEdit ? "Imóvel atualizado." : `Imóvel ${data.code} criado.`);
+      toast.success(isEdit ? (land ? "Terreno atualizado." : "Imóvel atualizado.") : `${land ? "Terreno" : "Imóvel"} ${data.code} criado.`);
       router.push(crmPropertyPath(data));
       router.refresh();
     } catch {
@@ -257,15 +270,28 @@ export function PropertyForm({
         ["sec-docs", "Documentos"],
         ["sec-mapa", "Mapa"],
       ]
-    : [
-        ["sec-dados", "Dados"],
-        ["sec-local", "Endereço"],
-        ["sec-fotos", "Fotos"],
-        ["sec-caract", "Características"],
-        ["sec-comodidades", "Comodidades"],
-        ["sec-descricao", "Descrição"],
-        ...(form.type === "terreno" ? [["sec-mapa", "Mapa"]] : []),
-      ];
+    : land
+      ? [
+          ["sec-dados", "Dados"],
+          ["sec-local", "Endereço"],
+          ["sec-fotos", "Fotos"],
+          ["sec-medidas", "Medidas"],
+          ["sec-vantagens", "Vantagens"],
+          ["sec-comodidades", "Comodidades"],
+          ["sec-descricao", "Descrição"],
+          ["sec-zona", "Zoneamento"],
+          ["sec-infra", "Infraestrutura"],
+          ["sec-docs", "Documentos"],
+          ["sec-mapa", "Mapa"],
+        ]
+      : [
+          ["sec-dados", "Dados"],
+          ["sec-local", "Endereço"],
+          ["sec-fotos", "Fotos"],
+          ["sec-caract", "Características"],
+          ["sec-comodidades", "Comodidades"],
+          ["sec-descricao", "Descrição"],
+        ];
   const sectionCls = "scroll-mt-32 rounded-2xl border border-hairline bg-card p-6";
   const h2Cls = "mb-5 font-display text-base font-semibold tracking-tight";
 
@@ -288,9 +314,13 @@ export function PropertyForm({
               ? isEdit
                 ? "Editar propriedade rural"
                 : "Nova propriedade rural"
-              : isEdit
-                ? "Editar imóvel"
-                : "Novo imóvel"}
+              : land
+                ? isEdit
+                  ? "Editar terreno"
+                  : "Novo terreno"
+                : isEdit
+                  ? "Editar imóvel"
+                  : "Novo imóvel"}
           </h1>
         </div>
       </div>
@@ -310,7 +340,9 @@ export function PropertyForm({
                   placeholder={
                     rural
                       ? "Ex.: Fazenda 120 alqueires dupla aptidão em Tamarana"
-                      : "Ex.: Casa de vidro no Alto de Pinheiros"
+                      : land
+                        ? "Ex.: Terreno de esquina, 450 m², pronto para construir"
+                        : "Ex.: Casa de vidro no Alto de Pinheiros"
                   }
                   className={inputCls}
                 />
@@ -370,6 +402,19 @@ export function PropertyForm({
 
           {rural ? (
             <RuralFields part="uso" value={ruralData} onChange={setRuralData} />
+          ) : land ? (
+            <>
+              <LandFields part="medidas" value={landData} onChange={setLandData} area={form.area} onAreaChange={(v) => set("area", v)} price={Number(form.price) || 0} />
+              <LandFields part="vantagens" value={landData} onChange={setLandData} area={form.area} onAreaChange={(v) => set("area", v)} price={Number(form.price) || 0} />
+              <section id="sec-comodidades" className={sectionCls}>
+                <h2 className={h2Cls}>
+                  Comodidades
+                  <span className="ml-2 font-mono text-[11px] font-normal text-subtle">{form.features.length} selecionadas</span>
+                </h2>
+                <p className="-mt-3 mb-4 text-xs text-subtle">Para lote em condomínio: o que o condomínio oferece.</p>
+                <AmenityPicker selected={form.features} onToggle={toggleFeature} onAdd={toggleFeature} custom={customFeatures} />
+              </section>
+            </>
           ) : (
             <>
           {/* Características */}
@@ -433,7 +478,9 @@ export function PropertyForm({
               placeholder={
                 rural
                   ? "Histórico da área, produtividade, sede, vizinhança, logística de escoamento…"
-                  : "Conte a história do imóvel: luz, planta, reforma, vista…"
+                  : land
+                    ? "O que dá para construir, a vizinhança, o sol, a valorização da região…"
+                    : "Conte a história do imóvel: luz, planta, reforma, vista…"
               }
             />
             <div className="mt-5 border-t border-hairline pt-5">
@@ -478,18 +525,21 @@ export function PropertyForm({
           {rural ? (
             <RuralFields part="tecnico" value={ruralData} onChange={setRuralData} kmzPassword={kmzPassword} onKmzPasswordChange={setKmzPassword} />
           ) : (
-            // Terreno: perímetro em KMZ (mapa no site e QR code na ficha)
-            form.type === "terreno" && (
-            <section id="sec-mapa" className={sectionCls}>
-              <h2 className={h2Cls}>Perímetro do terreno (KMZ)</h2>
-              <KmzField
-                url={ruralData.kmzUrl}
-                name={ruralData.kmzName}
-                onChange={(url, name) => setRuralData((cur) => ({ ...cur, kmzUrl: url, kmzName: name }))}
-                password={kmzPassword}
-                onPasswordChange={setKmzPassword}
-              />
-            </section>
+            land && (
+              <>
+                <LandFields part="tecnico" value={landData} onChange={setLandData} area={form.area} onAreaChange={(v) => set("area", v)} price={Number(form.price) || 0} />
+                {/* Perímetro em KMZ (mapa no site e QR code na ficha) */}
+                <section id="sec-mapa" className={sectionCls}>
+                  <h2 className={h2Cls}>Perímetro do terreno (KMZ)</h2>
+                  <KmzField
+                    url={ruralData.kmzUrl}
+                    name={ruralData.kmzName}
+                    onChange={(url, name) => setRuralData((cur) => ({ ...cur, kmzUrl: url, kmzName: name }))}
+                    password={kmzPassword}
+                    onPasswordChange={setKmzPassword}
+                  />
+                </section>
+              </>
             )
           )}
         </div>
@@ -515,6 +565,7 @@ export function PropertyForm({
                 </div>
               ) : (
                 <>
+                  {land && <LandPricePerM2 price={Number(form.price) || 0} area={form.area} />}
                   <Field label="Condomínio (R$/mês)">
                     <Input type="number" min={0} value={form.condoFee} onChange={(e) => set("condoFee", e.target.value)} className={cn(inputCls, "font-mono tabular")} />
                   </Field>
@@ -663,7 +714,7 @@ export function PropertyForm({
             </Button>
             <Button variant="accent" loading={saving} onClick={submit}>
               <Save className="size-4" />
-              {isEdit ? "Salvar alterações" : rural ? "Cadastrar propriedade" : "Cadastrar imóvel"}
+              {isEdit ? "Salvar alterações" : rural ? "Cadastrar propriedade" : land ? "Cadastrar terreno" : "Cadastrar imóvel"}
             </Button>
           </div>
         </div>

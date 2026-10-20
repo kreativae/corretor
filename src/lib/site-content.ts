@@ -21,6 +21,8 @@ export type SiteContent = {
     title: string;
     /** Título quando a busca está na aba Rurais */
     titleRural: string;
+    /** Título quando a busca está na aba Terrenos */
+    titleLand: string;
     subtitle: string;
     ctaPrimary: string;
     ctaSecondary: string;
@@ -39,6 +41,10 @@ export type SiteContent = {
     ruralTitle: string;
     ruralText: string;
     ruralImage: string;
+    landTitle: string;
+    landText: string;
+    /** Vazio = capa de um terreno publicado */
+    landImage: string;
   };
   experience: {
     eyebrow: string;
@@ -65,6 +71,8 @@ export type SiteContent = {
     title: string;
     /** Título na aba Propriedades rurais */
     titleRural: string;
+    /** Título na aba Terrenos */
+    titleLand: string;
   };
   detail: {
     visitEyebrow: string;
@@ -120,6 +128,7 @@ export const DEFAULT_CONTENT: SiteContent = {
     links: [
       { label: "Comprar", href: "/imoveis?finalidade=venda" },
       { label: "Alugar", href: "/imoveis?finalidade=aluguel" },
+      { label: "Terrenos", href: "/imoveis?categoria=terrenos" },
       { label: "Rurais", href: "/imoveis?categoria=rurais" },
       { label: "Todos os imóveis", href: "/imoveis" },
       { label: "Contato", href: "/#fale-conosco" },
@@ -138,6 +147,7 @@ export const DEFAULT_CONTENT: SiteContent = {
     eyebrow: "Negócios imobiliários",
     title: "Encontre o imóvel ideal.",
     titleRural: "Encontre a propriedade ideal.",
+    titleLand: "Encontre o terreno ideal.",
     subtitle:
       "Apartamentos, casas e propriedades rurais à venda e para alugar. Busque pelo bairro, tipo e preço — e fale direto com um corretor.",
     ctaPrimary: "Buscar",
@@ -156,13 +166,16 @@ export const DEFAULT_CONTENT: SiteContent = {
   },
   categories: {
     urbanTitle: "Imóveis",
-    urbanText: "Casas, apartamentos e terrenos para comprar ou alugar",
+    urbanText: "Casas e apartamentos para comprar ou alugar",
     urbanImage:
       "https://images.pexels.com/photos/3417676/pexels-photo-3417676.jpeg?auto=compress&cs=tinysrgb&w=1600",
     ruralTitle: "Propriedades rurais",
     ruralText: "Fazendas, sítios e chácaras com área, aptidão e mapa",
     ruralImage:
       "https://images.pexels.com/photos/15885072/pexels-photo-15885072.jpeg?auto=compress&cs=tinysrgb&w=1600",
+    landTitle: "Terrenos",
+    landText: "Lotes e áreas com medidas, zoneamento e potencial construtivo",
+    landImage: "",
   },
   collection: {
     eyebrow: "Destaques",
@@ -216,6 +229,7 @@ export const DEFAULT_CONTENT: SiteContent = {
     eyebrow: "Imóveis à venda e para alugar",
     title: "Encontre o imóvel ideal.",
     titleRural: "Encontre a propriedade ideal.",
+    titleLand: "Encontre o terreno ideal.",
   },
   detail: {
     visitEyebrow: "Visita guiada",
@@ -340,6 +354,11 @@ export async function getSiteContent(): Promise<SiteContent> {
         // Imagem vazia volta para a foto padrão
         urbanImage: saved.categories?.urbanImage?.trim() || DEFAULT_CONTENT.categories.urbanImage,
         ruralImage: saved.categories?.ruralImage?.trim() || DEFAULT_CONTENT.categories.ruralImage,
+        // Terrenos ganharam categoria própria: o texto antigo de Imóveis não fala mais deles
+        urbanText:
+          saved.categories?.urbanText === "Casas, apartamentos e terrenos para comprar ou alugar"
+            ? DEFAULT_CONTENT.categories.urbanText
+            : (saved.categories?.urbanText ?? DEFAULT_CONTENT.categories.urbanText),
       },
       experience: { ...DEFAULT_CONTENT.experience, ...saved.experience },
       process: { ...DEFAULT_CONTENT.process, ...saved.process },

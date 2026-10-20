@@ -5,6 +5,7 @@ export const MODULES = [
   { key: "negociacao", label: "Negociação", description: "Envio de fichas por e-mail ao cliente, com histórico.", paths: ["/crm/negociacao"] },
   { key: "valorM2", label: "Valor do m²", description: "Mapa e ranking do valor por bairro e município.", paths: ["/crm/valor-m2"] },
   { key: "rurais", label: "Propriedades rurais", description: "Cadastro de fazendas, sítios e chácaras, KMZ e mapa de satélite.", paths: ["/crm/propriedades"] },
+  { key: "terrenos", label: "Terrenos", description: "Cadastro de lotes e áreas com medidas, zoneamento, vantagens e ficha própria.", paths: ["/crm/terrenos"] },
   { key: "parceiros", label: "Parceiros", description: "Imóveis de parceiros e divisão de comissão.", paths: ["/crm/parceiros"] },
   { key: "calculadora", label: "Calculadoras", description: "Comissão, conversão de áreas e porcentagens.", paths: ["/crm/calculadora"] },
 ] as const;

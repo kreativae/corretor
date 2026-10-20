@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import { Building2, Calculator, CalendarPlus, Plus, RefreshCw, Tractor, UserPlus } from "lucide-react";
+import { Building2, Calculator, CalendarPlus, Plus, RefreshCw, LandPlot, Tractor, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -58,6 +58,7 @@ export function HeaderActions({ modules }: { modules?: Modules }) {
   const items = [
     { href: "/crm/imoveis/novo", label: "Novo imóvel", icon: Building2 },
     ...(modules?.rurais === false ? [] : [{ href: "/crm/propriedades/nova", label: "Nova propriedade", icon: Tractor }]),
+    ...(modules?.terrenos === false ? [] : [{ href: "/crm/terrenos/novo", label: "Novo terreno", icon: LandPlot }]),
     { href: "/crm/contatos?novo=1", label: "Novo contato", icon: UserPlus },
     { href: "/crm/agenda?nova=1", label: "Novo agendamento", icon: CalendarPlus },
   ];

@@ -1,4 +1,6 @@
 import { RuralDetails } from "@/components/rural-details";
+import { LandDetails } from "@/components/land-details";
+import { landDimensions, landNumbers, normalizeLand } from "@/lib/land";
 import { getKmzPassword } from "@/lib/kmz-lock";
 import { DetailTabs } from "@/components/crm/detail-tabs";
 import { commissionValues } from "@/lib/partners";
@@ -11,7 +13,8 @@ import {
   formatAlq,
   formatHa,
   formatPct,
-  isRuralType,
+  CRM_SECTION,
+  kindOf,
   normalizeRural,
   pricePerAlq,
   ruralAreas, acceptsKmz } from "@/lib/rural";
@@ -58,6 +61,9 @@ import {
   Trees,
   Wheat,
   Handshake,
+  Maximize2,
+  Building2,
+  Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -68,7 +74,7 @@ export async function PropertyDetail({
   section,
 }: {
   id: string;
-  section: "imoveis" | "propriedades";
+  section: "imoveis" | "propriedades" | "terrenos";
 }) {
   const [p, portals, allVisits, wl] = await Promise.all([
     getPropertyById(id),
@@ -77,8 +83,8 @@ export async function PropertyDetail({
     getWhiteLabel(),
   ]);
   if (!p) notFound();
-  // Rurais vivem em /crm/propriedades; urbanos em /crm/imoveis
-  if (isRuralType(p.type) !== (section === "propriedades")) redirect(crmPropertyPath(p));
+  // Rurais vivem em /crm/propriedades, terrenos em /crm/terrenos e urbanos em /crm/imoveis
+  if (CRM_SECTION[kindOf(p.type)] !== section) redirect(crmPropertyPath(p));
 
   const kmzPassword = acceptsKmz(p.type) ? await getKmzPassword(p.id) : null;
   const [activities, views, documents, partner, msgs, market] = await Promise.all([
@@ -92,7 +98,10 @@ export async function PropertyDetail({
   const commission = commissionValues(p.price, p.commissionPct, p.partnerSharePct);
   const propertyVisits = allVisits.filter((v) => v.property?.id === p.id);
 
-  const rural = isRuralType(p.type);
+  const rural = kindOf(p.type) === "rural";
+  const land = kindOf(p.type) === "terreno";
+  const l = normalizeLand(p.land);
+  const landNums = landNumbers(p.price, p.area, l);
   const r = normalizeRural(p.rural);
   const areas = ruralAreas(r);
   const specs = rural
@@ -102,7 +111,14 @@ export async function PropertyDetail({
         { icon: Wheat, label: "Área plantada", value: `${formatAlq(areas.plantada)} alq` },
         { icon: Trees, label: "Reserva legal", value: formatPct(areas.reservaPct) },
       ]
-    : [
+    : land
+      ? [
+          { icon: Ruler, label: "Área do terreno", value: `${formatNumber(p.area)} m²` },
+          { icon: Maximize2, label: "Medidas", value: landDimensions(l) || "—" },
+          { icon: Building2, label: "Área construível", value: landNums.buildable ? `${formatNumber(landNums.buildable)} m²` : "—" },
+          { icon: Sparkles, label: "Vantagens", value: l.vantagens.length },
+        ]
+      : [
         { icon: Ruler, label: "Área", value: `${formatNumber(p.area)} m²` },
         { icon: BedDouble, label: "Quartos", value: p.bedrooms },
         { icon: ShowerHead, label: "Banheiros", value: p.bathrooms },
@@ -115,7 +131,7 @@ export async function PropertyDetail({
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-start gap-4">
           <Link
-            href={rural ? "/crm/propriedades" : "/crm/imoveis"}
+            href={`/crm/${section}`}
             className="mt-1 flex size-10 shrink-0 items-center justify-center rounded-full border border-hairline text-subtle transition-colors hover:bg-soft hover:text-ink"
             aria-label="Voltar"
           >
@@ -203,7 +219,13 @@ export async function PropertyDetail({
             <div className="mt-4 space-y-2 border-t border-hairline pt-4 text-sm">
               {(rural
                 ? [["Por alqueire", pricePerAlq(p.price, r.totalAlq)]]
-                : [
+                : land
+                  ? [
+                      ["Por m²", landNums.pricePerM2],
+                      ["Condomínio", p.condoFee],
+                      ["IPTU /ano", p.iptu],
+                    ]
+                  : [
                     ["Condomínio", p.condoFee],
                     ["IPTU /ano", p.iptu],
                     ["Terreno", p.lotArea ? `${formatNumber(p.lotArea)} m²` : null],
@@ -357,6 +379,13 @@ export async function PropertyDetail({
               </div>
             )}
           </div>
+
+          {land && (
+            <div className="rounded-2xl border border-hairline bg-card p-4 md:p-6">
+              <h2 className="mb-5 font-display text-base font-semibold tracking-tight">Dados do terreno</h2>
+              <LandDetails l={l} area={p.area} price={p.price} mapHref={`/imoveis/${p.code}/mapa`} hasKmz={!!r.kmzUrl} showInternal hideHighlights />
+            </div>
+          )}
 
           {rural && (
             <div className="rounded-2xl border border-hairline bg-card p-4 md:p-6">

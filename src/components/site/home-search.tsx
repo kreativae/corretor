@@ -2,6 +2,7 @@
 
 import { TYPE_LABELS } from "@/lib/labels";
 import { RURAL_TYPES } from "@/lib/rural";
+import { LAND_TYPES } from "@/lib/land";
 import { searchHref } from "@/lib/site-search";
 import { cn } from "@/lib/utils";
 import { ChevronDown, MapPin, Search } from "lucide-react";
@@ -9,7 +10,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createContext, useContext, useState, type ReactNode } from "react";
 
-type Tab = "venda" | "aluguel" | "rurais";
+type Tab = "venda" | "aluguel" | "rurais" | "terrenos";
 
 /** Aba da busca compartilhada com o título do hero */
 const TabContext = createContext<[Tab, (t: Tab) => void] | null>(null);
@@ -19,28 +20,31 @@ export function HeroSearchProvider({ children }: { children: ReactNode }) {
   return <TabContext.Provider value={state}>{children}</TabContext.Provider>;
 }
 
-/** Título do hero: muda para o texto de rurais quando essa aba está ativa */
+/** Título do hero: muda para o texto de rurais ou terrenos quando essa aba está ativa */
 export function HeroTitle({
   title,
   titleRural,
+  titleLand = "",
   className,
 }: {
   title: string;
   titleRural: string;
+  titleLand?: string;
   className?: string;
 }) {
   const tab = useContext(TabContext)?.[0] ?? "venda";
-  const rural = tab === "rurais" && titleRural.trim();
+  const text =
+    tab === "rurais" && titleRural.trim() ? titleRural : tab === "terrenos" && titleLand.trim() ? titleLand : title;
   return (
     <h1 className={className}>
-      <span key={rural ? "r" : "u"} className="block animate-fade-in">
-        {rural ? titleRural : title}
+      <span key={text} className="block animate-fade-in">
+        {text}
       </span>
     </h1>
   );
 }
 
-const PRICES: Record<Exclude<Tab, "rurais">, { v: string; label: string }[]> = {
+const PRICES: Record<Exclude<Tab, "rurais" | "terrenos">, { v: string; label: string }[]> = {
   venda: [
     { v: "300000", label: "R$ 300 mil" },
     { v: "500000", label: "R$ 500 mil" },
@@ -57,6 +61,15 @@ const PRICES: Record<Exclude<Tab, "rurais">, { v: string; label: string }[]> = {
     { v: "15000", label: "R$ 15 mil" },
   ],
 };
+
+/** Terrenos: preço até */
+const LAND_PRICES = [
+  { v: "150000", label: "R$ 150 mil" },
+  { v: "300000", label: "R$ 300 mil" },
+  { v: "500000", label: "R$ 500 mil" },
+  { v: "1000000", label: "R$ 1 milhão" },
+  { v: "3000000", label: "R$ 3 milhões" },
+];
 
 /** Rurais buscam por tamanho, em alqueires ("min-max"; vazio = sem limite) */
 const SIZES = [
@@ -112,6 +125,8 @@ export function HomeSearch({
   neighborhoods,
   cities,
   hasRural,
+  hasLand = false,
+  landTypes = [],
   hasRent,
   buttonLabel,
   quick,
@@ -123,6 +138,10 @@ export function HomeSearch({
   neighborhoods: string[];
   cities: string[];
   hasRural: boolean;
+  /** Há terrenos publicados (aba Terrenos) */
+  hasLand?: boolean;
+  /** Tipos de terreno com anúncios publicados */
+  landTypes?: string[];
   hasRent: boolean;
   buttonLabel: string;
   /** Atalhos por aba (só os que têm resultado) */
@@ -140,15 +159,17 @@ export function HomeSearch({
   const tabs = [
     { id: "venda" as const, label: "Imóveis" },
     ...(hasRent ? [{ id: "aluguel" as const, label: "Alugar" }] : []),
+    ...(hasLand ? [{ id: "terrenos" as const, label: "Terrenos" }] : []),
     ...(hasRural ? [{ id: "rurais" as const, label: "Rurais" }] : []),
   ];
-  const types = tab === "rurais" ? [...RURAL_TYPES] : urbanTypes;
+  const land = tab === "terrenos";
+  const types = tab === "rurais" ? [...RURAL_TYPES] : land ? (landTypes.length ? landTypes : [...LAND_TYPES]) : urbanTypes;
 
   function pick(t: Tab) {
     setTab(t);
     setTipo("");
     setPreco("");
-    if (t === "rurais") setQuartos(0);
+    if (t === "rurais" || t === "terrenos") setQuartos(0);
   }
 
   function submit(e: React.FormEvent) {
@@ -159,8 +180,8 @@ export function HomeSearch({
     const cidade = w && !bairro ? cities.find((c) => norm(c) === w) : undefined;
     router.push(
       searchHref({
-        categoria: tab === "rurais" ? "rurais" : undefined,
-        finalidade: tab === "rurais" ? "" : tab,
+        categoria: tab === "rurais" ? "rurais" : land ? "terrenos" : undefined,
+        finalidade: tab === "rurais" || land ? "" : tab,
         tipo,
         bairro,
         cidade,
@@ -202,7 +223,7 @@ export function HomeSearch({
         <div
           className={cn(
             "grid grid-cols-2 gap-2",
-            tab === "rurais"
+            tab === "rurais" || land
               ? "md:grid-cols-[1.7fr_1fr_1fr_auto]"
               : "md:grid-cols-[1.3fr_1fr_1fr_1.35fr_auto]",
           )}
@@ -241,7 +262,7 @@ export function HomeSearch({
           <Box label={tab === "rurais" ? "Tamanho" : "Preço até"}>
             <select value={preco} onChange={(e) => setPreco(e.target.value)} className={control}>
               <option value="">Qualquer</option>
-              {(tab === "rurais" ? SIZES : PRICES[tab]).map((p) => (
+              {(tab === "rurais" ? SIZES : tab === "terrenos" ? LAND_PRICES : PRICES[tab]).map((p) => (
                 <option key={p.v} value={p.v}>
                   {p.label}
                 </option>
@@ -250,7 +271,7 @@ export function HomeSearch({
             <ChevronDown className="pointer-events-none absolute bottom-3 right-3 size-4 text-white/50" />
           </Box>
 
-          {tab !== "rurais" && (
+          {tab !== "rurais" && !land && (
             <Box label="Quartos" group className="col-span-2 md:col-span-1">
               <span className="flex gap-1 pt-0.5">
                 {[0, 1, 2, 3, 4].map((n) => (

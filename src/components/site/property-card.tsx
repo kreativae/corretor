@@ -2,11 +2,17 @@ import { STATUS_LABELS, TYPE_LABELS } from "@/lib/labels";
 import type { PropertyWithImages } from "@/lib/queries";
 import { cn, formatBRL, formatNumber, siteImage } from "@/lib/utils";
 import { APTIDAO_LABELS, formatAlq, isRuralType, normalizeRural } from "@/lib/rural";
+import { isLandType, landDimensions, normalizeLand } from "@/lib/land";
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 
-/** "120 m² · 3 quartos" ou "310 alq · Dupla aptidão" */
+/** "120 m² · 3 quartos", "310 alq · Dupla aptidão" ou "450 m² · 15 × 30 m" */
 function specsLine(p: PropertyWithImages) {
+  if (isLandType(p.type)) {
+    const dims = landDimensions(normalizeLand(p.land));
+    const ppm = p.area ? ` · ${formatBRL(Math.round(p.price / p.area))}/m²` : "";
+    return `${formatNumber(p.area)} m²${dims ? ` · ${dims}` : ppm}`;
+  }
   if (isRuralType(p.type)) {
     const r = normalizeRural(p.rural);
     return `${formatAlq(r.totalAlq ?? 0)} alq${r.aptidao ? ` · ${APTIDAO_LABELS[r.aptidao]}` : ""}`;

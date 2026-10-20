@@ -1,6 +1,6 @@
 import { PropertiesTable } from "@/components/crm/properties-table";
 import { listProperties, listPropertyViewTotals } from "@/lib/queries";
-import { isRuralType } from "@/lib/rural";
+import { kindOf } from "@/lib/rural";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
@@ -11,8 +11,8 @@ export default async function ImoveisCrmPage() {
     listProperties(),
     listPropertyViewTotals(),
   ]);
-  // Rurais ficam em /crm/propriedades
-  const properties = all.filter((p) => !isRuralType(p.type));
+  // Rurais ficam em /crm/propriedades e terrenos em /crm/terrenos
+  const properties = all.filter((p) => kindOf(p.type) === "urbano");
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">

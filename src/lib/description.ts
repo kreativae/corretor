@@ -13,6 +13,15 @@ import {
   TOPOGRAFIA_LABELS,
   type RuralData,
 } from "@/lib/rural";
+import {
+  FORMATO_TERRENO,
+  isLandType,
+  landDimensions,
+  landNumbers,
+  POSICAO_SOLAR,
+  TOPOGRAFIA_TERRENO,
+  type LandData,
+} from "@/lib/land";
 
 export type DescriptionInput = {
   type: string;
@@ -28,6 +37,9 @@ export type DescriptionInput = {
   state: string;
   features: string[];
   rural?: RuralData;
+  land?: LandData;
+  /** Preço (para o valor do m² do terreno) */
+  price?: number;
 };
 
 const num = (v: number, max = 2) => v.toLocaleString("pt-BR", { maximumFractionDigits: max });
@@ -174,7 +186,52 @@ function rural(i: DescriptionInput, r: RuralData, variant: number) {
   return paras.join("\n\n");
 }
 
+/** Terreno: medidas, o que dá para construir, infraestrutura e vantagens */
+function landText(i: DescriptionInput, l: LandData, variant: number) {
+  const tipo = lower(TYPE_LABELS[i.type] ?? "terreno");
+  const where = place(i);
+  const finalidade = i.purpose === "aluguel" ? "para alugar" : "à venda";
+  const dims = landDimensions(l);
+  const area = i.area ? `${num(i.area, 0)} m²` : "";
+  const medida = [area, dims && `(${dims})`].filter(Boolean).join(" ");
+  const opening = [
+    `${TYPE_LABELS[i.type] ?? "Terreno"} ${finalidade}${where ? ` em ${where}` : ""}${medida ? `, com ${medida}` : ""}.`,
+    `Excelente ${tipo}${medida ? ` de ${medida}` : ""}${where ? ` em ${where}` : ""}, ${finalidade}.`,
+    `Oportunidade: ${tipo}${medida ? ` de ${medida}` : ""}${where ? ` em ${where}` : ""}.`,
+  ][variant % 3];
+  const paras = [opening];
+
+  const traits: string[] = [];
+  if (l.formato) traits.push(lower(FORMATO_TERRENO[l.formato]));
+  if (l.topografia) traits.push(lower(TOPOGRAFIA_TERRENO[l.topografia]).replace(/ \(.*\)$/, ""));
+  if (l.posicaoSolar) traits.push(`frente para o ${lower(POSICAO_SOLAR[l.posicaoSolar])}`);
+  if (l.situacao.length) traits.push(joinList(l.situacao.map(lower)));
+  if (traits.length) paras.push(`Terreno ${joinList(traits)}.`);
+
+  const nums = landNumbers(i.price ?? 0, i.area, l);
+  const zone: string[] = [];
+  if (l.zoneamento) zone.push(`Zoneamento ${l.zoneamento}${l.usoPermitido.length ? `, uso ${joinList(l.usoPermitido.map(lower))}` : ""}.`);
+  else if (l.usoPermitido.length) zone.push(`Permite uso ${joinList(l.usoPermitido.map(lower))}.`);
+  if (nums.buildable) zone.push(`Potencial para construir até ${num(nums.buildable, 0)} m²${l.gabarito ? ` em até ${plural(l.gabarito, "pavimento", "pavimentos")}` : ""}.`);
+  if (zone.length) paras.push(zone.join(" "));
+
+  if (l.infraestrutura.length) paras.push(`Infraestrutura: ${joinList(l.infraestrutura.map(lower))}.`);
+  if (l.vantagens.length) paras.push(`Destaques: ${joinList(l.vantagens.map(lower))}.`);
+  if (i.features.length) paras.push(`No condomínio: ${joinList(i.features.map(lower))}.`);
+  if (l.documentacao.length) paras.push(`Documentação: ${joinList(l.documentacao.map(lower))}.`);
+
+  paras.push(
+    [
+      "Agende uma visita e conheça o terreno.",
+      "Fale com a gente para receber a planta, as medidas e agendar uma visita.",
+      "Entre em contato para mais informações e documentação.",
+    ][variant % 3],
+  );
+  return paras.join("\n\n");
+}
+
 export function generateDescription(input: DescriptionInput, variant = 0) {
+  if (isLandType(input.type) && input.land) return landText(input, input.land, variant);
   return isRuralType(input.type) && input.rural
     ? rural(input, input.rural, variant)
     : urban(input, variant);

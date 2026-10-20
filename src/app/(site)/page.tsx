@@ -1,5 +1,6 @@
 import { HeroSearchProvider, HeroTitle, HomeSearch } from "@/components/site/home-search";
-import { APTIDAO_LABELS, isRuralType, normalizeRural } from "@/lib/rural";
+import { APTIDAO_LABELS, kindOf, normalizeRural } from "@/lib/rural";
+import { LAND_TYPES } from "@/lib/land";
 import { PropertyCard } from "@/components/site/property-card";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
@@ -13,6 +14,7 @@ import {
   Building2,
   MessageCircle,
   Tractor,
+  LandPlot,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -26,8 +28,9 @@ export default async function HomePage() {
     getSiteContent(),
   ]);
 
-  const urban = published.filter((p) => !isRuralType(p.type));
-  const rural = published.filter((p) => isRuralType(p.type));
+  const urban = published.filter((p) => kindOf(p.type) === "urbano");
+  const rural = published.filter((p) => kindOf(p.type) === "rural");
+  const lands = published.filter((p) => kindOf(p.type) === "terreno");
   const neighborhoods = [...new Set(published.map((p) => p.neighborhood).filter(Boolean))];
   const cities = [...new Set(published.map((p) => p.city).filter(Boolean))];
   const featured = urban.slice(0, 6);
@@ -78,6 +81,16 @@ export default async function HomePage() {
       overlay: "from-[#2B2B5D]/95 via-[#2B2B5D]/75 to-[#2B2B5D]/35",
       icon: Tractor,
     },
+    {
+      key: "terreno",
+      title: cat.landTitle,
+      text: cat.landText,
+      href: searchHref({ categoria: "terrenos" }),
+      n: lands.length,
+      image: siteImage(cat.landImage) || coverOf(lands.find((p) => p.cover)),
+      overlay: "from-[#1E5E46]/95 via-[#1E5E46]/75 to-[#1E5E46]/35",
+      icon: LandPlot,
+    },
   ].filter((c) => c.n > 0);
 
   // Atalhos rápidos por aba da busca — só os que trazem resultado
@@ -109,7 +122,6 @@ export default async function HomePage() {
       feat("Varanda gourmet", "Varanda gourmet", "venda"),
       feat("Portaria 24h", "Portaria 24h", "venda"),
       feat("Pet friendly", "Pet friendly", "venda"),
-      { label: "Terrenos", href: searchHref({ finalidade: "venda", tipo: "terreno" }), test: (p) => p.type === "terreno" },
     ]),
     aluguel: chips(aluguel, [
       { label: "Até R$ 2 mil", href: searchHref({ finalidade: "aluguel", precoMax: "2000" }), test: (p) => p.price <= 2000 },
@@ -124,6 +136,16 @@ export default async function HomePage() {
       feat("Ar-condicionado", "Ar-condicionado", "aluguel"),
       feat("Portaria 24h", "Portaria 24h", "aluguel"),
       feat("Com piscina", "Piscina", "aluguel"),
+    ]),
+    terrenos: chips(lands, [
+      ...LAND_TYPES.map((t) => ({
+        label: { terreno: "Lotes", lote_condominio: "Em condomínio", terreno_comercial: "Comerciais", area: "Áreas / glebas" }[t],
+        href: searchHref({ categoria: "terrenos", tipo: t }),
+        test: (p: P) => p.type === t,
+      })),
+      { label: "Até R$ 300 mil", href: searchHref({ categoria: "terrenos", precoMax: "300000" }), test: (p) => p.price <= 300000 },
+      { label: "Até 400 m²", href: searchHref({ categoria: "terrenos", areaMax: "400" }), test: (p) => p.area <= 400 },
+      { label: "Acima de 1.000 m²", href: searchHref({ categoria: "terrenos", areaMin: "1000" }), test: (p) => p.area >= 1000 },
     ]),
     rurais: chips(rural, [
       { label: "Fazendas", href: searchHref({ categoria: "rurais", tipo: "fazenda" }), test: (p) => p.type === "fazenda" },
@@ -165,7 +187,7 @@ export default async function HomePage() {
 
   return (
     <div className="bg-canvas">
-      <SiteHeader overHero orgName={wl.orgName} menu={content.header} hasRural={rural.length > 0} />
+      <SiteHeader overHero orgName={wl.orgName} menu={content.header} hasRural={rural.length > 0} hasLand={lands.length > 0} />
 
       {/* ───────────── HERO + BUSCA ───────────── */}
       {/* Sempre escuro (vídeo + overlay); a busca é o protagonista */}
@@ -211,6 +233,7 @@ export default async function HomePage() {
             <HeroTitle
               title={content.hero.title}
               titleRural={content.hero.titleRural}
+              titleLand={content.hero.titleLand}
               className="max-w-3xl text-balance font-display text-[2.6rem] font-semibold leading-[1.02] tracking-[-0.03em] sm:text-6xl md:text-7xl"
             />
             <p data-reveal data-delay="0.25" className="mt-4 max-w-xl text-sm leading-relaxed text-white/75 md:mt-5 md:text-base">
@@ -224,6 +247,8 @@ export default async function HomePage() {
                 neighborhoods={neighborhoods}
                 cities={cities}
                 hasRural={rural.length > 0}
+                hasLand={lands.length > 0}
+                landTypes={LAND_TYPES.filter((t) => lands.some((p) => p.type === t))}
                 hasRent={urban.some((p) => p.purpose === "aluguel")}
                 buttonLabel={content.hero.ctaPrimary}
                 quick={quick}
@@ -267,7 +292,13 @@ export default async function HomePage() {
       {/* ───────────── CATEGORIAS ───────────── */}
       {categories.length > 0 && (
         <section className="container-x pt-10 md:pt-16">
-          <div className={cn("grid gap-3 md:gap-5", categories.length > 1 && "sm:grid-cols-2")}>
+          <div
+            className={cn(
+              "grid gap-3 md:gap-5",
+              categories.length > 1 && "sm:grid-cols-2",
+              categories.length > 2 && "lg:grid-cols-3",
+            )}
+          >
             {categories.map((c) => (
               <Link
                 key={c.key}
@@ -413,7 +444,7 @@ function coverOf(p?: { cover: string | null; wm: string }) {
   return p?.cover ? siteImage(p.cover, p.wm) : "";
 }
 
-const URBAN_ORDER = ["apartamento", "casa", "cobertura", "estudio", "terreno"];
+const URBAN_ORDER = ["apartamento", "casa", "cobertura", "estudio"];
 function SectionHead({
   eyebrow,
   title,

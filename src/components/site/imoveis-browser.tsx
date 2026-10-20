@@ -12,16 +12,17 @@ import { PropertyCard } from "@/components/site/property-card";
 import { EmptyState, Input, Select } from "@/components/ui";
 import { TYPE_LABELS } from "@/lib/labels";
 import type { PropertyWithImages } from "@/lib/queries";
-import { APTIDAO_LABELS, isRuralType, RURAL_TYPES } from "@/lib/rural";
+import { APTIDAO_LABELS, kindOf, RURAL_TYPES } from "@/lib/rural";
+import { LAND_TYPES } from "@/lib/land";
 import { filtersFromSearch, type SiteSearchParams } from "@/lib/site-search";
 import { cn, plural } from "@/lib/utils";
-import { Building2, ChevronDown, Search, SlidersHorizontal, Tractor } from "lucide-react";
+import { Building2, ChevronDown, LandPlot, Search, SlidersHorizontal, Tractor } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 
-const URBAN_TYPES = ["apartamento", "casa", "cobertura", "estudio", "terreno"];
+const URBAN_TYPES = ["apartamento", "casa", "cobertura", "estudio"];
 
-export type Categoria = "urbanos" | "rurais";
+export type Categoria = "urbanos" | "rurais" | "terrenos";
 
 const NO_VIEWS = {};
 
@@ -65,15 +66,25 @@ export function ImoveisBrowser({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const urbanos = useMemo(() => properties.filter((p) => !isRuralType(p.type)), [properties]);
-  const rurais = useMemo(() => properties.filter((p) => isRuralType(p.type)), [properties]);
-  // Sem rurais publicadas, a aba não aparece
+  const urbanos = useMemo(() => properties.filter((p) => kindOf(p.type) === "urbano"), [properties]);
+  const rurais = useMemo(() => properties.filter((p) => kindOf(p.type) === "rural"), [properties]);
+  const terrenos = useMemo(() => properties.filter((p) => kindOf(p.type) === "terreno"), [properties]);
+  // Sem anúncios publicados na categoria, a aba não aparece
   const [categoria, setCategoria] = useState<Categoria>(
-    initialCategoria === "rurais" && rurais.length ? "rurais" : "urbanos",
+    initialCategoria === "rurais" && rurais.length
+      ? "rurais"
+      : initialCategoria === "terrenos" && terrenos.length
+        ? "terrenos"
+        : "urbanos",
   );
   const rural = categoria === "rurais";
-  const base = rural ? rurais : urbanos;
-  const TYPES: string[] = rural ? [...RURAL_TYPES] : URBAN_TYPES;
+  const land = categoria === "terrenos";
+  const base = rural ? rurais : land ? terrenos : urbanos;
+  const TYPES: string[] = rural
+    ? [...RURAL_TYPES]
+    : land
+      ? LAND_TYPES.filter((t) => terrenos.some((p) => p.type === t))
+      : URBAN_TYPES;
 
   const [filters, setFilters] = useState<PropertyFilters>(() => ({
     ...EMPTY_PROPERTY_FILTERS,
@@ -89,7 +100,7 @@ export function ImoveisBrowser({
   function switchCategoria(c: Categoria) {
     setCategoria(c);
     setFilters(EMPTY_PROPERTY_FILTERS);
-    router.replace(c === "rurais" ? `${pathname}?categoria=rurais` : pathname, { scroll: false });
+    router.replace(c === "urbanos" ? pathname : `${pathname}?categoria=${c}`, { scroll: false });
   }
 
   const filtered = useMemo(
@@ -110,14 +121,22 @@ export function ImoveisBrowser({
 
   return (
     <div className="mt-8 md:mt-10">
-      {rurais.length > 0 && (
-        <div className="mb-6 grid grid-cols-2 rounded-full border border-hairline p-1 sm:inline-flex md:mb-8">
+      {(rurais.length > 0 || terrenos.length > 0) && (
+        <div
+          className={cn(
+            "mb-6 grid rounded-full border border-hairline p-1 sm:inline-flex md:mb-8",
+            rurais.length && terrenos.length ? "grid-cols-3" : "grid-cols-2",
+          )}
+        >
           {(
             [
-              { id: "urbanos", label: "Imóveis", icon: Building2, count: urbanos.length },
-              { id: "rurais", label: "Propriedades rurais", icon: Tractor, count: rurais.length },
+              { id: "urbanos", label: "Imóveis", short: "Imóveis", icon: Building2, count: urbanos.length },
+              { id: "terrenos", label: "Terrenos", short: "Terrenos", icon: LandPlot, count: terrenos.length },
+              { id: "rurais", label: "Propriedades rurais", short: "Rurais", icon: Tractor, count: rurais.length },
             ] as const
-          ).map((c) => (
+          )
+            .filter((c) => c.id === "urbanos" || c.count > 0)
+            .map((c) => (
             <button
               key={c.id}
               onClick={() => switchCategoria(c.id)}
@@ -127,7 +146,7 @@ export function ImoveisBrowser({
               )}
             >
               <c.icon className="size-4" />
-              <span className="sm:hidden">{c.id === "rurais" ? "Rurais" : c.label}</span>
+              <span className="sm:hidden">{c.short}</span>
               <span className="hidden sm:inline">{c.label}</span>
               <span className="font-mono text-[11px] opacity-60">{c.count}</span>
             </button>
@@ -145,6 +164,7 @@ export function ImoveisBrowser({
           className="pl-10"
         />
       </div>
+
 
       {/* Barra de filtros — no celular fica presa no topo ao rolar */}
       <div className="sticky top-[calc(4rem+var(--adminbar,0px)+var(--header-safe,env(safe-area-inset-top)))] z-20 -mx-5 mt-3 flex flex-wrap items-center gap-3 border-b border-hairline bg-canvas/85 px-5 py-2.5 backdrop-blur-xl sm:mx-0 sm:px-0 md:static md:mt-0 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
@@ -169,6 +189,7 @@ export function ImoveisBrowser({
           <option value="price_desc">Maior preço</option>
           <option value="area_desc">Maior área</option>
           {rural && <option value="ppa_asc">Menor preço por alqueire</option>}
+          {land && <option value="ppm_asc">Menor preço por m²</option>}
         </Select>
         <button
           type="button"
@@ -226,12 +247,14 @@ export function ImoveisBrowser({
         open={showFilters}
         onClose={closeFilters}
         onReset={resetFilters}
-        title={rural ? "Filtrar propriedades" : "Filtrar imóveis"}
+        title={rural ? "Filtrar propriedades" : land ? "Filtrar terrenos" : "Filtrar imóveis"}
         activeCount={chips.length}
         resultLabel={
           rural
             ? `Ver ${filtered.length} ${plural(filtered.length, "propriedade", "propriedades")}`
-            : `Ver ${filtered.length} ${plural(filtered.length, "imóvel", "imóveis")}`
+            : land
+              ? `Ver ${filtered.length} ${plural(filtered.length, "terreno", "terrenos")}`
+              : `Ver ${filtered.length} ${plural(filtered.length, "imóvel", "imóveis")}`
         }
       >
         <PropertyFiltersPanel
@@ -240,6 +263,7 @@ export function ImoveisBrowser({
           items={base}
           views={NO_VIEWS}
           rural={rural}
+          land={land}
           publicMode
         />
       </FilterSheet>
@@ -247,7 +271,9 @@ export function ImoveisBrowser({
       <p className="mt-6 font-mono text-xs uppercase tracking-[0.16em] text-subtle md:mt-8">
         {rural
           ? `${filtered.length} ${plural(filtered.length, "propriedade encontrada", "propriedades encontradas")}`
-          : `${filtered.length} ${plural(filtered.length, "imóvel", "imóveis")} encontrados`}
+          : land
+            ? `${filtered.length} ${plural(filtered.length, "terreno encontrado", "terrenos encontrados")}`
+            : `${filtered.length} ${plural(filtered.length, "imóvel", "imóveis")} encontrados`}
       </p>
 
       {filtered.length === 0 ? (

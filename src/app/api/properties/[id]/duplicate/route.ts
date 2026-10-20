@@ -3,7 +3,7 @@ import { getDb } from "@/db";
 import { activities, properties, propertyImages } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { nextPropertyCode } from "@/lib/property-code";
-import { isRuralType } from "@/lib/rural";
+import { kindOf } from "@/lib/rural";
 import { asc, eq } from "drizzle-orm";
 import { propertyLimitError } from "@/lib/account";
 import { NextResponse } from "next/server";
@@ -23,8 +23,7 @@ export async function POST(_req: Request, { params }: Params) {
     const [src] = await (await getDb()).select().from(properties).where(eq(properties.id, id));
     if (!src) return NextResponse.json({ error: "Imóvel não encontrado" }, { status: 404 });
 
-    const rural = isRuralType(src.type);
-    const code = await nextPropertyCode(rural);
+    const code = await nextPropertyCode(kindOf(src.type));
     const { id: _id, code: _code, createdAt: _c, updatedAt: _u, ...data } = src;
 
     const [created] = await (await getDb())
@@ -53,7 +52,7 @@ export async function POST(_req: Request, { params }: Params) {
       entity: "imovel",
       entityId: created.id,
       kind: "created",
-      text: `${rural ? "Propriedade rural" : "Imóvel"} ${created.code} criad${rural ? "a" : "o"} a partir de ${src.code}${author ? ` por ${author.name}` : ""}.`,
+      text: `${{ rural: "Propriedade rural", terreno: "Terreno", urbano: "Imóvel" }[kindOf(src.type)]} ${created.code} criad${kindOf(src.type) === "rural" ? "a" : "o"} a partir de ${src.code}${author ? ` por ${author.name}` : ""}.`,
     });
 
     return NextResponse.json(created, { status: 201 });

@@ -11,7 +11,7 @@ import {
   BENFEITORIAS_OPCOES,
   ENERGIA_LABELS,
   formatAlq,
-  isRuralType,
+  kindOf,
   normalizeRural,
   pricePerAlq,
   SOLO_LABELS,
@@ -63,7 +63,8 @@ export type PropertyFilters = {
     | "views_desc"
     | "title"
     | "ppa_asc"
-    | "ppa_desc";
+    | "ppa_desc"
+    | "ppm_asc";
 };
 
 export const EMPTY_PROPERTY_FILTERS: PropertyFilters = {
@@ -214,6 +215,8 @@ export function applyPropertyFilters(
       return out.sort((a, b) => (ppaOf(a) || Infinity) - (ppaOf(b) || Infinity));
     case "ppa_desc":
       return out.sort((a, b) => ppaOf(b) - ppaOf(a));
+    case "ppm_asc":
+      return out.sort((a, b) => (a.area ? a.price / a.area : Infinity) - (b.area ? b.price / b.area : Infinity));
     case "title":
       return out.sort((a, b) => a.title.localeCompare(b.title, "pt-BR"));
     default:
@@ -366,6 +369,7 @@ export function PropertyFiltersPanel({
   items,
   views,
   rural,
+  land = false,
   publicMode = false,
 }: {
   value: PropertyFilters;
@@ -373,6 +377,8 @@ export function PropertyFiltersPanel({
   items: PropertyWithImages[];
   views: Views;
   rural: boolean;
+  /** Terrenos: tipos de terreno, sem dormitórios/suítes/vagas */
+  land?: boolean;
   /** Site público: esconde opções internas (status, publicação, fotos, views, documentos) */
   publicMode?: boolean;
 }) {
@@ -422,7 +428,7 @@ export function PropertyFiltersPanel({
       <FilterGroup title="Tipo">
         <div className="flex flex-wrap gap-2">
           {Object.entries(TYPE_LABELS)
-            .filter(([k]) => isRuralType(k) === rural)
+            .filter(([k]) => kindOf(k) === (rural ? "rural" : land ? "terreno" : "urbano"))
             .map(([k, label]) => (
               <FilterChip key={k} on={f.types.includes(k)} onClick={() => toggle("types", k)} count={count((p) => p.type === k)}>
                 {label}
@@ -466,7 +472,7 @@ export function PropertyFiltersPanel({
         />
       </FilterGroup>
 
-      <FilterGroup title={rural ? "Área total (alqueires)" : "Área útil (m²)"}>
+      <FilterGroup title={rural ? "Área total (alqueires)" : land ? "Área do terreno (m²)" : "Área útil (m²)"}>
         <Range
           from={f.areaFrom}
           to={f.areaTo}
@@ -478,15 +484,19 @@ export function PropertyFiltersPanel({
 
       {!rural && (
         <>
-          <FilterGroup title="Dormitórios">
-            <MinCount value={f.bedrooms} onChange={(bedrooms) => onChange({ bedrooms })} />
-          </FilterGroup>
-          <FilterGroup title="Suítes">
-            <MinCount value={f.suites} onChange={(suites) => onChange({ suites })} />
-          </FilterGroup>
-          <FilterGroup title="Vagas de garagem">
-            <MinCount value={f.garage} onChange={(garage) => onChange({ garage })} />
-          </FilterGroup>
+          {!land && (
+            <>
+              <FilterGroup title="Dormitórios">
+                <MinCount value={f.bedrooms} onChange={(bedrooms) => onChange({ bedrooms })} />
+              </FilterGroup>
+              <FilterGroup title="Suítes">
+                <MinCount value={f.suites} onChange={(suites) => onChange({ suites })} />
+              </FilterGroup>
+              <FilterGroup title="Vagas de garagem">
+                <MinCount value={f.garage} onChange={(garage) => onChange({ garage })} />
+              </FilterGroup>
+            </>
+          )}
           <FilterGroup title="Comodidades (precisa ter todas)">
             <div className="flex flex-wrap gap-2">
               {[...new Set([...FEATURES, ...items.flatMap((p) => p.features)])].map((x) => (

@@ -256,6 +256,8 @@ export const RUNTIME_MIGRATIONS = [
      created_at timestamptz NOT NULL DEFAULT now(),
      last_used_at timestamptz
    );`,
+  // Terrenos: medidas, zoneamento, infraestrutura e vantagens
+  `ALTER TABLE properties ADD COLUMN IF NOT EXISTS land jsonb;`,
 ];
 
 /** Só no banco principal (esquema public): cadastro de empresas da gerência */

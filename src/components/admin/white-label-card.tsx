@@ -253,11 +253,12 @@ export function WhiteLabelCard({ initial }: { initial: WhiteLabel }) {
     v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6) || d;
   const pu = prefixOf(wl.codePrefix ?? "", "NRD");
   const pr = prefixOf(wl.codePrefixRural ?? "", "RUR");
+  const pl = prefixOf(wl.codePrefixLand ?? "", pu);
 
   async function recode() {
     if (
       !confirm(
-        `Trocar o prefixo dos anúncios já cadastrados para ${pu}- (imóveis) e ${pr}- (rurais)? O número de cada um é mantido. Links e fichas antigos continuam abrindo.`,
+        `Trocar o prefixo dos anúncios já cadastrados para ${pu}- (imóveis), ${pr}- (rurais) e ${pl}- (terrenos)? O número de cada um é mantido. Links e fichas antigos continuam abrindo.`,
       )
     )
       return;
@@ -502,7 +503,7 @@ export function WhiteLabelCard({ initial }: { initial: WhiteLabel }) {
         {/* Códigos dos anúncios */}
         <div className="space-y-3 lg:col-span-2">
           <p className={h3}>Código dos anúncios</p>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-3">
             <Field label="Prefixo dos imóveis" hint={`${pu}-2401 · Ficha-${pu}-2401.pdf`}>
               <Input
                 value={wl.codePrefix ?? ""}
@@ -516,6 +517,14 @@ export function WhiteLabelCard({ initial }: { initial: WhiteLabel }) {
                 value={wl.codePrefixRural ?? ""}
                 onChange={(e) => set("codePrefixRural", e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6))}
                 placeholder="RUR"
+                className="font-mono uppercase"
+              />
+            </Field>
+            <Field label="Prefixo dos terrenos" hint={`${pl}-2403 · vazio = o mesmo dos imóveis`}>
+              <Input
+                value={wl.codePrefixLand ?? ""}
+                onChange={(e) => set("codePrefixLand", e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6))}
+                placeholder={pu}
                 className="font-mono uppercase"
               />
             </Field>

@@ -3,7 +3,7 @@ import { getKmzPassword } from "@/lib/kmz-lock";
 import { getCustomFeatures } from "@/lib/features";
 import { listResponsibles } from "@/lib/responsible";
 import { getPropertyById, listPartners } from "@/lib/queries";
-import { crmPropertyPath, isRuralType } from "@/lib/rural";
+import { crmPropertyPath, kindOf } from "@/lib/rural";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 
@@ -24,7 +24,7 @@ export default async function EditarImovelPage({
     listResponsibles(),
     getKmzPassword(property.id),
   ]);
-  if (isRuralType(property.type)) redirect(crmPropertyPath(property, "/editar"));
+  if (kindOf(property.type) !== "urbano") redirect(crmPropertyPath(property, "/editar"));
   return (
     <div className="mx-auto max-w-6xl">
       <PropertyForm initial={property} partners={partners} customFeatures={customFeatures} team={team} kmzPassword={kmzPassword ?? ""} />

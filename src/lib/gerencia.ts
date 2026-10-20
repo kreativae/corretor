@@ -139,6 +139,7 @@ export async function createCompany(input: {
           tagline: "",
           codePrefix: prefixFrom(name),
           codePrefixRural: "RUR",
+          codePrefixLand: "",
         },
       });
       await db.insert(users).values({

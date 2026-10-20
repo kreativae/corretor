@@ -43,7 +43,7 @@ export function filtersFromSearch(sp: SiteSearchParams): Partial<PropertyFilters
 }
 
 export function searchHref(p: {
-  categoria?: "rurais";
+  categoria?: "rurais" | "terrenos";
   finalidade?: "venda" | "aluguel" | "";
   tipo?: string;
   bairro?: string;

@@ -1,4 +1,5 @@
 /** Propriedades rurais: tipos, rótulos e cálculos de área (alqueire paulista). */
+import { isLandType } from "@/lib/land";
 
 /** Alqueire paulista — padrão no PR, SP e MS: 24.200 m² = 2,42 ha. */
 export const ALQUEIRE_M2 = 24_200;
@@ -13,12 +14,19 @@ export function isRuralType(type: string | null | undefined): type is RuralType 
   return !!type && (RURAL_TYPES as readonly string[]).includes(type);
 }
 
-/** Tipos que aceitam o KMZ do perímetro: propriedades rurais e terrenos. */
-export function acceptsKmz(type: string | null | undefined) {
-  return isRuralType(type) || type === "terreno";
+/** Categoria do anúncio: imóveis (urbanos construídos), rurais ou terrenos */
+export type PropertyKind = "urbano" | "rural" | "terreno";
+
+export function kindOf(type: string | null | undefined): PropertyKind {
+  return isRuralType(type) ? "rural" : isLandType(type) ? "terreno" : "urbano";
 }
 
-/** Terreno urbano: guarda em `rural` só o arquivo KMZ (ou nada). */
+/** Tipos que aceitam o KMZ do perímetro: propriedades rurais e terrenos. */
+export function acceptsKmz(type: string | null | undefined) {
+  return isRuralType(type) || isLandType(type);
+}
+
+/** Terreno: guarda em `rural` só o arquivo KMZ (ou nada). */
 export function kmzOnly(input: unknown): { kmzUrl: string; kmzName: string } | null {
   const v = (input ?? {}) as Record<string, unknown>;
   const url = typeof v.kmzUrl === "string" ? v.kmzUrl.trim() : "";
@@ -230,7 +238,10 @@ export function sanitizeRural(input: unknown): RuralData {
   return out;
 }
 
-/** Caminho no CRM: rurais em /crm/propriedades, urbanos em /crm/imoveis. */
+/** Caminho no CRM de cada categoria */
+export const CRM_SECTION: Record<PropertyKind, string> = { urbano: "imoveis", rural: "propriedades", terreno: "terrenos" };
+
+/** Caminho no CRM: rurais em /crm/propriedades, terrenos em /crm/terrenos, urbanos em /crm/imoveis. */
 export function crmPropertyPath(p: { id: string; type: string | null | undefined }, suffix = "") {
-  return `/crm/${isRuralType(p.type) ? "propriedades" : "imoveis"}/${p.id}${suffix}`;
+  return `/crm/${CRM_SECTION[kindOf(p.type)]}/${p.id}${suffix}`;
 }

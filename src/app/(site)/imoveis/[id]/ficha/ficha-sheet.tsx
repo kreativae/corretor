@@ -14,6 +14,15 @@ import {
   TOPOGRAFIA_LABELS,
 } from "@/lib/rural";
 import { STATUS_LABELS, TYPE_LABELS } from "@/lib/labels";
+import {
+  FORMATO_TERRENO,
+  isLandType,
+  landDimensions,
+  landNumbers,
+  normalizeLand,
+  POSICAO_SOLAR,
+  TOPOGRAFIA_TERRENO,
+} from "@/lib/land";
 import type { PropertyWithImages } from "@/lib/queries";
 import { formatBRL, formatNumber, siteImage } from "@/lib/utils";
 import {
@@ -27,6 +36,10 @@ import {
   Compass,
   Sprout,
   Wheat,
+  Maximize2,
+  Mountain,
+  Building2,
+  Landmark,
 } from "lucide-react";
 
 const MAX_FEATURES = 24;
@@ -89,7 +102,34 @@ export function FichaSheet({
     { icon: Bath, label: "Banheiros", value: String(p.bathrooms) },
     { icon: Car, label: "Vagas", value: String(p.garage) },
   ].filter((s) => s !== null);
-  const specs = rural
+  const land = isLandType(p.type);
+  const l = normalizeLand(p.land);
+  const landNums = landNumbers(p.price, p.area, l);
+  const landSpecs = [
+    { icon: Ruler, label: "Área do terreno", value: `${formatNumber(p.area)} m²` },
+    landDimensions(l) ? { icon: Maximize2, label: "Frente × fundo", value: landDimensions(l) } : null,
+    l.topografia ? { icon: Mountain, label: "Topografia", value: TOPOGRAFIA_TERRENO[l.topografia].replace(/ \(.*\)$/, "") } : null,
+    landNums.buildable ? { icon: Building2, label: "Área construível", value: `${formatNumber(landNums.buildable)} m²` } : null,
+    l.zoneamento ? { icon: Landmark, label: "Zoneamento", value: l.zoneamento } : null,
+  ].filter((s) => s !== null);
+  const landRows: [string, string][] = land
+    ? ([
+        ["Formato", l.formato ? FORMATO_TERRENO[l.formato] : ""],
+        ["Frente para", l.posicaoSolar ? POSICAO_SOLAR[l.posicaoSolar] : ""],
+        ["Situação", l.situacao.join(", ")],
+        ["Uso permitido", l.usoPermitido.join(", ")],
+        ["Coeficiente", l.coeficiente ? `${String(l.coeficiente).replace(".", ",")}× a área` : ""],
+        ["Ocupação", l.taxaOcupacao ? `${String(l.taxaOcupacao).replace(".", ",")}%${landNums.footprint ? ` · ${formatNumber(landNums.footprint)} m²` : ""}` : ""],
+        ["Gabarito", l.gabarito ? `${l.gabarito} pavimento${l.gabarito === 1 ? "" : "s"}` : ""],
+        ["Infraestrutura", l.infraestrutura.join(", ")],
+        ["Loteamento", l.loteamento],
+        ["Condomínio", p.features.join(", ")],
+        ["Documentação", l.documentacao.join(", ")],
+      ].filter(([, v]) => v) as [string, string][])
+    : [];
+  const specs = land
+    ? landSpecs
+    : rural
     ? [
         { icon: Ruler, label: `Área total · ${formatHa(areas.total)} ha`, value: `${formatAlq(areas.total)} alq` },
         { icon: Wheat, label: `Plantada · ${formatPct(areas.plantadaPct)}`, value: `${formatAlq(areas.plantada)} alq` },
@@ -119,7 +159,13 @@ export function FichaSheet({
   const costs = (
     rural
       ? [perAlq ? `${formatBRL(perAlq)} por alqueire` : null]
-      : [
+      : land
+        ? [
+            landNums.pricePerM2 ? `${formatBRL(landNums.pricePerM2)}/m²` : null,
+            p.condoFee ? `Condomínio ${formatBRL(p.condoFee)}/mês` : null,
+            p.iptu ? `IPTU ${formatBRL(p.iptu)}/ano` : null,
+          ]
+        : [
           p.condoFee ? `Condomínio ${formatBRL(p.condoFee)}/mês` : null,
           p.iptu ? `IPTU ${formatBRL(p.iptu)}/ano` : null,
         ]
@@ -236,12 +282,12 @@ export function FichaSheet({
       {/* Descrição + comodidades: ocupam o espaço restante */}
       <div
         className={`mt-[5mm] grid min-h-0 flex-1 gap-[7mm] ${
-          features.length || rural ? "grid-cols-[1.15fr_1fr]" : "grid-cols-1"
+          features.length || rural || (land && (l.vantagens.length || landRows.length)) ? "grid-cols-[1.15fr_1fr]" : "grid-cols-1"
         }`}
       >
         <section className="flex min-h-0 flex-col">
           <h2 className="shrink-0 text-[9.5px] font-semibold uppercase tracking-[0.2em] text-[#9A9AB5]">
-            {rural ? "Sobre a propriedade" : "Sobre o imóvel"}
+            {rural ? "Sobre a propriedade" : land ? "Sobre o terreno" : "Sobre o imóvel"}
           </h2>
           <p className="ficha-fade mt-2 min-h-0 flex-1 overflow-hidden whitespace-pre-line text-[11px] leading-[1.55] text-[#45456E]">
             {p.description || "—"}
@@ -262,7 +308,39 @@ export function FichaSheet({
             </dl>
           </section>
         )}
-        {!rural && features.length > 0 && (
+        {land && (l.vantagens.length > 0 || landRows.length > 0) && (
+          <section className="flex min-h-0 flex-col overflow-hidden">
+            {l.vantagens.length > 0 && (
+              <>
+                <h2 className="shrink-0 text-[9.5px] font-semibold uppercase tracking-[0.2em] text-[#D9601A]">Vantagens</h2>
+                <ul className="mt-2 grid shrink-0 grid-cols-2 gap-x-3 gap-y-1.5">
+                  {l.vantagens.slice(0, 12).map((v) => (
+                    <li key={v} className="flex min-w-0 items-start gap-1.5 text-[10.5px] font-medium leading-snug">
+                      <Check className="mt-0.5 size-3 shrink-0 text-[#F47525]" />
+                      <span className="line-clamp-2">{v}</span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {landRows.length > 0 && (
+              <>
+                <h2 className={`shrink-0 text-[9.5px] font-semibold uppercase tracking-[0.2em] text-[#9A9AB5] ${l.vantagens.length ? "mt-[4mm]" : ""}`}>
+                  O terreno
+                </h2>
+                <dl className="mt-2 min-h-0 flex-1 space-y-1 overflow-hidden text-[10.5px] leading-snug">
+                  {landRows.map(([k, v]) => (
+                    <div key={k} className="flex gap-2 border-b border-[#EAEAF2] pb-1">
+                      <dt className="w-[24mm] shrink-0 text-[#6A6A86]">{k}</dt>
+                      <dd className="line-clamp-2 min-w-0 font-medium">{v}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </>
+            )}
+          </section>
+        )}
+        {!rural && !land && features.length > 0 && (
           <section className="min-h-0 overflow-hidden">
             <h2 className="text-[9.5px] font-semibold uppercase tracking-[0.2em] text-[#9A9AB5]">
               Comodidades
@@ -326,7 +404,7 @@ export function FichaSheet({
           >
             <div className="text-right">
               <p className="text-[11px] font-semibold leading-tight">
-                {qrKind === "mapa" ? "Veja a propriedade no mapa" : "Fale com um consultor"}
+                {qrKind === "mapa" ? (land ? "Veja o terreno no mapa" : "Veja a propriedade no mapa") : "Fale com um consultor"}
               </p>
               <p className="mt-0.5 text-[9px] leading-snug text-[#9A9AB5]">
                 {qrKind === "mapa"

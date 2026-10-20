@@ -2,7 +2,7 @@ import { getDb } from "@/db";
 import { activities, properties } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { codePrefixes } from "@/lib/property-code";
-import { isRuralType } from "@/lib/rural";
+import { kindOf } from "@/lib/rural";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { isAdmin } from "@/lib/roles";
@@ -24,7 +24,8 @@ export async function POST() {
     for (const r of rows) {
       const m = r.code.match(/^([A-Z0-9]+)-(\d+)$/i);
       if (!m) continue;
-      const want = isRuralType(r.type) ? prefixes.rural : prefixes.urban;
+      const kind = kindOf(r.type);
+      const want = kind === "rural" ? prefixes.rural : kind === "terreno" ? prefixes.land : prefixes.urban;
       if (m[1].toUpperCase() === want) continue;
       let n = Number(m[2]);
       let code = `${want}-${n}`;

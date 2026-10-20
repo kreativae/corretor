@@ -11,6 +11,7 @@ import {
 import { deleteFiles } from "@/lib/blob";
 import { eq } from "drizzle-orm";
 import { alqToM2, isRuralType, kmzOnly, sanitizeRural } from "@/lib/rural";
+import { isLandType, sanitizeLand } from "@/lib/land";
 import { sanitizePropertyPartnerFields } from "@/lib/partners";
 import { parseYouTubeUrl } from "@/lib/utils";
 import { NextResponse } from "next/server";
@@ -48,11 +49,12 @@ export async function PATCH(req: Request, { params }: Params) {
       if (isRuralType(data.type)) {
         data.rural = sanitizeRural(data.rural);
         data.area = alqToM2(data.rural.totalAlq ?? 0);
-      } else if (data.type === "terreno") {
+      } else if (isLandType(data.type)) {
         data.rural = kmzOnly(data.rural);
       } else {
         data.rural = null;
       }
+      data.land = isLandType(data.type) ? sanitizeLand(data.land) : null;
     }
 
     // Parceria: só valores válidos (id do parceiro, percentuais 0–100)
