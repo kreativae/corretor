@@ -1,6 +1,8 @@
 import { getCurrentUser } from "@/lib/auth";
 import { MEDIA_FOLDERS, putFile, STORAGE_MISSING, storageReady, type MediaFolder } from "@/lib/blob";
 import { requestPublicOrigin } from "@/lib/google";
+import { getWhiteLabel } from "@/lib/queries";
+import { siteBaseUrl } from "@/lib/tenant";
 import { NextResponse } from "next/server";
 
 /** Diagnóstico: o armazenamento está configurado e o usuário está logado? */
@@ -53,10 +55,12 @@ export async function POST(req: Request) {
     if (file.size > MAX_BYTES) {
       return NextResponse.json({ error: "Arquivo acima de 4 MB." }, { status: 413 });
     }
-    // Blob público: endereço direto. Privado ou disco: proxy /api/media (com cache de CDN)
+    // Blob público: endereço direto. Privado ou disco: proxy /api/media (com cache de CDN), sempre
+    // no domínio oficial do site, não no endereço por onde o CRM foi aberto
     const saved = await putFile(pathname, file, { contentType, prefer: "public" });
+    const base = saved.url ? "" : await siteBaseUrl((await getWhiteLabel()).domain, requestPublicOrigin(req));
     return NextResponse.json({
-      url: saved.url || `${requestPublicOrigin(req)}/api/media/${saved.pathname}`,
+      url: saved.url || `${base.replace(/\/+$/, "")}/api/media/${saved.pathname}`,
     });
   } catch (e) {
     console.error(e);
