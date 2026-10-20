@@ -19,7 +19,7 @@ import { ArrowLeft, Check, Handshake, ImageIcon, Save, Sparkles } from "lucide-r
 import Link from "next/link";
 import { generateDescription } from "@/lib/description";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 const inputCls = "h-10";
@@ -119,6 +119,21 @@ export function PropertyForm({
 
   const set = (k: string, v: string | boolean | string[]) =>
     setForm((f) => ({ ...f, [k]: v }));
+
+  /** Botão "m²" do título: insere no ponto do cursor (nem todo mundo sabe digitar o ²) */
+  const titleRef = useRef<HTMLInputElement>(null);
+  function insertM2() {
+    const el = titleRef.current;
+    const at = el?.selectionStart ?? form.title.length;
+    const end = el?.selectionEnd ?? at;
+    const before = form.title.slice(0, at);
+    const piece = (before && !before.endsWith(" ") ? " " : "") + "m²";
+    set("title", before + piece + form.title.slice(end));
+    requestAnimationFrame(() => {
+      el?.focus();
+      el?.setSelectionRange(at + piece.length, at + piece.length);
+    });
+  }
 
   // Cada clique gera um estilo diferente de texto
   const [variant, setVariant] = useState(0);
@@ -334,18 +349,34 @@ export function PropertyForm({
             <h2 className={h2Cls}>Identificação</h2>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Título do anúncio" className="sm:col-span-2">
-                <Input
-                  value={form.title}
-                  onChange={(e) => set("title", e.target.value)}
-                  placeholder={
-                    rural
-                      ? "Ex.: Fazenda 120 alqueires dupla aptidão em Tamarana"
-                      : land
-                        ? "Ex.: Terreno de esquina, 450 m², pronto para construir"
-                        : "Ex.: Casa de vidro no Alto de Pinheiros"
-                  }
-                  className={inputCls}
-                />
+                <div className="relative">
+                  <Input
+                    ref={titleRef}
+                    value={form.title}
+                    // "450m2", "450 m2" e "m2" solto viram m² sozinhos
+                    onChange={(e) =>
+                      set("title", e.target.value.replace(/(\d)\s?m2\b/gi, "$1 m²").replace(/(^|\s)m2\b/gi, "$1m²"))
+                    }
+                    placeholder={
+                      rural
+                        ? "Ex.: Fazenda 120 alqueires dupla aptidão em Tamarana"
+                        : land
+                          ? "Ex.: Terreno de esquina, 450 m², pronto para construir"
+                          : "Ex.: Casa de vidro no Alto de Pinheiros"
+                    }
+                    className={cn(inputCls, !rural && "pr-14")}
+                  />
+                  {!rural && (
+                    <button
+                      type="button"
+                      onClick={insertM2}
+                      title="Inserir m² no título"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full border border-hairline bg-soft px-2.5 py-1 font-mono text-xs text-subtle transition-colors hover:text-ink"
+                    >
+                      m²
+                    </button>
+                  )}
+                </div>
               </Field>
               <Field label="Tipo">
                 <Select value={form.type} onChange={(e) => set("type", e.target.value)}>
