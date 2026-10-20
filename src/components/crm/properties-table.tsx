@@ -430,22 +430,23 @@ export function PropertiesTable({
       </div>
 
       {/* Tabela (tablet e computador) */}
-      <div className="card-elev mt-3 hidden overflow-x-auto rounded-2xl border border-hairline bg-card md:block">
-        <table className="w-full min-w-[720px] text-left text-sm">
+      {/* Colunas pela largura da própria tabela (@container), não da janela: o menu lateral ocupa espaço */}
+      <div className="card-elev @container mt-3 hidden overflow-x-auto rounded-2xl border border-hairline bg-card md:block">
+        <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-hairline font-mono text-[10px] uppercase tracking-[0.16em] text-subtle">
               <th className="px-5 py-3.5 font-medium">{rural ? "Propriedade" : land ? "Terreno" : "Imóvel"}</th>
-              <th className="hidden px-4 py-3.5 font-medium xl:table-cell">Tipo</th>
-              <th className="hidden px-4 py-3.5 font-medium xl:table-cell">{rural ? "Aptidão" : "Finalidade"}</th>
-              <th className="px-4 py-3.5 text-right font-medium">Área</th>
+              <th className="hidden px-4 py-3.5 font-medium @7xl:table-cell">Tipo</th>
+              <th className="hidden px-4 py-3.5 font-medium @7xl:table-cell">{rural ? "Aptidão" : "Finalidade"}</th>
+              <th className="hidden px-4 py-3.5 text-right font-medium @4xl:table-cell">Área</th>
               <th className="px-4 py-3.5 text-right font-medium">Preço</th>
-              <th className="hidden px-4 py-3.5 text-right font-medium lg:table-cell">Views</th>
+              <th className="hidden px-4 py-3.5 text-right font-medium @5xl:table-cell">Views</th>
               <th className="px-4 py-3.5 font-medium">Status</th>
               <th className="px-4 py-3.5 text-center font-medium">Site</th>
               <th className="px-1 py-3.5 text-center font-medium" title="Destaque na home">
                 <Star className="mx-auto size-3.5" aria-label="Destaque" />
               </th>
-              <th className="px-4 py-3.5" />
+              <th className="hidden px-4 py-3.5 @4xl:table-cell" />
             </tr>
           </thead>
           <tbody>
@@ -473,23 +474,27 @@ export function PropertiesTable({
                       )}
                     </span>
                     <span className="min-w-0">
-                      <span className="block max-w-64 truncate font-medium leading-tight group-hover:underline group-hover:underline-offset-4">
+                      <span className="block max-w-48 truncate font-medium @5xl:max-w-64 leading-tight group-hover:underline group-hover:underline-offset-4">
                         {p.title}
                       </span>
                       <span className="mt-0.5 block font-mono text-[10.5px] uppercase tracking-wider text-subtle">
                         {p.code} · {p.neighborhood}
                         {p.partnerId && <span className="ml-1.5 rounded bg-[#F47525]/15 px-1 py-px text-[#C9551A] dark:text-[#F8975A]">parceiro</span>}
                       </span>
-                      {/* Tela menor: tipo e finalidade aqui, sem as colunas */}
-                      <span className="mt-0.5 block text-[11px] text-subtle xl:hidden">
+                      {/* Tabela estreita: tipo, finalidade e área aqui, sem as colunas */}
+                      <span className="mt-0.5 block text-[11px] text-subtle @7xl:hidden">
                         {TYPE_LABELS[p.type]}
                         {!rural && ` · ${PURPOSE_LABELS[p.purpose]}`}
+                        <span className="@4xl:hidden">
+                          {" · "}
+                          {rural ? `${formatAlq(normalizeRural(p.rural).totalAlq ?? 0)} alq` : `${formatNumber(p.area)} m²`}
+                        </span>
                       </span>
                     </span>
                   </Link>
                 </td>
-                <td className="hidden px-4 py-3 text-subtle xl:table-cell">{TYPE_LABELS[p.type]}</td>
-                <td className="hidden px-4 py-3 text-subtle xl:table-cell">
+                <td className="hidden px-4 py-3 text-subtle @7xl:table-cell">{TYPE_LABELS[p.type]}</td>
+                <td className="hidden px-4 py-3 text-subtle @7xl:table-cell">
                   {rural
                     ? (() => {
                         const apt = normalizeRural(p.rural).aptidao;
@@ -497,7 +502,7 @@ export function PropertiesTable({
                       })()
                     : PURPOSE_LABELS[p.purpose]}
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-right font-mono tabular text-subtle">
+                <td className="hidden px-4 py-3 whitespace-nowrap text-right font-mono tabular text-subtle @4xl:table-cell">
                   {rural
                     ? `${formatAlq(normalizeRural(p.rural).totalAlq ?? 0)} alq`
                     : `${formatNumber(p.area)} m²`}
@@ -513,7 +518,7 @@ export function PropertiesTable({
                     <span className="block text-[10.5px] font-normal text-subtle">{formatBRL(Math.round(p.price / p.area))}/m²</span>
                   )}
                 </td>
-                <td className="hidden px-4 py-3 text-right lg:table-cell">
+                <td className="hidden px-4 py-3 text-right @5xl:table-cell">
                   <span
                     title={
                       viewCounts[p.id]
@@ -542,7 +547,7 @@ export function PropertiesTable({
                 <td className="px-1 py-3">
                   <div className="flex justify-center">{starBtn(p)}</div>
                 </td>
-                <td className="px-4 py-3">
+                <td className="hidden px-2 py-3 @4xl:table-cell">
                   <div className="flex items-center justify-end gap-0.5 transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100">
                     <Link href={crmPropertyPath(p, "/editar")}>
                       <Button variant="ghost" size="icon" aria-label="Editar">
