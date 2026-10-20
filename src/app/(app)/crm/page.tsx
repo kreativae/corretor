@@ -201,9 +201,12 @@ export default async function CrmDashboard({
     const vgv = disponiveis.reduce((a, p) => a + p.price, 0);
     const alq = disponiveis.reduce((a, p) => a + (normalizeRural(p.rural).totalAlq ?? 0), 0);
     const m2 = disponiveis.reduce((a, p) => a + (p.area || 0), 0);
+    // Média do m² só com os à venda (aluguel é valor mensal)
+    const venda = disponiveis.filter((p) => p.purpose === "venda" && p.area > 0);
+    const vendaM2 = venda.reduce((a, p) => a + p.area, 0);
     return {
       m2,
-      precoMedioM2: m2 > 0 ? Math.round(vgv / m2) : null,
+      precoMedioM2: vendaM2 > 0 ? Math.round(venda.reduce((a, p) => a + p.price, 0) / vendaM2) : null,
       total: list.length,
       disponiveis: disponiveis.length,
       publicados: list.filter((p) => p.published).length,
@@ -416,7 +419,7 @@ export default async function CrmDashboard({
           <Link
             key={c.href}
             href={c.href}
-            className="card-elev group rounded-2xl border border-hairline bg-card p-4 transition-colors hover:border-hairline-strong md:p-6"
+            className="card-elev group @container rounded-2xl border border-hairline bg-card p-4 transition-colors hover:border-hairline-strong md:p-6"
           >
             <div className="flex items-center justify-between">
               <h2 className="flex items-center gap-2 font-display text-base font-semibold tracking-tight">
@@ -427,11 +430,11 @@ export default async function CrmDashboard({
             </div>
             <div className="mt-5 grid grid-cols-3 gap-3">
               <div>
-                <p className="font-mono text-lg font-medium tabular md:text-2xl">{c.data.disponiveis}</p>
+                <p className="whitespace-nowrap font-mono text-base font-medium tabular @[20rem]:text-xl @[26rem]:text-2xl">{c.data.disponiveis}</p>
                 <p className="text-[11px] text-subtle">disponíveis de {c.data.total}</p>
               </div>
               <div>
-                <p className="font-mono text-lg font-medium tabular md:text-2xl">
+                <p className="whitespace-nowrap font-mono text-base font-medium tabular @[20rem]:text-xl @[26rem]:text-2xl">
                   {c.rural ? formatAlq(c.data.alq) : c.land ? c.data.m2.toLocaleString("pt-BR") : c.data.publicados}
                 </p>
                 <p className="text-[11px] text-subtle">
@@ -439,7 +442,7 @@ export default async function CrmDashboard({
                 </p>
               </div>
               <div>
-                <p className="font-mono text-lg font-medium tabular md:text-2xl">{formatCompact(c.data.vgv)}</p>
+                <p className="whitespace-nowrap font-mono text-base font-medium tabular @[20rem]:text-xl @[26rem]:text-2xl">{formatCompact(c.data.vgv)}</p>
                 <p className="text-[11px] text-subtle">VGV disponível</p>
               </div>
             </div>
@@ -464,7 +467,7 @@ export default async function CrmDashboard({
                   média {formatCompact(c.data.precoMedioAlq)}/alq
                 </span>
               )}
-              {c.land && c.data.precoMedioM2 && (
+              {!c.rural && c.data.precoMedioM2 && (
                 <span className="ml-auto font-mono text-[11px] text-subtle">
                   média {formatCompact(c.data.precoMedioM2)}/m²
                 </span>
