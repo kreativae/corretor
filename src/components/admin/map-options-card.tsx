@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, Field, Input, Select, Switch } from "@/components/ui";
-import { AREA_MODES, AREA_RADII, type AreaMode, type MapOptions } from "@/lib/map-options";
+import { AREA_MODES, AREA_RADII, AREA_ZOOMS, type AreaMode, type MapOptions, zoomLabel } from "@/lib/map-options";
 import { cn } from "@/lib/utils";
 import { CheckCircle2, ChevronDown, Loader2, LocateFixed, Map as MapIcon, Navigation, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -129,6 +129,23 @@ export function MapOptionsCard({ initial }: { initial: MapOptions }) {
                   >
                     {AREA_RADII.map((km) => (
                       <option key={km} value={km}>{km < 1 ? `${km * 1000} m` : `${km} km`}</option>
+                    ))}
+                  </Select>
+                </Field>
+              )}
+              {opts.areaMode !== "off" && (
+                <Field label="Zoom do mapa" hint="Quanto o mapa abre aproximado. O visitante ainda pode usar + e −.">
+                  <Select
+                    value={String(opts.areaZoom)}
+                    disabled={saving !== null}
+                    onChange={(e) => {
+                      const z = Number(e.target.value);
+                      void save("areaZoom", { ...opts, areaZoom: z }, `Zoom do mapa: ${zoomLabel(z).toLowerCase()}.`);
+                    }}
+                    className="max-w-[18rem]"
+                  >
+                    {AREA_ZOOMS.map((z) => (
+                      <option key={z} value={z}>{zoomLabel(z)}</option>
                     ))}
                   </Select>
                 </Field>

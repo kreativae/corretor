@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 /** Mapa com o círculo da região (nunca o ponto exato do imóvel). */
-function RegionMap({ center, radiusKm, tiles, className }: { center: [number, number]; radiusKm: number; tiles: MapTiles; className?: string }) {
+function RegionMap({ center, radiusKm, zoom, tiles, className }: { center: [number, number]; radiusKm: number; zoom: number; tiles: MapTiles; className?: string }) {
   const el = useRef<HTMLDivElement>(null);
   const { resolvedTheme } = useTheme();
   const dark = resolvedTheme === "dark";
@@ -26,13 +26,15 @@ function RegionMap({ center, radiusKm, tiles, className }: { center: [number, nu
       const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
       const color = accent ? `rgb(${accent.split(/\s+/).join(",")})` : "#f47525";
       const circle = L.circle(center, { radius: radiusKm * 1000, color, weight: 2, fillColor: color, fillOpacity: 0.15 }).addTo(map);
-      map.fitBounds(circle.getBounds(), { padding: [24, 24] });
+      // Zoom escolhido em Configurações › Mapa; 0 = enquadrar o círculo
+      if (zoom) map.setView(center, zoom);
+      else map.fitBounds(circle.getBounds(), { padding: [24, 24] });
     });
     return () => {
       cancelled = true;
       map?.remove();
     };
-  }, [center, radiusKm, tiles, dark]);
+  }, [center, radiusKm, zoom, tiles, dark]);
 
   return <div ref={el} className={cn("z-0 h-72 w-full overflow-hidden rounded-xl md:h-80", className)} />;
 }
@@ -48,6 +50,7 @@ export function AreaLocation({
   place,
   center,
   radiusKm,
+  zoom,
   tiles,
   mode,
 }: {
@@ -55,6 +58,7 @@ export function AreaLocation({
   place: string;
   center: [number, number] | null;
   radiusKm: number;
+  zoom: number;
   tiles: MapTiles;
   mode: AreaMode;
 }) {
@@ -96,13 +100,13 @@ export function AreaLocation({
 
       {hasMap && mode === "always" && (
         <div className="mt-5">
-          <RegionMap center={center} radiusKm={radiusKm} tiles={tiles} />
+          <RegionMap center={center} radiusKm={radiusKm} zoom={zoom} tiles={tiles} />
           <p className="mt-2 text-[11px] text-subtle">{note}</p>
         </div>
       )}
       {hasMap && mode === "accordion" && open && (
         <div className="mt-5">
-          <RegionMap center={center} radiusKm={radiusKm} tiles={tiles} />
+          <RegionMap center={center} radiusKm={radiusKm} zoom={zoom} tiles={tiles} />
           <p className="mt-2 text-[11px] text-subtle">{note}</p>
         </div>
       )}
@@ -127,7 +131,7 @@ export function AreaLocation({
                   <X className="size-4" />
                 </button>
               </div>
-              <RegionMap center={center} radiusKm={radiusKm} tiles={tiles} className="h-[60vh] md:h-[60vh]" />
+              <RegionMap center={center} radiusKm={radiusKm} zoom={zoom} tiles={tiles} className="h-[60vh] md:h-[60vh]" />
               <p className="mt-2 text-[11px] text-subtle">{note}</p>
             </div>
           </div>,

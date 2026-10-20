@@ -244,6 +244,7 @@ export default async function ImovelPage({ params }: { params: Params }) {
               place={`${p.city}, ${p.state} — Brasil`}
               center={area}
               radiusKm={mapOpts.areaRadiusKm}
+              zoom={mapOpts.areaZoom}
               tiles={tiles}
               mode={mapOpts.areaMode}
             />
