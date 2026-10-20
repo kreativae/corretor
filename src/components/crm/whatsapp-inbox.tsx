@@ -5,6 +5,7 @@ import type { WaMessage } from "@/db/schema";
 import { cn, formatPhone, initials } from "@/lib/utils";
 import { WhatsAppConnection, type ConnState } from "@/components/crm/whatsapp-connection";
 import { WhatsAppInsights } from "@/components/crm/whatsapp-insights";
+import { VoiceRecorder } from "@/components/crm/voice-recorder";
 import {
   Archive,
   ArchiveRestore,
@@ -320,6 +321,22 @@ export function WhatsAppInbox({
   }
 
   const fileInput = useRef<HTMLInputElement>(null);
+  const [recording, setRecording] = useState(false);
+  async function sendVoice(file: File) {
+    if (!active) return;
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      body.append("phone", active);
+      const res = await fetch("/api/whatsapp/send-audio", { method: "POST", body });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Falha no envio do áudio.");
+      setMessages((cur) => [...cur, data]);
+      loadThreads();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha no envio do áudio.");
+    }
+  }
   async function sendFile(file: File) {
     if (!active) return;
     if (file.size > 4 * 1024 * 1024) return toast.error("Arquivo acima de 4 MB.");
@@ -716,6 +733,7 @@ export function WhatsAppInbox({
                 {windowOpen ? (
                   <>
                     <div className="flex items-end gap-2">
+                      {!recording && (
                       <Textarea
                         rows={1}
                         value={text}
@@ -731,7 +749,8 @@ export function WhatsAppInbox({
                         className="max-h-40 min-h-11 flex-1 resize-none"
                         disabled={!ready}
                       />
-                      {qrMode && (
+                      )}
+                      {qrMode && !recording && (
                         <>
                           <input
                             ref={fileInput}
@@ -756,9 +775,14 @@ export function WhatsAppInbox({
                           </Button>
                         </>
                       )}
-                      <Button variant="accent" onClick={() => send()} disabled={!ready || sending || !text.trim()} className="h-11">
-                        {sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
-                      </Button>
+                      {/* Sem texto, o botão vira o microfone (como no app do WhatsApp) */}
+                      {qrMode && (recording || !text.trim()) && !sending ? (
+                        <VoiceRecorder disabled={!ready} onRecording={setRecording} onSend={sendVoice} />
+                      ) : (
+                        <Button variant="accent" onClick={() => send()} disabled={!ready || sending || !text.trim()} className="h-11">
+                          {sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+                        </Button>
+                      )}
                     </div>
                     {!qrMode && windowUntil && (
                       <p className="mt-1.5 flex items-center gap-1 text-[11px] text-subtle">

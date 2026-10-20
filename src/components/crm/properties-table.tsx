@@ -431,15 +431,15 @@ export function PropertiesTable({
 
       {/* Tabela (tablet e computador) */}
       <div className="card-elev mt-3 hidden overflow-x-auto rounded-2xl border border-hairline bg-card md:block">
-        <table className="w-full min-w-[940px] text-left text-sm">
+        <table className="w-full min-w-[720px] text-left text-sm">
           <thead>
             <tr className="border-b border-hairline font-mono text-[10px] uppercase tracking-[0.16em] text-subtle">
               <th className="px-5 py-3.5 font-medium">{rural ? "Propriedade" : land ? "Terreno" : "Imóvel"}</th>
-              <th className="px-4 py-3.5 font-medium">Tipo</th>
-              <th className="px-4 py-3.5 font-medium">{rural ? "Aptidão" : "Finalidade"}</th>
+              <th className="hidden px-4 py-3.5 font-medium xl:table-cell">Tipo</th>
+              <th className="hidden px-4 py-3.5 font-medium xl:table-cell">{rural ? "Aptidão" : "Finalidade"}</th>
               <th className="px-4 py-3.5 text-right font-medium">Área</th>
               <th className="px-4 py-3.5 text-right font-medium">Preço</th>
-              <th className="px-4 py-3.5 text-right font-medium">Views</th>
+              <th className="hidden px-4 py-3.5 text-right font-medium lg:table-cell">Views</th>
               <th className="px-4 py-3.5 font-medium">Status</th>
               <th className="px-4 py-3.5 text-center font-medium">Site</th>
               <th className="px-1 py-3.5 text-center font-medium" title="Destaque na home">
@@ -480,11 +480,16 @@ export function PropertiesTable({
                         {p.code} · {p.neighborhood}
                         {p.partnerId && <span className="ml-1.5 rounded bg-[#F47525]/15 px-1 py-px text-[#C9551A] dark:text-[#F8975A]">parceiro</span>}
                       </span>
+                      {/* Tela menor: tipo e finalidade aqui, sem as colunas */}
+                      <span className="mt-0.5 block text-[11px] text-subtle xl:hidden">
+                        {TYPE_LABELS[p.type]}
+                        {!rural && ` · ${PURPOSE_LABELS[p.purpose]}`}
+                      </span>
                     </span>
                   </Link>
                 </td>
-                <td className="px-4 py-3 text-subtle">{TYPE_LABELS[p.type]}</td>
-                <td className="px-4 py-3 text-subtle">
+                <td className="hidden px-4 py-3 text-subtle xl:table-cell">{TYPE_LABELS[p.type]}</td>
+                <td className="hidden px-4 py-3 text-subtle xl:table-cell">
                   {rural
                     ? (() => {
                         const apt = normalizeRural(p.rural).aptidao;
@@ -508,7 +513,7 @@ export function PropertiesTable({
                     <span className="block text-[10.5px] font-normal text-subtle">{formatBRL(Math.round(p.price / p.area))}/m²</span>
                   )}
                 </td>
-                <td className="px-4 py-3 text-right">
+                <td className="hidden px-4 py-3 text-right lg:table-cell">
                   <span
                     title={
                       viewCounts[p.id]
@@ -562,11 +567,6 @@ export function PropertiesTable({
                     >
                       <Trash2 className="size-4 text-red-500/80" />
                     </Button>
-                    <Link href={crmPropertyPath(p)}>
-                      <Button variant="ghost" size="icon" aria-label="Abrir">
-                        <ArrowUpRight className="size-4" />
-                      </Button>
-                    </Link>
                   </div>
                 </td>
               </tr>

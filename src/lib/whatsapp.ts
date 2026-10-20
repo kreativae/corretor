@@ -423,8 +423,16 @@ export type NormalizedMessage = {
 
 /** Mensagem enviada pelo próprio celular (aparece na conversa do CRM) */
 export async function ingestFromMe(line: string, m: NormalizedMessage) {
-  const [dup] = await (await getDb()).select({ id: waMessages.id }).from(waMessages).where(and(eq(waMessages.line, line), eq(waMessages.waMessageId, m.id)));
-  if (dup) return;
+  const [dup] = await (await getDb())
+    .select({ id: waMessages.id, mediaId: waMessages.mediaId })
+    .from(waMessages)
+    .where(and(eq(waMessages.line, line), eq(waMessages.waMessageId, m.id)));
+  if (dup) {
+    // Enviada pelo CRM (áudio, foto, PDF): a volta do webhook traz a mídia para tocar/abrir aqui
+    if (!dup.mediaId && m.mediaId)
+      await (await getDb()).update(waMessages).set({ mediaId: m.mediaId, mediaMime: m.mime }).where(eq(waMessages.id, dup.id));
+    return;
+  }
   const [thread] = await (await getDb()).select().from(waThreads).where(threadKey(line, m.phone));
   const contactId = thread?.contactId ?? (await findContactByPhone(m.phone))?.id ?? null;
   await (await getDb())
@@ -697,6 +705,17 @@ export async function sendMediaUrl(cfg: LineConfig, phone: string, url: string, 
     waMessageId: d.key?.id ?? null,
     sentBy: opts.sentBy,
   });
+}
+
+/** Mensagem de voz (gravada no navegador); a Evolution converte para o formato do WhatsApp */
+export async function sendAudio(cfg: LineConfig, phone: string, base64: string, sentBy: string) {
+  if (cfg.provider !== "evolution") throw new WhatsAppError("Áudio disponível na conexão por QR code.");
+  const to = waPhone(phone);
+  const d = await evo<{ key?: { id?: string } }>(cfg, `/message/sendWhatsAppAudio/${inst(cfg)}`, {
+    method: "POST",
+    body: JSON.stringify({ number: to, audio: base64, encoding: true }),
+  });
+  return recordOutgoing(cfg.line, to, { type: "audio", body: "🎤 Áudio", waMessageId: d.key?.id ?? null, sentBy });
 }
 
 async function evoMedia(cfg: WhatsAppConfig, messageId: string) {
