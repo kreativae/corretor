@@ -17,9 +17,9 @@ import {
   type MarketUnit,
   type Region,
 } from "@/lib/market";
-import { ALQUEIRE_M2, formatAlq, isRuralType } from "@/lib/rural";
+import { ALQUEIRE_M2, formatAlq, isRuralType, kindOf } from "@/lib/rural";
 import { cn, formatBRL, formatDate, formatNumber } from "@/lib/utils";
-import { AlertTriangle, ArrowDownRight, ArrowUpRight, Building2, Loader2, MapPin, Plus, Tractor, Trash2, X } from "lucide-react";
+import { AlertTriangle, ArrowDownRight, ArrowUpRight, Building2, Loader2, MapPin, LandPlot, Plus, Tractor, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -36,7 +36,8 @@ const PERIODS = [
   { id: "all", label: "Todo o período", months: 0 },
 ] as const;
 
-const URBAN_TYPES = Object.keys(TYPE_LABELS).filter((t) => !isRuralType(t));
+const URBAN_TYPES = Object.keys(TYPE_LABELS).filter((t) => kindOf(t) === "urbano");
+const LAND_TYPES = Object.keys(TYPE_LABELS).filter((t) => kindOf(t) === "terreno");
 const RURAL_TYPES = Object.keys(TYPE_LABELS).filter((t) => isRuralType(t));
 
 type Placed = Region & { geo: string; pos: [number, number] | null; bin: number };
@@ -81,7 +82,7 @@ export function MarketMap({
   now: number;
 }) {
   const router = useRouter();
-  const [mode, setMode] = useState<"urbano" | "rural">("urbano");
+  const [mode, setMode] = useState<"urbano" | "terreno" | "rural">("urbano");
   const [purpose, setPurpose] = useState<"venda" | "aluguel">("venda");
   const [type, setType] = useState("todos");
   const [period, setPeriod] = useState<(typeof PERIODS)[number]["id"]>("24");
@@ -95,8 +96,8 @@ export function MarketMap({
   const suffix = UNIT_SUFFIX[unit];
 
   const base = useMemo(
-    () => samples.filter((s) => s.rural === rural && s.purpose === purpose && (type === "todos" || s.type === type)),
-    [samples, rural, purpose, type],
+    () => samples.filter((s) => kindOf(s.type) === mode && s.purpose === purpose && (type === "todos" || s.type === type)),
+    [samples, mode, purpose, type],
   );
   const inPeriod = useMemo(() => {
     const months = PERIODS.find((p) => p.id === period)?.months ?? 0;
@@ -246,7 +247,7 @@ export function MarketMap({
     return [...c.values()].sort((a, b) => b.n - a.n)[0] ?? { city: "", state: "" };
   }, [samples]);
   const emptyForm = () => ({
-    type: rural ? "fazenda" : "apartamento",
+    type: rural ? "fazenda" : mode === "terreno" ? "terreno" : "apartamento",
     purpose,
     price: "",
     area: "",
@@ -305,6 +306,7 @@ export function MarketMap({
           {(
             [
               { id: "urbano", label: "Imóveis", icon: Building2 },
+              { id: "terreno", label: "Terrenos", icon: LandPlot },
               { id: "rural", label: "Rurais", icon: Tractor },
             ] as const
           ).map((t) => (
@@ -332,7 +334,7 @@ export function MarketMap({
         </Select>
         <Select value={type} onChange={(e) => setType(e.target.value)} className="w-auto" aria-label="Tipo">
           <option value="todos">Todos os tipos</option>
-          {(rural ? RURAL_TYPES : URBAN_TYPES).map((t) => (
+          {(rural ? RURAL_TYPES : mode === "terreno" ? LAND_TYPES : URBAN_TYPES).map((t) => (
             <option key={t} value={t}>
               {TYPE_LABELS[t]}
             </option>
@@ -610,6 +612,13 @@ export function MarketMap({
             <Select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
               <optgroup label="Imóveis">
                 {URBAN_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {TYPE_LABELS[t]}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="Terrenos">
+                {LAND_TYPES.map((t) => (
                   <option key={t} value={t}>
                     {TYPE_LABELS[t]}
                   </option>

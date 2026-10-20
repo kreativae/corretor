@@ -51,7 +51,7 @@ export function Kanban({
   initialDeals,
   contacts,
   properties,
-  initialTab = "imoveis",
+  initialTab = "todos",
   showClosedLink = false,
   focusDealId,
 }: {
@@ -87,7 +87,7 @@ export function Kanban({
 
   function switchTab(t: PipelineTab) {
     setTab(t);
-    router.replace(t === "imoveis" ? pathname : `${pathname}?tipo=${t}`, { scroll: false });
+    router.replace(t === "todos" ? pathname : `${pathname}?tipo=${t}`, { scroll: false });
   }
   const [dragId, setDragId] = useState<string | null>(null);
   const [overStage, setOverStage] = useState<string | null>(null);
@@ -323,10 +323,10 @@ export function Kanban({
         <div className="inline-flex rounded-full border border-hairline p-1">
           {(
             [
+              { id: "todos", label: "Todos", icon: Layers },
               { id: "imoveis", label: "Imóveis", icon: Building2 },
               { id: "terrenos", label: "Terrenos", icon: LandPlot },
               { id: "rurais", label: "Rurais", icon: Tractor },
-              { id: "todos", label: "Todos", icon: Layers },
             ] as const
           ).map((t) => (
             <button

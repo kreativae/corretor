@@ -2,7 +2,7 @@ import "server-only";
 import { getDb } from "@/db";
 import { deals, marketSamples, properties, regionGeo } from "@/db/schema";
 import { cityCenter, insideCity } from "@/lib/geo-check";
-import { crmPropertyPath, isRuralType, normalizeRural, alqToM2 } from "@/lib/rural";
+import { crmPropertyPath, isRuralType, kindOf, normalizeRural, alqToM2 } from "@/lib/rural";
 import { median, regionKey, unitValue, type MarketSample } from "@/lib/market";
 import { desc, eq, inArray } from "drizzle-orm";
 
@@ -152,9 +152,11 @@ export async function compareToRegion(p: {
   const unit = rural ? "alq" : "m2";
   const key = regionKey(p, rural);
   const since = Date.now() - 2 * 365 * 86_400_000;
+  const kind = kindOf(p.type);
   const peers = (await loadMarketSamples()).filter(
     (s) =>
-      s.rural === rural &&
+      // Terreno se compara com terrenos; imóvel construído, com imóveis
+      kindOf(s.type) === kind &&
       s.purpose === p.purpose &&
       !s.id.endsWith(p.id) &&
       !s.id.includes(`-${p.id}-`) &&
