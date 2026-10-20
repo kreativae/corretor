@@ -1,4 +1,5 @@
 import { IntegrationsClient } from "@/components/admin/integrations-client";
+import { PortalConnect } from "@/components/crm/portal-connect";
 import { FeaturesCard } from "@/components/admin/features-card";
 import { StatCardsCard } from "@/components/admin/stat-cards-card";
 import { MapOptionsCard } from "@/components/admin/map-options-card";
@@ -67,6 +68,11 @@ export default async function ConfiguracoesPage() {
       />
       <WhatsAppCard />
       <MessagesCard initial={messages} />
+      {/* Portais imobiliários: anúncios pelo feed XML e leads de volta para o CRM */}
+      <section className="card-elev rounded-2xl border border-hairline bg-card p-5 md:p-6">
+        <h2 className="mb-4 font-display text-lg font-semibold tracking-tight">Portais imobiliários</h2>
+        <PortalConnect />
+      </section>
       <IntegrationsClient
         integrations={ints.map((item) => ({
           id: item.id,

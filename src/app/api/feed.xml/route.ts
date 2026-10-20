@@ -1,6 +1,8 @@
 import { listPublishedProperties, getWhiteLabel } from "@/lib/queries";
 import { siteBaseUrl } from "@/lib/tenant";
 import { signedMediaUrl } from "@/lib/media-guard";
+import { markFeedRead, portalFromAgent } from "@/lib/portal-connect";
+import { after } from "next/server";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +15,11 @@ function esc(s: string) {
     .replace(/'/g, "&apos;");
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  // Leitura por um portal: registra para mostrar "conectado" no CRM
+  const reader = portalFromAgent(req.headers.get("user-agent") ?? "");
+  if (reader) after(() => markFeedRead(reader).catch(() => undefined));
+
   const [wl, props] = await Promise.all([
     getWhiteLabel(),
     listPublishedProperties(),

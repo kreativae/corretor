@@ -1,5 +1,6 @@
 "use client";
 
+import { PortalConnect } from "@/components/crm/portal-connect";
 import { isLandType, landDimensions, landNumbers, normalizeLand, TOPOGRAFIA_TERRENO } from "@/lib/land";
 import {
   APTIDAO_LABELS,
@@ -363,29 +364,8 @@ Link completo: ${propertyUrl}`;
                 </p>
               </div>
 
-              <div>
-                <p className="mb-1.5 text-xs font-medium text-subtle">
-                  URL do Feed XML da sua imobiliária:
-                </p>
-                <div className="flex items-center gap-2 rounded-xl bg-soft px-3.5 py-2.5">
-                  <code className="min-w-0 flex-1 truncate font-mono text-xs text-subtle">
-                    {xmlFeedUrl}
-                  </code>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => copyText(xmlFeedUrl, "feed")}
-                  >
-                    {copied === "feed" ? <Check className="size-3 text-emerald-500" /> : <Copy className="size-3" />}
-                    Copiar URL
-                  </Button>
-                  <a href="/api/feed.xml" target="_blank" rel="noreferrer">
-                    <Button size="sm" variant="ghost">
-                      <ExternalLink className="size-3" />
-                      Ver XML
-                    </Button>
-                  </a>
-                </div>
+              <div className="rounded-xl border border-hairline bg-card p-4">
+                <PortalConnect compact />
               </div>
 
               <div className="rounded-xl border border-hairline bg-card p-4 space-y-2">
