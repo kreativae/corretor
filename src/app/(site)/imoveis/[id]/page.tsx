@@ -74,8 +74,8 @@ export default async function ImovelPage({ params }: { params: Params }) {
   ]);
 
   if (!p || !p.published) notFound();
-  // Região no anúncio: centro aproximado (deslocado ou do bairro); o ponto exato não vai para a página
-  const area = mapOpts.areaMode === "off" ? null : await areaCenter(p, mapOpts.areaRadiusKm);
+  // Região no anúncio: círculo em volta do endereço cadastrado (ou do bairro); o ponto não aparece
+  const area = mapOpts.areaMode === "off" ? null : await areaCenter(p);
   const tiles = tilesFor(mapCfg);
 
   const related = published

@@ -96,7 +96,7 @@ export function MapOptionsCard({ initial }: { initial: MapOptions }) {
             <div className="space-y-4 rounded-xl border border-hairline p-4">
               <p className="text-xs text-subtle">
                 Mostra a região do imóvel num círculo aproximado, sem o endereço exato e sem link para o Google Maps.
-                Com coordenadas no cadastro, o círculo é deslocado para o imóvel não ficar no centro; sem elas, usa o centro do bairro.
+                O círculo fica em volta do endereço cadastrado (coordenadas ou rua, bairro e cidade); sem rua, usa o centro do bairro. O ponto exato não aparece.
               </p>
               <div className="grid gap-2 sm:grid-cols-2">
                 {AREA_MODES.map((m) => (
