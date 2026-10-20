@@ -6,6 +6,7 @@ import type { PropertyWithImages } from "@/lib/queries";
 import { PhotoManager } from "./photo-manager";
 import { KmzField, RuralFields } from "./rural-fields";
 import { SectionNav } from "./section-nav";
+import { useStickyAside } from "./use-sticky-aside";
 import { crmPropertyPath, isRuralType, normalizeRural, pricePerAlq, RURAL_TYPES, type RuralData } from "@/lib/rural";
 import { TAX_BASE, type TaxBase } from "@/lib/partners";
 import { CommissionBreakdown } from "@/components/crm/commission-breakdown";
@@ -55,6 +56,7 @@ export function PropertyForm({
   kind?: "urbano" | "rural";
 }) {
   const router = useRouter();
+  const { ref: asideRef, style: asideStyle } = useStickyAside();
   const isEdit = !!initial;
   const rural = initial ? isRuralType(initial.type) : kind === "rural";
   const typeOptions = Object.entries(TYPE_LABELS).filter(
@@ -493,7 +495,7 @@ export function PropertyForm({
         </div>
 
         {/* Lateral fixa ao rolar: valores, publicação e parceria */}
-        <aside className="space-y-5 lg:sticky lg:top-32 lg:max-h-[calc(100dvh-10rem)] lg:self-start lg:overflow-y-auto lg:pb-2">
+        <aside ref={asideRef} style={asideStyle} className="space-y-5 lg:sticky lg:self-start">
           {/* Valores */}
           <section className={sectionCls}>
             <h2 className={h2Cls}>Valores</h2>
