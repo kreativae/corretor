@@ -425,9 +425,13 @@ export function WhatsAppInbox({
     loadThreads();
   }
 
+  // Conexão em dia: sem título, descrição e Configurar, a conversa ganha a tela.
+  // Enquanto o estado do QR code é consultado (null), conta como em dia para não piscar
+  const healthy = ready && (!qrMode || connState === null || connState === "open");
+
   return (
     <div>
-      <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className={cn("flex flex-wrap items-end justify-between gap-3", healthy && "hidden")}>
         <div>
           <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-subtle">Atendimento</p>
           <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight">WhatsApp</h1>
@@ -472,7 +476,8 @@ export function WhatsAppInbox({
 
       <div
         className={cn(
-          "relative mt-6 grid h-[calc(100dvh-230px)] min-h-[520px] grid-cols-1 overflow-hidden rounded-2xl border border-hairline bg-card md:grid-cols-[340px_1fr]",
+          "relative grid min-h-[480px] grid-cols-1 overflow-hidden rounded-2xl border border-hairline bg-card md:grid-cols-[340px_1fr]",
+          healthy ? "h-[calc(100dvh-165px)] md:h-[calc(100dvh-130px)]" : "mt-6 h-[calc(100dvh-230px)]",
           thread && insightsPinned && "xl:grid-cols-[300px_1fr_340px] 2xl:grid-cols-[360px_1fr_400px]",
         )}
       >
@@ -561,7 +566,8 @@ export function WhatsAppInbox({
             </div>
           ) : (
             <>
-              <header className="flex items-center gap-3 border-b border-hairline px-3 py-2.5 sm:px-4">
+              {/* Celular: nome, contato/lead e smart match em cima; arquivar e excluir embaixo */}
+              <header className="flex flex-wrap items-center gap-x-2 gap-y-2 border-b border-hairline px-3 py-2.5 sm:gap-x-3 sm:px-4">
                 <button type="button" onClick={() => setActive(null)} className="grid size-8 place-items-center rounded-full hover:bg-soft md:hidden" aria-label="Voltar">
                   <ArrowLeft className="size-4" />
                 </button>
@@ -601,14 +607,18 @@ export function WhatsAppInbox({
                 >
                   <Sparkles className="size-4 text-accent" />
                 </Button>
-                <Button variant="ghost" size="sm" onClick={toggleArchive} aria-label={thread.archived ? "Desarquivar" : "Arquivar"} title={thread.archived ? "Desarquivar" : "Arquivar"}>
-                  {thread.archived ? <ArchiveRestore className="size-4" /> : <Archive className="size-4" />}
-                </Button>
-                {canDeleteThread && (
-                  <Button variant="ghost" size="sm" onClick={() => setConfirmThread(true)} aria-label="Apagar conversa" title="Apagar conversa">
-                    <Trash2 className="size-4" />
+                <div className="flex items-center gap-1 max-md:basis-full max-md:justify-end max-md:border-t max-md:border-hairline max-md:pt-2">
+                  <Button variant="ghost" size="sm" onClick={toggleArchive} aria-label={thread.archived ? "Desarquivar" : "Arquivar"} title={thread.archived ? "Desarquivar" : "Arquivar"}>
+                    {thread.archived ? <ArchiveRestore className="size-4" /> : <Archive className="size-4" />}
+                    <span className="md:hidden">{thread.archived ? "Desarquivar" : "Arquivar"}</span>
                   </Button>
-                )}
+                  {canDeleteThread && (
+                    <Button variant="ghost" size="sm" onClick={() => setConfirmThread(true)} aria-label="Apagar conversa" title="Apagar conversa">
+                      <Trash2 className="size-4" />
+                      <span className="md:hidden">Excluir</span>
+                    </Button>
+                  )}
+                </div>
               </header>
 
               <div className="min-h-0 flex-1 space-y-2 overflow-y-auto bg-soft/40 px-3 py-4 sm:px-6" data-lenis-prevent>
