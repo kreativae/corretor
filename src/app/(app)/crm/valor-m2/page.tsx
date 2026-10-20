@@ -10,8 +10,8 @@ export const metadata: Metadata = { title: "Valor do m²" };
 export default async function ValorM2Page() {
   const samples = await loadMarketSamples();
   const now = new Date().getTime();
-  const keys = [...new Set(samples.map((s) => geoKey(s, s.rural)))];
-  const [geo, mapCfg] = await Promise.all([loadRegionGeo(keys), getMapProvider()]);
+  const regions = [...new Map(samples.map((s) => [geoKey(s, s.rural), { key: geoKey(s, s.rural), city: s.city, state: s.state }])).values()];
+  const [geo, mapCfg] = await Promise.all([loadRegionGeo(regions), getMapProvider()]);
   return (
     <div className="mx-auto max-w-7xl">
       <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-subtle">Análise de mercado</p>

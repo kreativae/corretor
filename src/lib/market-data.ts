@@ -1,6 +1,7 @@
 import "server-only";
 import { getDb } from "@/db";
 import { deals, marketSamples, properties, regionGeo } from "@/db/schema";
+import { cityCenter, insideCity } from "@/lib/geo-check";
 import { crmPropertyPath, isRuralType, normalizeRural, alqToM2 } from "@/lib/rural";
 import { median, regionKey, unitValue, type MarketSample } from "@/lib/market";
 import { desc, eq, inArray } from "drizzle-orm";
@@ -110,14 +111,27 @@ export async function loadMarketSamples(): Promise<MarketSample[]> {
   return out.filter((s) => s.price > 0 && s.area > 0);
 }
 
-/** Centros já localizados (chave da região → lat/lng; null = não encontrado) */
-export async function loadRegionGeo(keys: string[]) {
-  if (!keys.length) return {};
-  const rows = await (await getDb()).select().from(regionGeo).where(inArray(regionGeo.key, keys));
-  return Object.fromEntries(rows.map((r) => [r.key, r.lat != null && r.lng != null ? [r.lat, r.lng] : null])) as Record<
-    string,
-    [number, number] | null
-  >;
+/**
+ * Centros já localizados (chave da região → lat/lng; null = não encontrado). Ponto guardado que
+ * caiu em outra cidade (bairro homônimo) é descartado: o mapa localiza de novo.
+ */
+export async function loadRegionGeo(regions: { key: string; city: string; state: string }[]) {
+  if (!regions.length) return {};
+  const byKey = new Map(regions.map((r) => [r.key, r]));
+  const rows = await (await getDb()).select().from(regionGeo).where(inArray(regionGeo.key, [...byKey.keys()]));
+  const centers = new Map<string, Promise<[number, number] | null>>();
+  const out: Record<string, [number, number] | null> = {};
+  for (const r of rows) {
+    const pos: [number, number] | null = r.lat != null && r.lng != null ? [r.lat, r.lng] : null;
+    const reg = byKey.get(r.key);
+    if (pos && reg) {
+      const ck = `${reg.city}|${reg.state}`;
+      if (!centers.has(ck)) centers.set(ck, cityCenter(reg.city, reg.state).catch(() => null));
+      if (!insideCity(pos, await centers.get(ck)!)) continue;
+    }
+    out[r.key] = pos;
+  }
+  return out;
 }
 
 /** Posição de um imóvel em relação à mediana da região (ficha do imóvel). */

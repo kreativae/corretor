@@ -1,7 +1,7 @@
 import "server-only";
 import { getDb } from "@/db";
 import { regionGeo } from "@/db/schema";
-import { cartoGeocode, getMapProvider, osmGeocode } from "@/lib/map-provider";
+import { cityCenter, geocodeInCity, insideCity } from "@/lib/geo-check";
 import { eq } from "drizzle-orm";
 
 /**
@@ -18,37 +18,41 @@ export async function areaCenter(
   if (!p.city) return null;
   const place = [p.neighborhood, p.city, p.state].map(norm).join("|");
   if (p.street.trim()) {
-    const hit = await cachedGeocode(`end:${norm(p.street)}|${place}`, [p.street, p.neighborhood, p.city, p.state, "Brasil"]);
+    const hit = await cachedGeocode(`end:${norm(p.street)}|${place}`, [p.street, p.neighborhood, p.city, p.state, "Brasil"], p.city, p.state, false);
     if (hit) return hit;
   }
-  return cachedGeocode(`bairro:${place}`, [p.neighborhood, p.city, p.state, "Brasil"]);
+  return cachedGeocode(`bairro:${place}`, [p.neighborhood, p.city, p.state, "Brasil"], p.city, p.state);
 }
 
 const norm = (s: string) =>
   s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
 
-async function cachedGeocode(key: string, parts: string[]): Promise<[number, number] | null> {
+async function cachedGeocode(
+  key: string,
+  parts: string[],
+  city: string,
+  state: string,
+  fallbackToCenter = true,
+): Promise<[number, number] | null> {
   const db = await getDb();
   const [cached] = await db.select().from(regionGeo).where(eq(regionGeo.key, key)).catch(() => []);
-  if (cached) return cached.lat != null && cached.lng != null ? [cached.lat, cached.lng] : null;
-
-  const q = parts.filter(Boolean).join(", ");
-  // Até 3 s: a página do anúncio não pode ficar esperando o serviço de mapas
-  const timeout = <T,>(p: Promise<T>) =>
-    Promise.race([p, new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), 3000))]);
+  if (cached) {
+    const pos: [number, number] | null = cached.lat != null && cached.lng != null ? [cached.lat, cached.lng] : null;
+    // Ponto antigo em outra cidade (bairro homônimo): procura de novo
+    if (!pos || insideCity(pos, await cityCenter(city, state).catch(() => null))) return pos;
+  }
   let hit: [number, number] | null = null;
   try {
-    const cfg = await getMapProvider();
-    if (cfg.cartoToken) hit = await timeout(cartoGeocode(cfg, q)).catch(() => null);
-    if (!hit) hit = await timeout(osmGeocode(q));
+    hit = await geocodeInCity(parts.filter(Boolean).join(", "), city, state, fallbackToCenter);
   } catch {
     // Serviço fora do ar ou lento: não guarda, tenta de novo na próxima visita
     return null;
   }
+  if (!hit) return null;
   await db
     .insert(regionGeo)
-    .values({ key, lat: hit?.[0] ?? null, lng: hit?.[1] ?? null })
-    .onConflictDoNothing()
+    .values({ key, lat: hit[0], lng: hit[1] })
+    .onConflictDoUpdate({ target: regionGeo.key, set: { lat: hit[0], lng: hit[1] } })
     .catch(() => undefined);
   return hit;
 }

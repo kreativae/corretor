@@ -136,7 +136,7 @@ export function MarketMap({
         const res = await fetch("/api/market/geocode", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ key: r.geo, q: regionQuery(r.samples[0], rural) }),
+          body: JSON.stringify({ key: r.geo, q: regionQuery(r.samples[0], rural), city: r.city, state: r.state }),
         }).catch(() => null);
         if (!res?.ok) {
           const err = await res?.json().catch(() => null);

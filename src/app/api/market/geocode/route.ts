@@ -1,44 +1,44 @@
 import { getDb } from "@/db";
 import { regionGeo } from "@/db/schema";
 import { apiUser, unauthorized } from "@/lib/api-auth";
-import { cartoGeocode, getMapProvider, osmGeocode } from "@/lib/map-provider";
+import { cityCenter, geocodeInCity, insideCity } from "@/lib/geo-check";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 /**
  * Localiza o centro de um bairro/cidade (CARTO ou OpenStreetMap) e guarda no cache.
- * O cliente chama uma região por vez, com intervalo de ~1 s (regra de uso do serviço).
+ * O ponto só vale se ficar na cidade informada (bairros homônimos de outras cidades são
+ * descartados; ver lib/geo-check.ts). O cliente chama uma região por vez, com intervalo de ~1 s.
  */
 export async function POST(req: Request) {
   if (!(await apiUser())) return unauthorized();
-  const b = (await req.json().catch(() => ({}))) as { key?: unknown; q?: unknown };
+  const b = (await req.json().catch(() => ({}))) as { key?: unknown; q?: unknown; city?: unknown; state?: unknown };
   const key = typeof b.key === "string" ? b.key.slice(0, 200) : "";
   const q = typeof b.q === "string" ? b.q.slice(0, 200) : "";
+  const city = typeof b.city === "string" ? b.city.slice(0, 100) : "";
+  const state = typeof b.state === "string" ? b.state.slice(0, 40) : "";
   if (!key || !q) return NextResponse.json({ error: "Região inválida." }, { status: 400 });
 
-  const [cached] = await (await getDb()).select().from(regionGeo).where(eq(regionGeo.key, key));
-  if (cached) return NextResponse.json({ lat: cached.lat, lng: cached.lng });
-
-  // CARTO quando há token; OpenStreetMap como alternativa gratuita
-  const cfg = await getMapProvider();
-  let hit: [number, number] | null = null;
-  let error = "";
-  if (cfg.cartoToken) {
-    try {
-      hit = await cartoGeocode(cfg, q);
-    } catch (e) {
-      error = e instanceof Error ? e.message : "Falha na CARTO.";
+  const db = await getDb();
+  const [cached] = await db.select().from(regionGeo).where(eq(regionGeo.key, key));
+  if (cached) {
+    const pos: [number, number] | null = cached.lat != null && cached.lng != null ? [cached.lat, cached.lng] : null;
+    if (!pos || insideCity(pos, await cityCenter(city, state).catch(() => null))) {
+      return NextResponse.json({ lat: cached.lat, lng: cached.lng });
     }
   }
-  if (!hit) {
-    try {
-      hit = await osmGeocode(q);
-    } catch (e) {
-      // Nenhum serviço respondeu: não grava no cache para tentar de novo depois
-      return NextResponse.json({ error: error || (e instanceof Error ? e.message : "Serviço de mapas indisponível.") }, { status: 502 });
-    }
+
+  let hit: [number, number] | null;
+  try {
+    hit = await geocodeInCity(q, city, state);
+  } catch (e) {
+    // Nenhum serviço respondeu: não grava no cache para tentar de novo depois
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Serviço de mapas indisponível." }, { status: 502 });
   }
   const [lat, lng] = hit ?? [null, null];
-  await (await getDb()).insert(regionGeo).values({ key, lat, lng }).onConflictDoNothing();
+  await db
+    .insert(regionGeo)
+    .values({ key, lat, lng })
+    .onConflictDoUpdate({ target: regionGeo.key, set: { lat, lng, updatedAt: new Date() } });
   return NextResponse.json({ lat, lng });
 }
