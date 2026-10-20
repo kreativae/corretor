@@ -4,13 +4,19 @@ import { fillMessage, MESSAGE_DEFAULTS, type Messages } from "@/lib/messages";
 import { TYPE_LABELS } from "@/lib/labels";
 import type { PropertyWithImages, WhiteLabel } from "@/lib/queries";
 import { formatAlq, isRuralType, normalizeRural } from "@/lib/rural";
+import { isLandType, landDimensions, normalizeLand } from "@/lib/land";
 import { formatBRL, formatNumber, formatPhone, onAccentColor, siteImage } from "@/lib/utils";
 
-/** Linha de características: "3 quartos · 2 vagas · 120 m²" ou "45 alq" */
-function specs(p: PropertyWithImages) {
+/** Linha de características: "3 quartos · 2 vagas · 120 m²", "360 m² · 12 × 30 m" ou "45 alqueires" */
+export function selectionSpecs(p: PropertyWithImages) {
   if (isRuralType(p.type)) {
     const r = normalizeRural(p.rural);
     return [r.totalAlq ? `${formatAlq(r.totalAlq)} alqueires` : null].filter(Boolean).join(" · ");
+  }
+  if (isLandType(p.type)) {
+    return [p.area ? `${formatNumber(p.area)} m²` : null, landDimensions(normalizeLand(p.land as never)) || null]
+      .filter(Boolean)
+      .join(" · ");
   }
   return [
     p.bedrooms ? `${p.bedrooms} ${p.bedrooms === 1 ? "quarto" : "quartos"}` : null,
@@ -68,7 +74,7 @@ export function selectionEmailHtml(opts: {
       <p style="margin:0;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#7a7a90">${esc(TYPE_LABELS[p.type] ?? p.type)} · ${esc(p.code)}</p>
       <p style="margin:6px 0 2px;font-size:17px;font-weight:700;color:#2B2B5D">${esc(p.title)}</p>
       ${place ? `<p style="margin:0;font-size:13px;color:#5b5b70">${esc(place)}</p>` : ""}
-      ${specs(p) ? `<p style="margin:8px 0 0;font-size:13px;color:#5b5b70">${esc(specs(p))}</p>` : ""}
+      ${selectionSpecs(p) ? `<p style="margin:8px 0 0;font-size:13px;color:#5b5b70">${esc(selectionSpecs(p))}</p>` : ""}
       <p style="margin:12px 0 14px;font-size:20px;font-weight:700;color:#2B2B5D">${esc(formatBRL(p.price))}${p.purpose === "aluguel" ? '<span style="font-size:13px;font-weight:400;color:#7a7a90"> /mês</span>' : ""}</p>
       ${p.published ? `<a href="${page}" style="display:inline-block;background:${accent};color:${onAccent};text-decoration:none;font-weight:600;font-size:13px;padding:10px 16px;border-radius:999px;margin:0 6px 6px 0">${esc(m.selBtnDetails)}</a>` : ""}
       <a href="${ficha}" style="display:inline-block;background:#2B2B5D;color:#fff;text-decoration:none;font-weight:600;font-size:13px;padding:10px 16px;border-radius:999px;margin:0 6px 6px 0">${esc(m.selBtnFicha)}</a>

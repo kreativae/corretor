@@ -5,6 +5,7 @@ import { getMessages } from "@/lib/features";
 import { listContacts, listProperties, listPropertySends } from "@/lib/queries";
 import { formatAlq, isRuralType, normalizeRural } from "@/lib/rural";
 import { formatNumber } from "@/lib/utils";
+import { lineFor, whatsappReady } from "@/lib/whatsapp";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +24,8 @@ export default async function NegociacaoPage({
     listPropertySends(),
     getMessages(),
   ]);
+
+  const wa = user ? await lineFor(user.id).catch(() => null) : null;
 
   const props: NegProperty[] = properties.map((p) => {
     const r = isRuralType(p.type) ? normalizeRural(p.rural) : null;
@@ -61,6 +64,8 @@ export default async function NegociacaoPage({
         properties={props}
         sends={sends}
         emailReady={await emailConfigured()}
+        waReady={!!wa && whatsappReady(wa)}
+        waQr={wa?.provider === "evolution"}
         userName={user?.name ?? ""}
         msgs={msgs}
         initialContactId={sp.contato}

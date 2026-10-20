@@ -12,6 +12,7 @@ import {
   ImageIcon,
   Loader2,
   Mail,
+  MessageCircle,
   Paperclip,
   Search,
   Send,
@@ -116,6 +117,8 @@ export function NegotiationClient({
   properties,
   sends,
   emailReady,
+  waReady = false,
+  waQr = false,
   userName,
   msgs = MESSAGE_DEFAULTS,
   initialContactId,
@@ -125,6 +128,10 @@ export function NegotiationClient({
   properties: NegProperty[];
   sends: PropertySend[];
   emailReady: boolean;
+  /** WhatsApp configurado (envio automático pelo número de quem está logado) */
+  waReady?: boolean;
+  /** Conexão por QR code: permite foto e PDF (a API oficial só manda texto) */
+  waQr?: boolean;
   userName: string;
   /** Textos padrão (Configurações › Mensagens e e-mails) */
   msgs?: Messages;
@@ -140,6 +147,13 @@ export function NegotiationClient({
   const [cOpen, setCOpen] = useState(false);
   const [toName, setToName] = useState(initialContact?.name ?? "");
   const [toEmail, setToEmail] = useState(initialContact?.email ?? "");
+  const [toPhone, setToPhone] = useState(initialContact?.phone ? formatPhone(initialContact.phone) : "");
+  // A maioria dos contatos tem só WhatsApp: sem e-mail no cadastro, já começa por ele
+  const [channel, setChannel] = useState<"email" | "whatsapp">(
+    waReady && (!emailReady || (initialContact && !initialContact.email)) ? "whatsapp" : "email",
+  );
+  const wa = channel === "whatsapp";
+  const [photos, setPhotos] = useState(true);
 
   /* ── imóveis ── */
   const [selected, setSelected] = useState<string[]>(initialIds.filter((id) => properties.some((p) => p.id === id)));
@@ -213,13 +227,16 @@ export function NegotiationClient({
     setCq("");
     setToName(c?.name ?? "");
     setToEmail(c?.email ?? "");
+    setToPhone(c?.phone ? formatPhone(c.phone) : "");
+    if (c && waReady && !c.email) setChannel("whatsapp");
+    else if (c && emailReady && c.email && !c.phone) setChannel("email");
   }
 
   function toggle(id: string) {
     setSelected((cur) => {
       if (cur.includes(id)) return cur.filter((x) => x !== id);
       if (cur.length >= MAX_PROPS) {
-        toast.error(`Até ${MAX_PROPS} imóveis por e-mail.`);
+        toast.error(`Até ${MAX_PROPS} imóveis por envio.`);
         return cur;
       }
       return [...cur, id];
@@ -242,14 +259,17 @@ export function NegotiationClient({
         });
   const finalSubject = subject.trim() || autoSubject;
   const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toEmail.trim());
-  const canSend = emailReady && validEmail && chosen.length > 0 && !sending;
+  const phoneDigits = toPhone.replace(/\D/g, "");
+  const validPhone = phoneDigits.length >= 10 && phoneDigits.length <= 13;
+  const canAttach = !wa || waQr;
+  const canSend = (wa ? waReady && validPhone : emailReady && validEmail) && chosen.length > 0 && !sending;
 
   async function send() {
     if (!canSend) return;
     setSending(true);
     try {
       const attachments: SentAttachment[] = [];
-      if (attach) {
+      if (attach && canAttach) {
         for (const [i, p] of chosen.entries()) {
           setStep(`Gerando ficha ${i + 1} de ${chosen.length} (${p.code})…`);
           try {
@@ -263,24 +283,26 @@ export function NegotiationClient({
           }
         }
       }
-      setStep("Enviando e-mail…");
-      const res = await fetch("/api/negociacao/enviar", {
+      setStep(wa ? `Enviando pelo WhatsApp (${chosen.length} ${plural(chosen.length, "imóvel", "imóveis")})…` : "Enviando e-mail…");
+      const res = await fetch(wa ? "/api/negociacao/whatsapp" : "/api/negociacao/enviar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contactId: contact?.id,
           toName,
           toEmail,
+          toPhone,
           subject: finalSubject,
           message,
+          photos,
           propertyIds: chosen.map((p) => p.id),
           attachments,
         }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Falha no envio.");
-      toast.success(`E-mail enviado para ${toName || toEmail}`, {
-        description: `${chosen.length} ${plural(chosen.length, "imóvel", "imóveis")}${attachments.length ? ` · ${attachments.length} ${plural(attachments.length, "ficha anexa", "fichas anexas")}` : ""}`,
+      toast.success(wa ? `Enviado pelo WhatsApp para ${toName || toPhone}` : `E-mail enviado para ${toName || toEmail}`, {
+        description: `${chosen.length} ${plural(chosen.length, "imóvel", "imóveis")}${attachments.length ? ` · ${attachments.length} ${plural(attachments.length, "ficha", "fichas")} em PDF` : ""}`,
       });
       setSelected([]);
       setSubject("");
@@ -298,7 +320,7 @@ export function NegotiationClient({
     const w = norm(hq.trim());
     if (!w) return sends;
     return sends.filter((s) =>
-      norm(`${s.toName ?? ""} ${s.toEmail} ${s.subject} ${s.properties.map((p) => `${p.code} ${p.title}`).join(" ")}`).includes(w),
+      norm(`${s.toName ?? ""} ${s.toEmail ?? ""} ${s.toPhone ?? ""} ${s.subject} ${s.properties.map((p) => `${p.code} ${p.title}`).join(" ")}`).includes(w),
     );
   }, [sends, hq]);
 
@@ -306,7 +328,7 @@ export function NegotiationClient({
   async function clearHistory() {
     const n = history.length;
     const what = hq.trim() ? `os ${n} ${plural(n, "envio encontrado", "envios encontrados")} na busca` : `todo o histórico (${n} ${plural(n, "envio", "envios")})`;
-    if (!confirm(`Apagar ${what}? Os PDFs guardados também são apagados. Os e-mails que os clientes já receberam não são afetados.`)) return;
+    if (!confirm(`Apagar ${what}? Os PDFs guardados também são apagados. As mensagens que os clientes já receberam não são afetadas.`)) return;
     setClearing(true);
     try {
       const deleted = await deleteSends(history.map((s) => s.id));
@@ -327,17 +349,17 @@ export function NegotiationClient({
           <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-subtle">Envio ao cliente</p>
           <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight">Negociação</h1>
           <p className="mt-1 text-sm text-subtle">
-            Selecione imóveis, envie por e-mail com as fichas em PDF e acompanhe tudo no histórico.
+            Selecione imóveis, envie por e-mail ou WhatsApp com as fichas e acompanhe tudo no histórico.
           </p>
         </div>
       </div>
 
-      {!emailReady && (
+      {!emailReady && !waReady && (
         <div className="mt-6 flex items-start gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm">
           <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
           <p>
-            O envio de e-mails ainda não está configurado. Um administrador informa a chave do Resend e o remetente em{" "}
-            <strong>Administração › E-mail</strong>.
+            Nenhum canal de envio configurado. Um administrador informa a chave do Resend em{" "}
+            <strong>Administração › E-mail</strong> ou conecta o número em <strong>Configurações › WhatsApp</strong>.
           </p>
         </div>
       )}
@@ -399,7 +421,7 @@ export function NegotiationClient({
                 </>
               )}
             </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
               <label className="block">
                 <span className="mb-1.5 block text-xs font-medium text-subtle">Nome</span>
                 <Input value={toName} onChange={(e) => setToName(e.target.value)} placeholder="Nome do cliente" />
@@ -408,8 +430,12 @@ export function NegotiationClient({
                 <span className="mb-1.5 block text-xs font-medium text-subtle">E-mail</span>
                 <Input type="email" value={toEmail} onChange={(e) => setToEmail(e.target.value)} placeholder="cliente@email.com" />
               </label>
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-medium text-subtle">WhatsApp</span>
+                <Input type="tel" inputMode="tel" value={toPhone} onChange={(e) => setToPhone(e.target.value)} placeholder="(43) 99999-9999" />
+              </label>
             </div>
-            {!contact && toEmail && (
+            {!contact && (toEmail || toPhone) && (
               <p className="mt-2 text-[11px] text-subtle">
                 Sem contato vinculado: o envio fica no histórico, mas não na ficha de um contato.
               </p>
@@ -530,25 +556,62 @@ export function NegotiationClient({
               Mensagem
             </h2>
             <div className="mt-4 space-y-3">
-              <label className="block">
-                <span className="mb-1.5 block text-xs font-medium text-subtle">Assunto</span>
-                <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder={autoSubject} />
-              </label>
+              <div className="grid grid-cols-2 gap-1 rounded-xl bg-soft p-1" role="tablist" aria-label="Enviar por">
+                {(
+                  [
+                    ["whatsapp", "WhatsApp", MessageCircle, waReady],
+                    ["email", "E-mail", Mail, emailReady],
+                  ] as const
+                ).map(([k, label, Icon, ready]) => (
+                  <button
+                    key={k}
+                    type="button"
+                    role="tab"
+                    aria-selected={channel === k}
+                    onClick={() => setChannel(k)}
+                    className={cn(
+                      "flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                      channel === k ? "bg-card text-ink shadow-sm" : "text-subtle hover:text-ink",
+                    )}
+                  >
+                    <Icon className="size-4" />
+                    {label}
+                    {!ready && <span className="text-[10px] font-normal text-subtle">(não configurado)</span>}
+                  </button>
+                ))}
+              </div>
+              {!wa && (
+                <label className="block">
+                  <span className="mb-1.5 block text-xs font-medium text-subtle">Assunto</span>
+                  <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder={autoSubject} />
+                </label>
+              )}
               <label className="block">
                 <span className="mb-1.5 block text-xs font-medium text-subtle">
                   Texto {toName && <span className="font-normal">(começa com &quot;{fillMessage(msgs.selGreeting, { nome: toName, primeiro_nome: firstName(toName) })}&quot;)</span>}
                 </span>
                 <Textarea rows={4} value={message} onChange={(e) => setMessage(e.target.value)} />
               </label>
-              <label className="flex items-center gap-2 text-sm">
-                <Switch checked={attach} onChange={setAttach} />
-                <Paperclip className="size-4 text-subtle" />
-                Anexar as fichas em PDF
-              </label>
+              {wa && waQr && (
+                <label className="flex items-center gap-2 text-sm">
+                  <Switch checked={photos} onChange={setPhotos} />
+                  <ImageIcon className="size-4 text-subtle" />
+                  Enviar a foto de capa de cada imóvel
+                </label>
+              )}
+              {canAttach && (
+                <label className="flex items-center gap-2 text-sm">
+                  <Switch checked={attach} onChange={setAttach} />
+                  <Paperclip className="size-4 text-subtle" />
+                  {wa ? "Mandar também as fichas em PDF" : "Anexar as fichas em PDF"}
+                </label>
+              )}
               <p className="text-[11px] text-subtle">
-                O e-mail traz foto, preço e botões para o site e para a ficha de cada imóvel. As respostas vão para o “Responder para” de Administração › E-mail (ou, se vazio, para o seu e-mail).
+                {wa
+                  ? `Sai do seu WhatsApp, uma mensagem por imóvel${waQr && photos ? " (foto com legenda)" : ""}: título, local, medidas, preço e os links para o site e para a ficha. A conversa aparece na página WhatsApp.`
+                  : "O e-mail traz foto, preço e botões para o site e para a ficha de cada imóvel. As respostas vão para o “Responder para” de Administração › E-mail (ou, se vazio, para o seu e-mail)."}
               </p>
-              {attach && (
+              {attach && !wa && (
                 <p className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-600 dark:text-amber-400">
                   Anexos aumentam a chance de cair no lixo eletrônico, principalmente no Outlook/Hotmail e no primeiro contato. Prefira anexar só para quem já conversa com você.
                 </p>
@@ -560,17 +623,24 @@ export function NegotiationClient({
         {/* Resumo e envio */}
         <aside className={cn(card, "min-w-0 lg:sticky lg:top-24")}>
           <h2 className={h2}>
-            <Mail className="size-4" /> Resumo
+            {wa ? <MessageCircle className="size-4" /> : <Mail className="size-4" />} Resumo
           </h2>
           <dl className="mt-4 space-y-2 text-sm">
             <div className="flex justify-between gap-3">
               <dt className="text-subtle">Para</dt>
-              <dd className="min-w-0 truncate text-right">{toName || toEmail || "—"}</dd>
+              <dd className="min-w-0 truncate text-right">{toName || (wa ? toPhone : toEmail) || "—"}</dd>
             </div>
-            <div className="flex justify-between gap-3">
-              <dt className="text-subtle">E-mail</dt>
-              <dd className={cn("min-w-0 truncate text-right", toEmail && !validEmail && "text-red-500")}>{toEmail || "—"}</dd>
-            </div>
+            {wa ? (
+              <div className="flex justify-between gap-3">
+                <dt className="text-subtle">WhatsApp</dt>
+                <dd className={cn("min-w-0 truncate text-right", toPhone && !validPhone && "text-red-500")}>{toPhone || "—"}</dd>
+              </div>
+            ) : (
+              <div className="flex justify-between gap-3">
+                <dt className="text-subtle">E-mail</dt>
+                <dd className={cn("min-w-0 truncate text-right", toEmail && !validEmail && "text-red-500")}>{toEmail || "—"}</dd>
+              </div>
+            )}
             <div className="flex justify-between gap-3">
               <dt className="text-subtle">Remetente</dt>
               <dd className="min-w-0 truncate text-right">{userName}</dd>
@@ -589,17 +659,23 @@ export function NegotiationClient({
             ))}
           </ul>
           <Button variant="accent" className="mt-5 w-full" onClick={send} disabled={!canSend}>
-            {sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
-            {sending ? "Enviando…" : "Enviar por e-mail"}
+            {sending ? <Loader2 className="size-4 animate-spin" /> : wa ? <MessageCircle className="size-4" /> : <Send className="size-4" />}
+            {sending ? "Enviando…" : wa ? "Enviar pelo WhatsApp" : "Enviar por e-mail"}
           </Button>
           {step && <p className="mt-2 text-center text-xs text-subtle">{step}</p>}
           {!sending && (
             <p className="mt-2 text-center text-[11px] text-subtle">
-              {!validEmail
-                ? "Informe um e-mail válido."
-                : !chosen.length
-                  ? "Selecione ao menos um imóvel."
-                  : attach
+              {wa && !waReady
+                ? "Conecte o WhatsApp em Configurações › WhatsApp."
+                : !wa && !emailReady
+                  ? "Configure o e-mail em Administração › E-mail."
+                  : wa && !validPhone
+                    ? "Informe o WhatsApp do cliente com DDD."
+                    : !wa && !validEmail
+                      ? "Informe um e-mail válido."
+                      : !chosen.length
+                        ? "Selecione ao menos um imóvel."
+                        : attach && canAttach
                     ? "As fichas são geradas no seu navegador — leva alguns segundos por imóvel."
                     : ""}
             </p>
@@ -617,7 +693,7 @@ export function NegotiationClient({
           <div className="flex w-full items-center gap-2 sm:w-auto">
             <div className="relative flex-1 sm:w-72">
               <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-subtle" />
-              <Input value={hq} onChange={(e) => setHq(e.target.value)} placeholder="Cliente, e-mail ou código…" className="pl-10" />
+              <Input value={hq} onChange={(e) => setHq(e.target.value)} placeholder="Cliente, e-mail, telefone ou código…" className="pl-10" />
             </div>
             {history.length > 0 && (
               <Button variant="outline" size="sm" className="h-10 shrink-0" onClick={clearHistory} disabled={clearing}>
@@ -629,7 +705,7 @@ export function NegotiationClient({
         </div>
         {history.length === 0 ? (
           <p className="mt-6 rounded-xl bg-soft px-4 py-10 text-center text-sm text-subtle">
-            {sends.length ? "Nada encontrado." : "Os e-mails enviados aparecem aqui."}
+            {sends.length ? "Nada encontrado." : "Os envios por e-mail e WhatsApp aparecem aqui."}
           </p>
         ) : (
           <ul className="mt-4 divide-y divide-hairline">
@@ -660,7 +736,7 @@ export function SendRow({ s, hideContact = false }: { s: PropertySend; hideConta
   const [busy, setBusy] = useState(false);
 
   async function remove() {
-    if (!confirm("Apagar este envio do histórico? Os PDFs guardados também são apagados (o e-mail que o cliente já recebeu não é afetado).")) return;
+    if (!confirm("Apagar este envio do histórico? Os PDFs guardados também são apagados (o que o cliente já recebeu não é afetado).")) return;
     setBusy(true);
     try {
       await deleteSends([s.id]);
@@ -672,23 +748,28 @@ export function SendRow({ s, hideContact = false }: { s: PropertySend; hideConta
     }
   }
 
+  const wa = s.channel === "whatsapp";
+  const address = wa ? (s.toPhone ? formatPhone(s.toPhone) : "") : (s.toEmail ?? "");
   return (
     <li className={cn("group flex flex-col gap-2 py-3.5 sm:flex-row sm:items-start sm:gap-4", busy && "opacity-50")}>
-      <div className="w-36 shrink-0 font-mono text-[11px] text-subtle">{formatDateTime(s.createdAt)}</div>
+      <div className="flex w-36 shrink-0 items-center gap-1.5 font-mono text-[11px] text-subtle">
+        {wa ? <MessageCircle className="size-3.5 text-emerald-600" aria-label="WhatsApp" /> : <Mail className="size-3.5" aria-label="E-mail" />}
+        {formatDateTime(s.createdAt)}
+      </div>
       <div className="min-w-0 flex-1">
         {!hideContact && (
           <p className="truncate text-sm">
             {s.contactId ? (
               <Link href={`/crm/contatos/${s.contactId}`} className="font-medium hover:underline">
-                {s.toName || s.toEmail}
+                {s.toName || address}
               </Link>
             ) : (
-              <span className="font-medium">{s.toName || s.toEmail}</span>
+              <span className="font-medium">{s.toName || address}</span>
             )}
-            {s.toName && <span className="text-subtle"> · {s.toEmail}</span>}
+            {s.toName && address && <span className="text-subtle"> · {address}</span>}
           </p>
         )}
-        <p className="truncate text-xs text-subtle">{s.subject}</p>
+        <p className="truncate text-xs text-subtle">{wa ? `Pelo WhatsApp · ${s.subject}` : s.subject}</p>
         <div className="mt-2 flex flex-wrap gap-1.5">
           {s.properties.map((p) => (
             <Link

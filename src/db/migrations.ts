@@ -258,6 +258,10 @@ export const RUNTIME_MIGRATIONS = [
    );`,
   // Terrenos: medidas, zoneamento, infraestrutura e vantagens
   `ALTER TABLE properties ADD COLUMN IF NOT EXISTS land jsonb;`,
+  // Negociação: envio também pelo WhatsApp (canal e número; e-mail passa a ser opcional)
+  `ALTER TABLE property_sends ADD COLUMN IF NOT EXISTS channel text NOT NULL DEFAULT 'email';`,
+  `ALTER TABLE property_sends ADD COLUMN IF NOT EXISTS to_phone text;`,
+  `ALTER TABLE property_sends ALTER COLUMN to_email DROP NOT NULL;`,
 ];
 
 /** Só no banco principal (esquema public): cadastro de empresas da gerência */

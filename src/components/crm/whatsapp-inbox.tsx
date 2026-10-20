@@ -4,6 +4,7 @@ import { Button, Field, Input, Modal, Textarea } from "@/components/ui";
 import type { WaMessage } from "@/db/schema";
 import { cn, formatPhone, initials } from "@/lib/utils";
 import { WhatsAppConnection, type ConnState } from "@/components/crm/whatsapp-connection";
+import { WhatsAppInsights } from "@/components/crm/whatsapp-insights";
 import {
   Archive,
   ArchiveRestore,
@@ -22,6 +23,7 @@ import {
   Search,
   Send,
   Settings,
+  Sparkles,
   Trash2,
   UserPlus,
   UserRound,
@@ -215,6 +217,8 @@ export function WhatsAppInbox({
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [linking, setLinking] = useState<"lead" | "contato" | null>(null);
+  // Resumo e smart match: fixo na tela grande; nas menores, abre por cima da conversa
+  const [insightsOpen, setInsightsOpen] = useState(false);
   const bottom = useRef<HTMLDivElement>(null);
 
   const loadThreads = useCallback(async () => {
@@ -445,7 +449,12 @@ export function WhatsAppInbox({
         </div>
       )}
 
-      <div className="mt-6 grid h-[calc(100dvh-230px)] min-h-[520px] overflow-hidden rounded-2xl border border-hairline bg-card grid-cols-1 md:grid-cols-[340px_1fr]">
+      <div
+        className={cn(
+          "relative mt-6 grid h-[calc(100dvh-230px)] min-h-[520px] grid-cols-1 overflow-hidden rounded-2xl border border-hairline bg-card md:grid-cols-[340px_1fr]",
+          thread && "xl:grid-cols-[300px_1fr_320px] 2xl:grid-cols-[340px_1fr_360px]",
+        )}
+      >
         {/* Lista */}
         <aside className={cn("flex min-h-0 min-w-0 flex-col border-hairline md:border-r", active && "max-md:hidden")}>
           <div className="space-y-2 border-b border-hairline p-3">
@@ -561,6 +570,16 @@ export function WhatsAppInbox({
                     </Button>
                   </>
                 )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="xl:hidden"
+                  onClick={() => setInsightsOpen((v) => !v)}
+                  aria-label="Resumo e smart match"
+                  title="Resumo e smart match"
+                >
+                  <Sparkles className="size-4 text-accent" />
+                </Button>
                 <Button variant="ghost" size="sm" onClick={toggleArchive} aria-label={thread.archived ? "Desarquivar" : "Arquivar"} title={thread.archived ? "Desarquivar" : "Arquivar"}>
                   {thread.archived ? <ArchiveRestore className="size-4" /> : <Archive className="size-4" />}
                 </Button>
@@ -733,6 +752,19 @@ export function WhatsAppInbox({
             </>
           )}
         </section>
+
+        {thread && (
+          <WhatsAppInsights
+            phone={thread.phone}
+            version={messages.length}
+            open={insightsOpen}
+            onClose={() => setInsightsOpen(false)}
+            onSent={() => {
+              loadMessages(thread.phone, true);
+              loadThreads();
+            }}
+          />
+        )}
       </div>
 
       <Modal open={confirmThread} onClose={() => !deletingThread && setConfirmThread(false)} title="Apagar conversa">

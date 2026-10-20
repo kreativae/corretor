@@ -399,7 +399,10 @@ export const propertySends = pgTable("property_sends", {
   id: uuid("id").primaryKey().defaultRandom(),
   contactId: uuid("contact_id").references(() => contacts.id, { onDelete: "set null" }),
   toName: text("to_name"),
-  toEmail: text("to_email").notNull(),
+  /** "email" ou "whatsapp" */
+  channel: text("channel", { enum: ["email", "whatsapp"] }).notNull().default("email"),
+  toEmail: text("to_email"),
+  toPhone: text("to_phone"),
   subject: text("subject").notNull(),
   message: text("message"),
   properties: jsonb("properties").$type<SentProperty[]>().notNull().default(sql`'[]'::jsonb`),
