@@ -21,7 +21,29 @@ function forward(req: NextRequest) {
 
 /** Guarda de borda: bloqueia /crm e /admin sem cookie de sessão.
  *  A validação real (sessão válida + papel) acontece nos layouts server-side. */
+/**
+ * Endereço oficial com www (NEXT_PUBLIC_SITE_URL = https://www.dominio): quem digita sem o www
+ * é levado para ele, no mesmo caminho. Outras empresas e domínios não mudam.
+ */
+const OFFICIAL = (() => {
+  try {
+    return new URL(process.env.NEXT_PUBLIC_SITE_URL || "").host;
+  } catch {
+    return "";
+  }
+})();
+
+function toWww(req: NextRequest) {
+  if (!OFFICIAL.startsWith("www.")) return null;
+  const host = (req.headers.get("x-forwarded-host") || req.headers.get("host") || "").split(",")[0].trim().toLowerCase();
+  if (host !== OFFICIAL.slice(4)) return null;
+  const { pathname, search } = req.nextUrl;
+  return NextResponse.redirect(`https://${OFFICIAL}${pathname}${search}`, 308);
+}
+
 export function middleware(req: NextRequest) {
+  const www = toWww(req);
+  if (www) return www;
   const { pathname } = req.nextUrl;
   const panel = pathname.startsWith("/crm") || pathname.startsWith("/admin");
   if (!panel) return forward(req);
