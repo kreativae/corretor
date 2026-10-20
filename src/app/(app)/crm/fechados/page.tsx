@@ -36,7 +36,7 @@ export default async function FechadosPage({
       <ClosedDealsClient
         deals={closed}
         closedAt={closedAt}
-        initialTab={tipo === "imoveis" || tipo === "rurais" ? tipo : "todos"}
+        initialTab={tipo === "imoveis" || tipo === "terrenos" || tipo === "rurais" ? tipo : "todos"}
       />
     </div>
   );

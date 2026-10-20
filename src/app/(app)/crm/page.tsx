@@ -5,7 +5,7 @@ import { StatsGrid } from "@/components/crm/stats-grid";
 import { Timeline } from "@/components/crm/timeline";
 import { Badge } from "@/components/ui";
 import { DEAL_STAGES, TYPE_LABELS, VISIT_STATUS_STYLES, VISIT_STATUS_LABELS } from "@/lib/labels";
-import { formatAlq, isRuralType, normalizeRural } from "@/lib/rural";
+import { formatAlq, isRuralType, normalizeRural, segmentOf } from "@/lib/rural";
 import {
   overviewPeriodLabel,
   overviewRange,
@@ -46,6 +46,7 @@ import {
   UserX,
   Wallet,
   Tractor,
+  LandPlot,
   UserPlus,
 } from "lucide-react";
 import Link from "next/link";
@@ -76,8 +77,8 @@ export default async function CrmDashboard({
   // ── Filtros (segmento, tipo, local, finalidade, origem) ──
   const hasPropFilter = !!(f.tipo.length || f.bairro.length || f.cidade.length || f.finalidade);
   const propOk = (p: Property | null) => {
-    if (!p) return !hasPropFilter && f.seg !== "rurais";
-    if (f.seg !== "todos" && isRuralType(p.type) !== (f.seg === "rurais")) return false;
+    if (!p) return !hasPropFilter && (f.seg === "todos" || f.seg === "imoveis");
+    if (f.seg !== "todos" && segmentOf(p.type) !== f.seg) return false;
     if (f.tipo.length && !f.tipo.includes(p.type)) return false;
     if (f.bairro.length && !f.bairro.includes(p.neighborhood)) return false;
     if (f.cidade.length && !f.cidade.includes(p.city)) return false;
@@ -88,9 +89,11 @@ export default async function CrmDashboard({
   // Leads: pelo interesse declarado (sem interesse conta como imóveis)
   const contactOk = (c: Contact) => {
     if (!sourceOk(c)) return false;
-    const rural = c.interestTypes.some(isRuralType);
-    if (f.seg === "rurais" && !rural) return false;
-    if (f.seg === "imoveis" && rural && !c.interestTypes.some((t) => !isRuralType(t))) return false;
+    if (f.seg !== "todos") {
+      const segs = new Set(c.interestTypes.map(segmentOf));
+      if (!segs.size) segs.add("imoveis");
+      if (!segs.has(f.seg)) return false;
+    }
     if (f.tipo.length && !c.interestTypes.some((t) => f.tipo.includes(t))) return false;
     if (f.bairro.length && !c.neighborhoods.some((n) => f.bairro.includes(n))) return false;
     return true;
@@ -163,8 +166,10 @@ export default async function CrmDashboard({
   const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
 
   // Portfólio separado: urbanos x rurais
-  const urbanos = properties.filter((p) => !isRuralType(p.type));
+  const urbanos = properties.filter((p) => segmentOf(p.type) === "imoveis");
   const rurais = properties.filter((p) => isRuralType(p.type));
+  const terrenos = properties.filter((p) => segmentOf(p.type) === "terrenos");
+  const activeTerrenos = terrenos.filter((p) => p.status === "disponivel").length;
   const active = urbanos.filter((p) => p.status === "disponivel").length;
   const activeRurais = rurais.filter((p) => p.status === "disponivel");
   const activeRuralAlq = activeRurais.reduce((a, p) => a + (normalizeRural(p.rural).totalAlq ?? 0), 0);
@@ -185,7 +190,7 @@ export default async function CrmDashboard({
   const ruralDeals = openDeals.filter((d) => isRuralType(d.property?.type));
   const ruralPipeline = ruralDeals.reduce((acc, d) => acc + d.deal.value, 0);
 
-  const portfolio = [urbanos, rurais].map((list) => {
+  const portfolio = [urbanos, rurais, terrenos].map((list) => {
     const disponiveis = list.filter((p) => p.status === "disponivel");
     const byType = Object.entries(
       list.reduce<Record<string, number>>((acc, p) => {
@@ -195,7 +200,10 @@ export default async function CrmDashboard({
     ).sort((a, b) => b[1] - a[1]);
     const vgv = disponiveis.reduce((a, p) => a + p.price, 0);
     const alq = disponiveis.reduce((a, p) => a + (normalizeRural(p.rural).totalAlq ?? 0), 0);
+    const m2 = disponiveis.reduce((a, p) => a + (p.area || 0), 0);
     return {
+      m2,
+      precoMedioM2: m2 > 0 ? Math.round(vgv / m2) : null,
       total: list.length,
       disponiveis: disponiveis.length,
       publicados: list.filter((p) => p.published).length,
@@ -263,6 +271,7 @@ export default async function CrmDashboard({
         </div>
         <p className="hidden max-w-xs text-right text-xs leading-relaxed text-subtle md:block">
           {active} imóveis ativos ·{" "}
+          {terrenos.length > 0 && `${activeTerrenos} ${activeTerrenos === 1 ? "terreno ativo" : "terrenos ativos"} · `}
           {rurais.length > 0 && `${activeRurais.length} rurais ativas · `}
           {newLeads} novos leads ({periodLabel}) ·{" "}
           {weekVisits.length} visitas nesta semana
@@ -393,14 +402,16 @@ export default async function CrmDashboard({
       </StatsGrid>
 
       {/* Portfólio: imóveis x rurais */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className={cn("grid gap-4 md:grid-cols-2", f.seg === "todos" && terrenos.length > 0 && "xl:grid-cols-3")}>
         {(
           [
-            { title: "Imóveis", href: "/crm/imoveis", icon: Building2, data: portfolio[0], rural: false },
-            { title: "Propriedades rurais", href: "/crm/propriedades", icon: Tractor, data: portfolio[1], rural: true },
+            { seg: "imoveis", title: "Imóveis", href: "/crm/imoveis", icon: Building2, data: portfolio[0], rural: false, land: false },
+            { seg: "terrenos", title: "Terrenos", href: "/crm/terrenos", icon: LandPlot, data: portfolio[2], rural: false, land: true },
+            { seg: "rurais", title: "Propriedades rurais", href: "/crm/propriedades", icon: Tractor, data: portfolio[1], rural: true, land: false },
           ] as const
         )
-          .filter((c) => f.seg === "todos" || c.rural === (f.seg === "rurais"))
+          // Terrenos só aparece com terrenos cadastrados (ou com a aba escolhida)
+          .filter((c) => (f.seg === "todos" ? !c.land || c.data.total > 0 : c.seg === f.seg))
           .map((c) => (
           <Link
             key={c.href}
@@ -421,10 +432,10 @@ export default async function CrmDashboard({
               </div>
               <div>
                 <p className="font-mono text-lg font-medium tabular md:text-2xl">
-                  {c.rural ? formatAlq(c.data.alq) : c.data.publicados}
+                  {c.rural ? formatAlq(c.data.alq) : c.land ? c.data.m2.toLocaleString("pt-BR") : c.data.publicados}
                 </p>
                 <p className="text-[11px] text-subtle">
-                  {c.rural ? "alqueires disponíveis" : "publicados no site"}
+                  {c.rural ? "alqueires disponíveis" : c.land ? "m² disponíveis" : "publicados no site"}
                 </p>
               </div>
               <div>
@@ -441,12 +452,21 @@ export default async function CrmDashboard({
                 ))
               ) : (
                 <span className="text-xs text-subtle">
-                  {c.rural ? "Cadastre a primeira fazenda, sítio ou chácara." : "Nenhum imóvel cadastrado."}
+                  {c.rural
+                    ? "Cadastre a primeira fazenda, sítio ou chácara."
+                    : c.land
+                      ? "Cadastre o primeiro terreno ou lote."
+                      : "Nenhum imóvel cadastrado."}
                 </span>
               )}
               {c.rural && c.data.precoMedioAlq && (
                 <span className="ml-auto font-mono text-[11px] text-subtle">
                   média {formatCompact(c.data.precoMedioAlq)}/alq
+                </span>
+              )}
+              {c.land && c.data.precoMedioM2 && (
+                <span className="ml-auto font-mono text-[11px] text-subtle">
+                  média {formatCompact(c.data.precoMedioM2)}/m²
                 </span>
               )}
             </div>

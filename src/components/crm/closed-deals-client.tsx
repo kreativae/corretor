@@ -14,18 +14,18 @@ import { StatsGrid } from "@/components/crm/stats-grid";
 import { Badge, Input, Select } from "@/components/ui";
 import { PURPOSE_LABELS, SOURCE_LABELS, TYPE_LABELS } from "@/lib/labels";
 import type { DealFull } from "@/lib/queries";
-import { crmPropertyPath, isRuralType } from "@/lib/rural";
+import { crmPropertyPath, isRuralType, segmentOf } from "@/lib/rural";
 import { cn, formatBRL, formatCompact, formatDate, formatNumber, initials } from "@/lib/utils";
-import { Building2, Download, Handshake, Layers, Search, Tractor } from "lucide-react";
+import { Building2, Download, Handshake, LandPlot, Layers, Search, Tractor } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-export type ClosedTab = "todos" | "imoveis" | "rurais";
+export type ClosedTab = "todos" | "imoveis" | "terrenos" | "rurais";
 
 const FILTERS_KEY = "crm-closed-filters";
 const DAY = 86_400_000;
-const isRuralDeal = (d: DealFull) => isRuralType(d.property?.type);
+const segOfDeal = (d: DealFull) => segmentOf(d.property?.type);
 
 export function ClosedDealsClient({
   deals,
@@ -70,12 +70,13 @@ export function ClosedDealsClient({
 
   const counts = {
     todos: deals.length,
-    imoveis: deals.filter((d) => !isRuralDeal(d)).length,
-    rurais: deals.filter(isRuralDeal).length,
+    imoveis: deals.filter((d) => segOfDeal(d) === "imoveis").length,
+    terrenos: deals.filter((d) => segOfDeal(d) === "terrenos").length,
+    rurais: deals.filter((d) => segOfDeal(d) === "rurais").length,
   };
   const inTab = useMemo(
     () =>
-      tab === "todos" ? deals : deals.filter((d) => isRuralDeal(d) === (tab === "rurais")),
+      tab === "todos" ? deals : deals.filter((d) => segOfDeal(d) === tab),
     [deals, tab],
   );
   const filtered = useMemo(
@@ -124,6 +125,7 @@ export function ClosedDealsClient({
           [
             { id: "todos", label: "Todos", icon: Layers },
             { id: "imoveis", label: "Imóveis", icon: Building2 },
+            { id: "terrenos", label: "Terrenos", icon: LandPlot },
             { id: "rurais", label: "Rurais", icon: Tractor },
           ] as const
         ).map((t) => (
@@ -251,6 +253,7 @@ export function ClosedDealsClient({
                       <Link href={crmPropertyPath(property)} className="block min-w-0 hover:underline hover:underline-offset-4">
                         <span className="flex items-center gap-1.5 truncate text-[13px]">
                           {isRuralType(property.type) && <Tractor className="size-3.5 shrink-0 text-emerald-600" />}
+                          {segmentOf(property.type) === "terrenos" && <LandPlot className="size-3.5 shrink-0 text-emerald-700" />}
                           <span className="truncate">{property.title}</span>
                         </span>
                         <span className="mt-0.5 block font-mono text-[10px] uppercase tracking-wider text-subtle">

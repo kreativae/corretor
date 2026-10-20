@@ -11,9 +11,9 @@ import {
   TYPE_LABELS,
 } from "@/lib/labels";
 import type { DealFull } from "@/lib/queries";
-import { isRuralType } from "@/lib/rural";
+import { segmentOf, type Segment } from "@/lib/rural";
 import { formatCompact } from "@/lib/utils";
-import { Building2, Tractor } from "lucide-react";
+import { Building2, LandPlot, Tractor } from "lucide-react";
 
 export type DealFilters = {
   q: string;
@@ -229,9 +229,9 @@ export function DealFiltersPanel({
   const cities = tally((d) => d.property?.city);
   const presentTypes = new Set(deals.map((d) => d.property?.type).filter(Boolean) as string[]);
 
-  const typeChips = (rural: boolean) =>
+  const typeChips = (seg: Segment) =>
     Object.entries(TYPE_LABELS)
-      .filter(([k]) => isRuralType(k) === rural && presentTypes.has(k))
+      .filter(([k]) => segmentOf(k) === seg && presentTypes.has(k))
       .map(([k, v]) => (
         <FilterChip
           key={k}
@@ -242,8 +242,9 @@ export function DealFiltersPanel({
           {v}
         </FilterChip>
       ));
-  const urbanChips = typeChips(false);
-  const ruralChips = typeChips(true);
+  const urbanChips = typeChips("imoveis");
+  const landChips = typeChips("terrenos");
+  const ruralChips = typeChips("rurais");
 
   return (
     <>
@@ -312,6 +313,12 @@ export function DealFiltersPanel({
             <div className="flex flex-wrap items-center gap-2">
               <Building2 className="size-3.5 text-subtle" />
               {urbanChips}
+            </div>
+          )}
+          {landChips.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <LandPlot className="size-3.5 text-subtle" />
+              {landChips}
             </div>
           )}
           {ruralChips.length > 0 && (

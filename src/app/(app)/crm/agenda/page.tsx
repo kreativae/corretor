@@ -38,7 +38,7 @@ export default async function AgendaPage({
         properties={properties
           .filter((p) => ["disponivel", "reservado"].includes(p.status))
           .map((p) => ({ id: p.id, code: p.code, title: p.title, type: p.type }))}
-        initialTab={tipo === "imoveis" || tipo === "rurais" ? tipo : "todas"}
+        initialTab={tipo === "imoveis" || tipo === "terrenos" || tipo === "rurais" ? tipo : "todas"}
         openVisitId={visita}
         openNew={!!nova}
       />

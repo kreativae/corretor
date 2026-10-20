@@ -27,9 +27,10 @@ import {
   Send,
   Sparkles,
   Tractor,
+  LandPlot,
   X,
 } from "lucide-react";
-import { isRuralType } from "@/lib/rural";
+import { isRuralType, segmentOf } from "@/lib/rural";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -288,17 +289,19 @@ export function LeadDrawer({
                 <span className="mb-1.5 block text-xs font-medium text-subtle">
                   Interesse em
                 </span>
-                {/* Interesses agrupados: imóveis urbanos e propriedades rurais */}
+                {/* Interesses agrupados: imóveis urbanos, terrenos e propriedades rurais */}
                 <div className="space-y-2">
-                  {[false, true].map((rural) => (
-                    <div key={String(rural)} className="flex flex-wrap items-center gap-1.5">
-                      {rural ? (
+                  {(["imoveis", "terrenos", "rurais"] as const).map((seg) => (
+                    <div key={seg} className="flex flex-wrap items-center gap-1.5">
+                      {seg === "rurais" ? (
                         <Tractor className="size-3.5 text-subtle" aria-label="Rurais" />
+                      ) : seg === "terrenos" ? (
+                        <LandPlot className="size-3.5 text-subtle" aria-label="Terrenos" />
                       ) : (
                         <Building2 className="size-3.5 text-subtle" aria-label="Imóveis" />
                       )}
                       {Object.entries(TYPE_LABELS)
-                        .filter(([k]) => isRuralType(k) === rural)
+                        .filter(([k]) => segmentOf(k) === seg)
                         .map(([k, v]) => {
                           const on = form.interestTypes.includes(k);
                           return (

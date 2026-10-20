@@ -15,7 +15,7 @@ import { StatsGrid } from "@/components/crm/stats-grid";
 import { Button, Field, Input, Modal, Select, Textarea } from "@/components/ui";
 import { VISIT_STATUS_LABELS } from "@/lib/labels";
 import type { Contact, Property, Visit } from "@/db/schema";
-import { isRuralType } from "@/lib/rural";
+import { isRuralType, segmentOf } from "@/lib/rural";
 import { cn, formatTime } from "@/lib/utils";
 import {
   Building2,
@@ -25,6 +25,7 @@ import {
   Clock,
   Layers,
   Tractor,
+  LandPlot,
   Check,
   Cloud,
   MessageCircle,
@@ -66,9 +67,10 @@ function mondayOf(offset: number) {
   return d;
 }
 
-export type AgendaTab = "todas" | "imoveis" | "rurais";
+export type AgendaTab = "todas" | "imoveis" | "terrenos" | "rurais";
 
 const isRuralVisit = (v: VisitLite) => isRuralType(v.property?.type);
+const segOfVisit = (v: VisitLite) => segmentOf(v.property?.type);
 
 const FILTERS_KEY = "crm-agenda-filters";
 
@@ -237,11 +239,12 @@ export function AgendaClient({
 
   const counts = {
     todas: visits.length,
-    imoveis: visits.filter((v) => !isRuralVisit(v)).length,
-    rurais: visits.filter(isRuralVisit).length,
+    imoveis: visits.filter((v) => segOfVisit(v) === "imoveis").length,
+    terrenos: visits.filter((v) => segOfVisit(v) === "terrenos").length,
+    rurais: visits.filter((v) => segOfVisit(v) === "rurais").length,
   };
   const modalProperties =
-    tab === "todas" ? properties : properties.filter((p) => isRuralType(p.type) === (tab === "rurais"));
+    tab === "todas" ? properties : properties.filter((p) => segmentOf(p.type) === tab);
 
   function switchTab(t: AgendaTab) {
     setTab(t);
@@ -269,7 +272,7 @@ export function AgendaClient({
   }, [filters]);
 
   const inTab = useMemo(
-    () => visits.filter((v) => tab === "todas" || isRuralVisit(v) === (tab === "rurais")),
+    () => visits.filter((v) => tab === "todas" || segOfVisit(v) === tab),
     [visits, tab],
   );
   // Visitas do período exibido (semana ou mês)
@@ -635,6 +638,7 @@ export function AgendaClient({
           [
             { id: "todas", label: "Todas", icon: Layers },
             { id: "imoveis", label: "Imóveis", icon: Building2 },
+            { id: "terrenos", label: "Terrenos", icon: LandPlot },
             { id: "rurais", label: "Rurais", icon: Tractor },
           ] as const
         ).map((t) => (
@@ -951,6 +955,7 @@ export function AgendaClient({
                         </span>
                         <span className="mt-0.5 flex items-center gap-1 truncate text-xs text-subtle">
                           {isRuralVisit(v) && <Tractor className="size-3 shrink-0 text-emerald-600" />}
+                          {segOfVisit(v) === "terrenos" && <LandPlot className="size-3 shrink-0 text-emerald-700" />}
                           <span className="truncate">
                             {v.property ? `${v.property.code} · ${v.property.title}` : "—"}
                           </span>
@@ -1165,6 +1170,9 @@ export function AgendaClient({
                       {v.contact?.name ?? "—"}
                     </p>
                     <p className="flex items-center gap-1 truncate text-[10.5px] text-subtle">
+                      {segOfVisit(v) === "terrenos" && (
+                        <LandPlot className="size-3 shrink-0 text-emerald-700" aria-label="Terreno" />
+                      )}
                       {isRuralVisit(v) && (
                         <Tractor className="size-3 shrink-0 text-emerald-600" aria-label="Propriedade rural" />
                       )}
@@ -1285,9 +1293,9 @@ export function AgendaClient({
               ))}
             </Select>
           </Field>
-          <Field label={tab === "rurais" ? "Propriedade" : "Imóvel"}>
+          <Field label={tab === "rurais" ? "Propriedade" : tab === "terrenos" ? "Terreno" : "Imóvel"}>
             <Select value={form.propertyId} onChange={(e) => setForm({ ...form, propertyId: e.target.value })}>
-              <option value="">{tab === "rurais" ? "Selecionar propriedade…" : "Selecionar imóvel…"}</option>
+              <option value="">{tab === "rurais" ? "Selecionar propriedade…" : tab === "terrenos" ? "Selecionar terreno…" : "Selecionar imóvel…"}</option>
               {modalProperties.map((p) => (
                 <option key={p.id} value={p.id}>{p.code} — {p.title}</option>
               ))}

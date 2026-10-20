@@ -81,7 +81,7 @@ export async function POST(req: Request) {
       entity: "imovel",
       entityId: created.id,
       kind: "created",
-      text: `${rural ? "Propriedade rural" : "Imóvel"} ${created.code} cadastrad${rural ? "a" : "o"}${author ? ` por ${author.name}` : ""}.`,
+      text: `${rural ? "Propriedade rural" : isLandType(created.type) ? "Terreno" : "Imóvel"} ${created.code} cadastrad${rural ? "a" : "o"}${author ? ` por ${author.name}` : ""}.`,
     });
 
     // Senha do mapa/KMZ no site: guardada à parte, nunca nos dados do anúncio

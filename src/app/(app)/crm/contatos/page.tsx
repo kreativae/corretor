@@ -1,7 +1,7 @@
 import { ContactsClient } from "@/components/crm/contacts-client";
 import type { ContactMeta } from "@/components/crm/contact-filters";
 import { listContacts, listDeals, listVisits, type DealFull, type VisitFull } from "@/lib/queries";
-import { isRuralType } from "@/lib/rural";
+import { segmentOf } from "@/lib/rural";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
@@ -18,22 +18,26 @@ export default async function ContatosPage({
   // Contato é "rural" se tem interesse em fazenda/sítio/chácara ou negociação/visita
   // em propriedade rural; "imóveis" pelo mesmo critério urbano. Sem nenhum sinal,
   // fica em imóveis. Pode estar nos dois.
-  const linked = new Map<string, { urbano: boolean; rural: boolean }>();
+  type Seg = { urbano: boolean; rural: boolean; terreno: boolean };
+  const linked = new Map<string, Seg>();
   const mark = (contactId: string | undefined, type: string | undefined) => {
     if (!contactId || !type) return;
-    const cur = linked.get(contactId) ?? { urbano: false, rural: false };
-    if (isRuralType(type)) cur.rural = true;
+    const cur = linked.get(contactId) ?? { urbano: false, rural: false, terreno: false };
+    const seg = segmentOf(type);
+    if (seg === "rurais") cur.rural = true;
+    else if (seg === "terrenos") cur.terreno = true;
     else cur.urbano = true;
     linked.set(contactId, cur);
   };
   for (const d of deals) mark(d.contact?.id, d.property?.type);
   for (const v of visits) mark(v.contact?.id, v.property?.type);
-  const segments: Record<string, { urbano: boolean; rural: boolean }> = {};
+  const segments: Record<string, Seg> = {};
   for (const c of contacts) {
-    const l = linked.get(c.id) ?? { urbano: false, rural: false };
-    const rural = l.rural || c.interestTypes.some(isRuralType);
-    const urbano = l.urbano || c.interestTypes.some((t) => !isRuralType(t));
-    segments[c.id] = { rural, urbano: urbano || !rural };
+    const l = linked.get(c.id) ?? { urbano: false, rural: false, terreno: false };
+    const rural = l.rural || c.interestTypes.some((t) => segmentOf(t) === "rurais");
+    const terreno = l.terreno || c.interestTypes.some((t) => segmentOf(t) === "terrenos");
+    const urbano = l.urbano || c.interestTypes.some((t) => segmentOf(t) === "imoveis");
+    segments[c.id] = { rural, terreno, urbano: urbano || (!rural && !terreno) };
   }
 
   const meta = buildMeta(deals, visits);
@@ -57,7 +61,7 @@ export default async function ContatosPage({
         initial={contacts}
         segments={segments}
         meta={meta}
-        initialTab={tipo === "imoveis" || tipo === "rurais" ? tipo : "todos"}
+        initialTab={tipo === "imoveis" || tipo === "terrenos" || tipo === "rurais" ? tipo : "todos"}
         openNew={!!novo}
       />
     </div>

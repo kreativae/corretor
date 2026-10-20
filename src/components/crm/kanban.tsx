@@ -15,7 +15,7 @@ import { StatsGrid } from "@/components/crm/stats-grid";
 import { Button, Field, Input, Modal, Select } from "@/components/ui";
 import { DEAL_STAGES } from "@/lib/labels";
 import type { DealFull } from "@/lib/queries";
-import { formatAlq, isRuralType, normalizeRural } from "@/lib/rural";
+import { formatAlq, isRuralType, normalizeRural, segmentOf } from "@/lib/rural";
 import { cn, formatCompact, initials, timeAgo } from "@/lib/utils";
 import {
   ArrowUpRight,
@@ -33,6 +33,7 @@ import {
   Plus,
   Search,
   Tractor,
+  LandPlot,
   Wallet,
 } from "lucide-react";
 import Link from "next/link";
@@ -40,9 +41,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
-export type PipelineTab = "imoveis" | "rurais" | "todos";
+export type PipelineTab = "imoveis" | "terrenos" | "rurais" | "todos";
 
-const isRuralDeal = (d: DealFull) => isRuralType(d.property?.type);
+const segOfDeal = (d: DealFull) => segmentOf(d.property?.type);
 
 const FILTERS_KEY = "crm-deal-filters";
 
@@ -72,16 +73,17 @@ export function Kanban({
     () =>
       tab === "todos"
         ? deals
-        : deals.filter((d) => (tab === "rurais" ? isRuralDeal(d) : !isRuralDeal(d))),
+        : deals.filter((d) => segOfDeal(d) === tab),
     [deals, tab],
   );
   const counts = {
-    imoveis: deals.filter((d) => !isRuralDeal(d)).length,
-    rurais: deals.filter(isRuralDeal).length,
+    imoveis: deals.filter((d) => segOfDeal(d) === "imoveis").length,
+    terrenos: deals.filter((d) => segOfDeal(d) === "terrenos").length,
+    rurais: deals.filter((d) => segOfDeal(d) === "rurais").length,
     todos: deals.length,
   };
   const modalProperties =
-    tab === "todos" ? properties : properties.filter((p) => isRuralType(p.type) === (tab === "rurais"));
+    tab === "todos" ? properties : properties.filter((p) => segmentOf(p.type) === tab);
 
   function switchTab(t: PipelineTab) {
     setTab(t);
@@ -322,6 +324,7 @@ export function Kanban({
           {(
             [
               { id: "imoveis", label: "Imóveis", icon: Building2 },
+              { id: "terrenos", label: "Terrenos", icon: LandPlot },
               { id: "rurais", label: "Rurais", icon: Tractor },
               { id: "todos", label: "Todos", icon: Layers },
             ] as const
@@ -566,6 +569,12 @@ export function Kanban({
                         </span>
                       </button>
                       <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-subtle">
+                        {property && segmentOf(property.type) === "terrenos" && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                            <LandPlot className="size-3" />
+                            {property.area ? `${property.area.toLocaleString("pt-BR")} m²` : "Terreno"}
+                          </span>
+                        )}
                         {property && isRuralType(property.type) && (
                           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 font-medium text-emerald-600">
                             <Tractor className="size-3" />
@@ -782,6 +791,12 @@ export function Kanban({
                         {contact?.name ?? "Contato removido"}
                       </p>
                     </div>
+                    {property && segmentOf(property.type) === "terrenos" && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                        <LandPlot className="size-3" />
+                        {property.area ? `${property.area.toLocaleString("pt-BR")} m²` : "Terreno"}
+                      </span>
+                    )}
                     {property && isRuralType(property.type) && (
                       <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600">
                         <Tractor className="size-3" />
@@ -831,7 +846,7 @@ export function Kanban({
               ))}
             </Select>
           </Field>
-          <Field label={tab === "rurais" ? "Propriedade de interesse" : "Imóvel de interesse"}>
+          <Field label={tab === "rurais" ? "Propriedade de interesse" : tab === "terrenos" ? "Terreno de interesse" : "Imóvel de interesse"}>
             <Select
               value={form.propertyId}
               onChange={(e) => {

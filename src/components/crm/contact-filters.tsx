@@ -9,9 +9,9 @@ import {
   SOURCE_LABELS,
   TYPE_LABELS,
 } from "@/lib/labels";
-import { isRuralType } from "@/lib/rural";
+import { segmentOf, type Segment } from "@/lib/rural";
 import { cn, formatCompact } from "@/lib/utils";
-import { Building2, Tractor } from "lucide-react";
+import { Building2, LandPlot, Tractor } from "lucide-react";
 import { FilterChip, FilterGroup, type ActiveChip } from "@/components/crm/filter-sheet";
 
 /** Relacionamento do contato com o funil e a agenda (calculado no servidor). */
@@ -275,9 +275,9 @@ export function ContactFiltersPanel({
     }
   const hoods = [...hoodCount.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
 
-  const interestChips = (rural: boolean) =>
+  const interestChips = (seg: Segment) =>
     Object.entries(TYPE_LABELS)
-      .filter(([k]) => isRuralType(k) === rural)
+      .filter(([k]) => segmentOf(k) === seg)
       .map(([k, v]) => (
         <FilterChip
           key={k}
@@ -315,11 +315,15 @@ export function ContactFiltersPanel({
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <Building2 className="size-3.5 text-subtle" />
-              {interestChips(false)}
+              {interestChips("imoveis")}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <LandPlot className="size-3.5 text-subtle" />
+              {interestChips("terrenos")}
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Tractor className="size-3.5 text-subtle" />
-              {interestChips(true)}
+              {interestChips("rurais")}
             </div>
           </div>
         </FilterGroup>

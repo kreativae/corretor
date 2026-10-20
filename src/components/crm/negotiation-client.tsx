@@ -3,7 +3,7 @@
 import { Button, Input, Select, Switch, Textarea } from "@/components/ui";
 import type { PropertySend, SentAttachment } from "@/db/schema";
 import { PURPOSE_LABELS, STATUS_LABELS, TYPE_LABELS } from "@/lib/labels";
-import { isRuralType } from "@/lib/rural";
+import { isRuralType, kindOf } from "@/lib/rural";
 import { cn, formatBRL, formatDateTime, formatPhone, plural } from "@/lib/utils";
 import {
   AlertTriangle,
@@ -144,7 +144,7 @@ export function NegotiationClient({
   /* ── imóveis ── */
   const [selected, setSelected] = useState<string[]>(initialIds.filter((id) => properties.some((p) => p.id === id)));
   const [q, setQ] = useState("");
-  const [cat, setCat] = useState<"all" | "urbano" | "rural">("all");
+  const [cat, setCat] = useState<"all" | "urbano" | "terreno" | "rural">("all");
   const [purpose, setPurpose] = useState("");
   const [city, setCity] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
@@ -186,8 +186,7 @@ export function NegotiationClient({
     const max = Number(maxPrice.replace(/\D/g, "")) || 0;
     return properties.filter((p) => {
       if (onlyAvailable && !["disponivel", "reservado"].includes(p.status)) return false;
-      if (cat === "rural" && !isRuralType(p.type)) return false;
-      if (cat === "urbano" && isRuralType(p.type)) return false;
+      if (cat !== "all" && kindOf(p.type) !== cat) return false;
       if (purpose && p.purpose !== purpose) return false;
       if (city && p.city !== city) return false;
       if (max && p.price > max) return false;
@@ -437,6 +436,7 @@ export function NegotiationClient({
               <Select value={cat} onChange={(e) => setCat(e.target.value as typeof cat)}>
                 <option value="all">Imóveis e rurais</option>
                 <option value="urbano">Só imóveis</option>
+                <option value="terreno">Só terrenos</option>
                 <option value="rural">Só propriedades rurais</option>
               </Select>
               <Select value={purpose} onChange={(e) => setPurpose(e.target.value)}>

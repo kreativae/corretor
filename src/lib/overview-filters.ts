@@ -1,7 +1,7 @@
 /** Filtros da visão geral do CRM — vivem na URL para o servidor recalcular. */
 
 export type OverviewFilters = {
-  seg: "todos" | "imoveis" | "rurais";
+  seg: "todos" | "imoveis" | "terrenos" | "rurais";
   periodo: "7" | "30" | "90" | "365" | "all" | "custom";
   de: string;
   ate: string;
@@ -48,7 +48,7 @@ export function parseOverview(sp: Params): OverviewFilters {
   const periodo = one(sp.periodo);
   const fin = one(sp.finalidade);
   return {
-    seg: seg === "imoveis" || seg === "rurais" ? seg : "todos",
+    seg: seg === "imoveis" || seg === "terrenos" || seg === "rurais" ? seg : "todos",
     periodo: OVERVIEW_PERIODS.some((p) => p.id === periodo)
       ? (periodo as OverviewFilters["periodo"])
       : "30",

@@ -4,9 +4,9 @@ import type { VisitLite } from "@/components/crm/agenda-client";
 import { FilterChip, FilterGroup, type ActiveChip } from "@/components/crm/filter-sheet";
 import { Select } from "@/components/ui";
 import { SOURCE_LABELS, TYPE_LABELS, VISIT_STATUS_LABELS } from "@/lib/labels";
-import { isRuralType } from "@/lib/rural";
+import { segmentOf, type Segment } from "@/lib/rural";
 import { TIME_ZONE } from "@/lib/utils";
-import { Building2, Tractor } from "lucide-react";
+import { Building2, LandPlot, Tractor } from "lucide-react";
 
 export type AgendaFilters = {
   q: string;
@@ -142,9 +142,9 @@ export function AgendaFiltersPanel({
   const hoods = [...hoodCount.keys()].sort((a, b) => a.localeCompare(b));
   const propList = [...props.values()].sort((a, b) => (a.code ?? "").localeCompare(b.code ?? ""));
 
-  const typeChips = (rural: boolean) =>
+  const typeChips = (seg: Segment) =>
     Object.entries(TYPE_LABELS)
-      .filter(([k]) => isRuralType(k) === rural && types.has(k))
+      .filter(([k]) => segmentOf(k) === seg && types.has(k))
       .map(([k, label]) => (
         <FilterChip
           key={k}
@@ -155,8 +155,9 @@ export function AgendaFiltersPanel({
           {label}
         </FilterChip>
       ));
-  const urban = typeChips(false);
-  const rural = typeChips(true);
+  const urban = typeChips("imoveis");
+  const land = typeChips("terrenos");
+  const rural = typeChips("rurais");
 
   return (
     <>
@@ -195,13 +196,19 @@ export function AgendaFiltersPanel({
         </div>
       </FilterGroup>
 
-      {(urban.length > 0 || rural.length > 0) && (
+      {(urban.length > 0 || land.length > 0 || rural.length > 0) && (
         <FilterGroup title="Tipo de imóvel">
           <div className="space-y-2">
             {urban.length > 0 && (
               <div className="flex flex-wrap items-center gap-2">
                 <Building2 className="size-3.5 text-subtle" />
                 {urban}
+              </div>
+            )}
+            {land.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <LandPlot className="size-3.5 text-subtle" />
+                {land}
               </div>
             )}
             {rural.length > 0 && (

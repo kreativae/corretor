@@ -42,7 +42,7 @@ export default async function PipelinePage({
           .filter((p) => ["disponivel", "reservado"].includes(p.status))
           .map((p) => ({ id: p.id, code: p.code, title: p.title, price: p.price, type: p.type }))}
         showClosedLink={features.closedDeals}
-        initialTab={negocio ? "todos" : tipo === "rurais" || tipo === "todos" ? tipo : "imoveis"}
+        initialTab={negocio ? "todos" : tipo === "rurais" || tipo === "terrenos" || tipo === "todos" ? tipo : "imoveis"}
         focusDealId={negocio}
       />
     </div>

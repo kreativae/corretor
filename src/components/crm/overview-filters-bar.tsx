@@ -18,9 +18,9 @@ import {
   overviewQuery,
   type OverviewFilters,
 } from "@/lib/overview-filters";
-import { isRuralType } from "@/lib/rural";
+import { segmentOf } from "@/lib/rural";
 import { cn } from "@/lib/utils";
-import { Building2, Layers, Loader2, Tractor } from "lucide-react";
+import { Building2, LandPlot, Layers, Loader2, Tractor } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, useTransition } from "react";
 
@@ -92,7 +92,7 @@ export function OverviewFiltersBar({
     chips.push({ key: "f", label: PURPOSE_LABELS[value.finalidade], clear: { finalidade: "" } });
 
   const typeOptions = options.tipos.filter(
-    (t) => value.seg === "todos" || isRuralType(t) === (value.seg === "rurais"),
+    (t) => value.seg === "todos" || segmentOf(t) === value.seg,
   );
 
   return (
@@ -103,6 +103,7 @@ export function OverviewFiltersBar({
             [
               { id: "todos", label: "Todos", icon: Layers },
               { id: "imoveis", label: "Imóveis", icon: Building2 },
+              { id: "terrenos", label: "Terrenos", icon: LandPlot },
               { id: "rurais", label: "Rurais", icon: Tractor },
             ] as const
           ).map((t) => (

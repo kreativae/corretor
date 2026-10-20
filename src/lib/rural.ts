@@ -21,6 +21,12 @@ export function kindOf(type: string | null | undefined): PropertyKind {
   return isRuralType(type) ? "rural" : isLandType(type) ? "terreno" : "urbano";
 }
 
+/** Aba de cada categoria nas páginas do CRM (Painel, Pipeline, Agenda, Contatos…) */
+export type Segment = "imoveis" | "terrenos" | "rurais";
+const SEGMENT_OF: Record<PropertyKind, Segment> = { urbano: "imoveis", terreno: "terrenos", rural: "rurais" };
+/** Sem tipo (ex.: negociação sem imóvel) conta como imóveis */
+export const segmentOf = (type: string | null | undefined): Segment => SEGMENT_OF[kindOf(type)];
+
 /** Tipos que aceitam o KMZ do perímetro: propriedades rurais e terrenos. */
 export function acceptsKmz(type: string | null | undefined) {
   return isRuralType(type) || isLandType(type);

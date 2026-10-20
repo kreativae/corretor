@@ -23,7 +23,7 @@ import {
 } from "@/lib/labels";
 import type { Contact } from "@/db/schema";
 import { cn, formatCompact, formatPhone, initials, timeAgo } from "@/lib/utils";
-import { isRuralType } from "@/lib/rural";
+import { segmentOf as kindSegment } from "@/lib/rural";
 import {
   ArrowUpRight,
   Building2,
@@ -40,6 +40,7 @@ import {
   Search,
   Sparkles,
   Tractor,
+  LandPlot,
   Trash2,
   UserPlus,
   Users,
@@ -60,8 +61,8 @@ const SOURCE_STYLES: Record<string, string> = {
   google: "bg-blue-500/10 text-blue-500 border-blue-500/20",
 };
 
-export type ContactsTab = "todos" | "imoveis" | "rurais";
-type Segment = { urbano: boolean; rural: boolean };
+export type ContactsTab = "todos" | "imoveis" | "terrenos" | "rurais";
+type Segment = { urbano: boolean; rural: boolean; terreno?: boolean };
 
 const FILTERS_KEY = "crm-contact-filters";
 
@@ -76,8 +77,9 @@ function budgetLabel(c: Contact) {
 /** Segmento de um contato recém-criado (sem negociações): pelo interesse. */
 function segmentOf(c: Contact, segments: Record<string, Segment>): Segment {
   if (segments[c.id]) return segments[c.id];
-  const rural = c.interestTypes.some(isRuralType);
-  return { rural, urbano: c.interestTypes.some((t) => !isRuralType(t)) || !rural };
+  const rural = c.interestTypes.some((t) => kindSegment(t) === "rurais");
+  const terreno = c.interestTypes.some((t) => kindSegment(t) === "terrenos");
+  return { rural, terreno, urbano: c.interestTypes.some((t) => kindSegment(t) === "imoveis") || (!rural && !terreno) };
 }
 
 export function ContactsClient({
@@ -148,6 +150,7 @@ export function ContactsClient({
     () => ({
       todos: items.length,
       imoveis: items.filter((c) => segmentOf(c, segments).urbano).length,
+      terrenos: items.filter((c) => segmentOf(c, segments).terreno).length,
       rurais: items.filter((c) => segmentOf(c, segments).rural).length,
     }),
     [items, segments],
@@ -161,6 +164,7 @@ export function ContactsClient({
   const inTab = useMemo(() => {
     if (tab === "imoveis") return items.filter((c) => segmentOf(c, segments).urbano);
     if (tab === "rurais") return items.filter((c) => segmentOf(c, segments).rural);
+    if (tab === "terrenos") return items.filter((c) => segmentOf(c, segments).terreno);
     return items;
   }, [items, tab, segments]);
 
@@ -322,6 +326,7 @@ export function ContactsClient({
           [
             { id: "todos", label: "Todos", icon: Layers },
             { id: "imoveis", label: "Imóveis", icon: Building2 },
+            { id: "terrenos", label: "Terrenos", icon: LandPlot },
             { id: "rurais", label: "Rurais", icon: Tractor },
           ] as const
         ).map((t) => (
@@ -551,7 +556,9 @@ export function ContactsClient({
           <p className="rounded-2xl border border-hairline bg-card py-14 text-center text-sm text-subtle">
             {tab === "rurais"
               ? "Nenhum contato rural — marque interesse em fazenda, sítio ou chácara."
-              : chips.length || filters.q
+              : tab === "terrenos"
+                ? "Nenhum contato de terrenos — marque interesse em terreno ou lote."
+                : chips.length || filters.q
                 ? "Nenhum contato com esses filtros."
                 : "Nenhum contato encontrado."}
           </p>
@@ -667,7 +674,9 @@ export function ContactsClient({
           <p className="py-14 text-center text-sm text-subtle">
             {tab === "rurais"
               ? "Nenhum contato rural — marque interesse em fazenda, sítio ou chácara."
-              : chips.length || filters.q
+              : tab === "terrenos"
+                ? "Nenhum contato de terrenos — marque interesse em terreno ou lote."
+                : chips.length || filters.q
                 ? "Nenhum contato com esses filtros."
                 : "Nenhum contato encontrado."}
           </p>
@@ -777,7 +786,28 @@ export function ContactsClient({
             <div className="space-y-2">
               <div className="flex flex-wrap items-center gap-2">
                 <Building2 className="size-3.5 text-subtle" />
-                {Object.entries(TYPE_LABELS).filter(([k]) => !isRuralType(k)).map(([k, v]) => {
+                {Object.entries(TYPE_LABELS).filter(([k]) => kindSegment(k) === "imoveis").map(([k, v]) => {
+                const on = form.interestTypes.includes(k);
+                return (
+                  <button
+                    key={k}
+                    type="button"
+                    onClick={() => toggleInterest(k)}
+                    className={cn(
+                      "rounded-full border px-3.5 py-2 text-xs font-medium transition-all",
+                      on
+                        ? "border-transparent bg-accent text-on-accent"
+                        : "border-hairline text-subtle hover:text-ink",
+                    )}
+                  >
+                    {v}
+                  </button>
+                );
+              })}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <LandPlot className="size-3.5 text-subtle" />
+                {Object.entries(TYPE_LABELS).filter(([k]) => kindSegment(k) === "terrenos").map(([k, v]) => {
                 const on = form.interestTypes.includes(k);
                 return (
                   <button
@@ -798,7 +828,7 @@ export function ContactsClient({
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Tractor className="size-3.5 text-subtle" />
-                {Object.entries(TYPE_LABELS).filter(([k]) => isRuralType(k)).map(([k, v]) => {
+                {Object.entries(TYPE_LABELS).filter(([k]) => kindSegment(k) === "rurais").map(([k, v]) => {
                 const on = form.interestTypes.includes(k);
                 return (
                   <button
