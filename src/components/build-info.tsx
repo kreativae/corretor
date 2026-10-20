@@ -7,30 +7,11 @@ function repoSlug() {
   return GIT_REPO?.trim() || "kreativae/corretor";
 }
 
-/** Título do commit: a Vercel envia; no Coolify vem do GitHub (cache de 1 dia por commit) */
-async function commitMessage(repo: string, sha: string) {
-  const fromVercel = process.env.VERCEL_GIT_COMMIT_MESSAGE;
-  if (fromVercel) return fromVercel.split("\n")[0];
-  try {
-    const res = await fetch(`https://api.github.com/repos/${repo}/commits/${sha}`, {
-      headers: { Accept: "application/vnd.github+json" },
-      next: { revalidate: 86_400 },
-      signal: AbortSignal.timeout(2000),
-    });
-    if (!res.ok) return undefined;
-    const data = (await res.json()) as { commit?: { message?: string } };
-    return data.commit?.message?.split("\n")[0];
-  } catch {
-    return undefined;
-  }
-}
-
 /** Commit em produção — aparece ao passar o mouse no canto inferior direito. */
-export async function BuildInfo() {
+export function BuildInfo() {
   // Vercel: VERCEL_GIT_COMMIT_SHA · Coolify: SOURCE_COMMIT (disponível em tempo de execução)
   const sha = process.env.VERCEL_GIT_COMMIT_SHA || process.env.SOURCE_COMMIT;
   const repo = repoSlug();
-  const message = sha ? await commitMessage(repo, sha) : undefined;
   const href = sha ? `https://github.com/${repo}/commit/${sha}` : undefined;
 
   return (
@@ -39,11 +20,11 @@ export async function BuildInfo() {
         href={href}
         target="_blank"
         rel="noreferrer"
-        className="pointer-events-none flex max-w-xs translate-y-1 items-center gap-2 rounded-full border border-hairline bg-card/95 px-3 py-1.5 font-mono text-[10.5px] text-subtle opacity-0 shadow-lg backdrop-blur transition-all duration-300 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100 hover:text-ink"
+        title={sha}
+        className="pointer-events-none flex translate-y-1 items-center gap-1.5 rounded-full border border-hairline bg-card/95 px-3 py-1.5 font-mono text-[10.5px] text-subtle opacity-0 shadow-lg backdrop-blur transition-all duration-300 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100 hover:text-ink"
       >
         <GitCommitHorizontal className="size-3.5 shrink-0" />
-        <span className="text-ink">{sha ? sha.slice(0, 7) : "local"}</span>
-        {message && <span className="truncate">{message}</span>}
+        <span className="text-ink">{sha ? `#${sha.slice(0, 7)}` : "local"}</span>
       </a>
     </div>
   );
