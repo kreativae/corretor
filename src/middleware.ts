@@ -35,6 +35,8 @@ const OFFICIAL = (() => {
 
 function toWww(req: NextRequest) {
   if (!OFFICIAL.startsWith("www.")) return null;
+  // Webhooks (WhatsApp, portais), feed e agendador chamam /api direto: redirecionar quebra o POST
+  if (req.nextUrl.pathname.startsWith("/api/")) return null;
   const host = (req.headers.get("x-forwarded-host") || req.headers.get("host") || "").split(",")[0].trim().toLowerCase();
   if (host !== OFFICIAL.slice(4)) return null;
   const { pathname, search } = req.nextUrl;

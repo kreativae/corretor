@@ -619,6 +619,57 @@ export async function evolutionConnect(cfg: LineConfig, baseUrl: string, pairNum
   return { state: "connecting", qr: null, pairingCode: null };
 }
 
+/**
+ * Webhook da Evolution apontando para o endereço atual do CRM. Se o domínio mudou (ex.: passou a
+ * usar www e o antigo redireciona), as mensagens deixam de chegar: corrige e busca as que se perderam.
+ * Confere no máximo a cada 5 min por número.
+ */
+const webhookChecked = new Map<string, number>();
+export async function ensureEvolutionWebhook(cfg: LineConfig, baseUrl: string) {
+  const k = `${cfg.evolutionInstance}|${baseUrl}`;
+  if (Date.now() - (webhookChecked.get(k) ?? 0) < 5 * 60_000) return false;
+  webhookChecked.set(k, Date.now());
+  const want = evolutionWebhookUrl(baseUrl, cfg, await tenantParam(), cfg.line);
+  const cur = await evo<{ url?: string; enabled?: boolean; webhook?: { url?: string; enabled?: boolean } }>(
+    cfg,
+    `/webhook/find/${inst(cfg)}`,
+  ).catch(() => null);
+  const url = cur?.url ?? cur?.webhook?.url ?? "";
+  const enabled = cur?.enabled ?? cur?.webhook?.enabled ?? false;
+  if (url === want && enabled) return false;
+  await evo(cfg, `/webhook/set/${inst(cfg)}`, {
+    method: "POST",
+    body: JSON.stringify({ webhook: { enabled: true, url: want, byEvents: false, base64: false, events: EVO_EVENTS } }),
+  });
+  return true;
+}
+
+/**
+ * Busca na Evolution as mensagens dos últimos dias e grava as que faltam (repetidas são ignoradas).
+ * Recupera o que chegou enquanto o webhook estava fora do ar.
+ */
+export async function evolutionBackfill(cfg: LineConfig, baseUrl: string, days = 3) {
+  const since = Date.now() / 1000 - days * 86_400;
+  type Page = { messages?: { records?: Record<string, unknown>[]; pages?: number } };
+  const found: Record<string, unknown>[] = [];
+  for (let page = 1; page <= 10; page++) {
+    const d = await evo<Page>(cfg, `/chat/findMessages/${inst(cfg)}`, {
+      method: "POST",
+      body: JSON.stringify({ where: {}, page, offset: 100 }),
+    }).catch(() => null);
+    const recs = d?.messages?.records ?? [];
+    const recent = recs.filter((r) => Number(r.messageTimestamp) >= since);
+    found.push(...recent);
+    if (!recs.length || recent.length < recs.length || page >= (d?.messages?.pages ?? 1)) break;
+  }
+  // Mais antigas primeiro: a conversa fica com a última mensagem certa
+  found.sort((a, b) => Number(a.messageTimestamp) - Number(b.messageTimestamp));
+  const isGroup = (r: Record<string, unknown>) => String((r.key as EvoKey | undefined)?.remoteJid ?? "").endsWith("@g.us");
+  const items = found.filter((r) => !isGroup(r));
+  if (items.length) await handleEvolutionWebhook({ event: "messages.upsert", data: items }, baseUrl, cfg.line);
+  return items.length;
+}
+
 export async function evolutionLogout(cfg: WhatsAppConfig) {
   await evo(cfg, `/instance/logout/${inst(cfg)}`, { method: "DELETE" });
 }
