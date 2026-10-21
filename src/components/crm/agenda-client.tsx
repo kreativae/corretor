@@ -17,6 +17,7 @@ import { VISIT_STATUS_LABELS } from "@/lib/labels";
 import type { Contact, Property, Visit } from "@/db/schema";
 import { isRuralType, segmentOf } from "@/lib/rural";
 import { cn, formatTime } from "@/lib/utils";
+import { EventCard, EventChip, EventModal, EventRow, type EventLite } from "@/components/crm/agenda-events";
 import {
   Building2,
   CalendarDays,
@@ -36,6 +37,7 @@ import {
   RotateCcw,
   Search,
   Trash2,
+  Users,
   X,
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
@@ -67,7 +69,7 @@ function mondayOf(offset: number) {
   return d;
 }
 
-export type AgendaTab = "todas" | "imoveis" | "terrenos" | "rurais";
+export type AgendaTab = "todas" | "imoveis" | "terrenos" | "rurais" | "eventos";
 
 const isRuralVisit = (v: VisitLite) => isRuralType(v.property?.type);
 const segOfVisit = (v: VisitLite) => segmentOf(v.property?.type);
@@ -76,6 +78,7 @@ const FILTERS_KEY = "crm-agenda-filters";
 
 export function AgendaClient({
   initialVisits,
+  initialEvents = [],
   contacts,
   properties,
   initialTab = "todas",
@@ -83,6 +86,8 @@ export function AgendaClient({
   openNew = false,
 }: {
   initialVisits: VisitLite[];
+  /** Eventos e reuniões (cliente opcional) */
+  initialEvents?: EventLite[];
   contacts: { id: string; name: string }[];
   properties: { id: string; code: string; title: string; type: string }[];
   initialTab?: AgendaTab;
@@ -100,6 +105,9 @@ export function AgendaClient({
   const [monthOffset, setMonthOffset] = useState(0);
   const [todayMenu, setTodayMenu] = useState(false);
   const [visits, setVisits] = useState(initialVisits);
+  const [events, setEvents] = useState(initialEvents);
+  // Novo evento/reunião (editing null) ou edição
+  const [eventModal, setEventModal] = useState<{ open: boolean; editing: EventLite | null }>({ open: false, editing: null });
   const [open, setOpen] = useState(openNew);
   // Atalho do topo (?nova=1): abre o formulário, inclusive já estando na agenda
   useEffect(() => {
@@ -238,7 +246,8 @@ export function AgendaClient({
   const weekLabel = `${range[0].getDate()} ${MONTHS[range[0].getMonth()]} — ${rangeEnd.getDate()} ${MONTHS[rangeEnd.getMonth()]} ${rangeEnd.getFullYear()}`;
 
   const counts = {
-    todas: visits.length,
+    todas: visits.length + events.length,
+    eventos: events.length,
     imoveis: visits.filter((v) => segOfVisit(v) === "imoveis").length,
     terrenos: visits.filter((v) => segOfVisit(v) === "terrenos").length,
     rurais: visits.filter((v) => segOfVisit(v) === "rurais").length,
@@ -337,6 +346,63 @@ export function AgendaClient({
   const upcomingElsewhere = chips.length || filters.q
     ? filtered.filter((v) => new Date(v.visit.scheduledAt).getTime() >= weekEnd).length
     : 0;
+
+  /** Eventos e reuniões do dia (abas Todas e Eventos; a busca vale para título, cliente e local) */
+  function eventsFor(day: Date) {
+    if (tab !== "todas" && tab !== "eventos") return [];
+    const q = filters.q.trim().toLowerCase();
+    return events
+      .filter((e) => new Date(e.event.startsAt).toDateString() === day.toDateString())
+      .filter((e) => !q || `${e.event.title} ${e.contact?.name ?? ""} ${e.event.location ?? ""}`.toLowerCase().includes(q))
+      .sort((a, b) => new Date(a.event.startsAt).getTime() - new Date(b.event.startsAt).getTime());
+  }
+
+  /** Visitas e eventos do dia, em ordem de horário */
+  function itemsFor(day: Date) {
+    return [
+      ...visitsFor(day).map((v) => ({ at: new Date(v.visit.scheduledAt).getTime(), v, e: null })),
+      ...eventsFor(day).map((e) => ({ at: new Date(e.event.startsAt).getTime(), v: null, e })),
+    ].sort((a, b) => a.at - b.at);
+  }
+
+  async function rescheduleEvent(id: string, day: Date) {
+    const cur = events.find((x) => x.event.id === id);
+    if (!cur) return;
+    const old = new Date(cur.event.startsAt);
+    const next = new Date(day);
+    next.setHours(old.getHours(), old.getMinutes(), 0, 0);
+    if (next.toDateString() === old.toDateString()) return;
+    const prev = events;
+    const shift = next.getTime() - old.getTime();
+    setEvents((arr) =>
+      arr.map((x) =>
+        x.event.id === id
+          ? { ...x, event: { ...x.event, startsAt: next, endsAt: x.event.endsAt ? new Date(new Date(x.event.endsAt).getTime() + shift) : null } }
+          : x,
+      ),
+    );
+    try {
+      const res = await fetch(`/api/agenda-events/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ startsAt: next.toISOString() }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success(`Movido para ${next.toLocaleDateString("pt-BR", { weekday: "short", day: "numeric", month: "short" })}.`);
+    } catch {
+      setEvents(prev);
+      toast.error("Não foi possível mudar o dia.");
+    }
+  }
+
+  /** Soltar um cartão arrastado (visita ou evento) num dia */
+  function dropOn(day: Date) {
+    if (dragId?.startsWith("e:")) rescheduleEvent(dragId.slice(2), day);
+    else {
+      const v = visits.find((x) => x.visit.id === dragId);
+      if (v) reschedule(v, day);
+    }
+  }
 
   function visitsFor(day: Date) {
     return filtered
@@ -627,26 +693,34 @@ export function AgendaClient({
             ))}
           </div>
         </div>
-        <Button variant="accent" onClick={() => setOpen(true)}>
-          <CalendarPlus className="size-4" />
-          Nova<span className="hidden sm:inline"> visita</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setEventModal({ open: true, editing: null })} title="Novo evento ou reunião">
+            <Users className="size-4" />
+            <span className="hidden sm:inline">Evento ou reunião</span>
+            <span className="sm:hidden">Evento</span>
+          </Button>
+          <Button variant="accent" onClick={() => setOpen(true)}>
+            <CalendarPlus className="size-4" />
+            Nova<span className="hidden sm:inline"> visita</span>
+          </Button>
+        </div>
       </div>
 
-      <div className="mt-4 inline-flex rounded-full border border-hairline p-1">
+      <div className="no-scrollbar mt-4 inline-flex max-w-full overflow-x-auto rounded-full border border-hairline p-1">
         {(
           [
             { id: "todas", label: "Todas", icon: Layers },
             { id: "imoveis", label: "Imóveis", icon: Building2 },
             { id: "terrenos", label: "Terrenos", icon: LandPlot },
             { id: "rurais", label: "Rurais", icon: Tractor },
+            { id: "eventos", label: "Eventos e reuniões", icon: Users },
           ] as const
         ).map((t) => (
           <button
             key={t.id}
             onClick={() => switchTab(t.id)}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium transition-all duration-300",
+              "inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium transition-all duration-300",
               tab === t.id ? "bg-ink text-canvas" : "text-subtle hover:text-ink",
             )}
           >
@@ -756,7 +830,12 @@ export function AgendaClient({
               const inMonth = day.getMonth() === month.first.getMonth();
               const isToday = day.toDateString() === new Date().toDateString();
               const list = visitsFor(day);
+              const dayEvents = eventsFor(day);
               const active = list.filter((v) => v.visit.status !== "cancelada");
+              // Até 3 linhas no dia: eventos (até 2) e visitas; o resto vira "+N mais"
+              const shownEvents = Math.min(2, dayEvents.length);
+              const shownVisits = Math.min(list.length, Math.max(1, 3 - shownEvents));
+              const hidden = list.length + dayEvents.length - shownEvents - shownVisits;
               return (
                 <div
                   key={day.toISOString()}
@@ -778,8 +857,7 @@ export function AgendaClient({
                   onDragLeave={() => setOverDate((d) => (d === day.toDateString() ? null : d))}
                   onDrop={(e) => {
                     e.preventDefault();
-                    const v = visits.find((x) => x.visit.id === dragId);
-                    if (v) reschedule(v, day);
+                    dropOn(day);
                     setDragId(null);
                     setOverDate(null);
                   }}
@@ -803,15 +881,21 @@ export function AgendaClient({
                     {day.getDate()}
                   </span>
                   {/* Celular: pontinhos; computador: horário e cliente (arrastáveis) */}
-                  {active.length > 0 && (
+                  {active.length + dayEvents.length > 0 && (
                     <span className="mt-auto flex flex-wrap gap-0.5 md:hidden">
                       {active.slice(0, 4).map((v) => (
                         <span key={v.visit.id} className="size-1.5 rounded-full bg-accent" />
                       ))}
+                      {dayEvents.slice(0, 3).map((e) => (
+                        <span key={e.event.id} className="size-1.5 rounded-full bg-violet-500" />
+                      ))}
                     </span>
                   )}
                   <span className="mt-1 hidden w-full space-y-1 md:block">
-                    {list.slice(0, 3).map((v) => {
+                    {dayEvents.slice(0, shownEvents).map((e) => (
+                      <EventChip key={e.event.id} e={e} onOpen={() => setEventModal({ open: true, editing: e })} />
+                    ))}
+                    {list.slice(0, shownVisits).map((v) => {
                       const movable = ["agendada", "confirmada"].includes(v.visit.status);
                       return (
                         <span
@@ -852,9 +936,7 @@ export function AgendaClient({
                         </span>
                       );
                     })}
-                    {list.length > 3 && (
-                      <span className="block text-[10px] text-subtle">+{list.length - 3} mais</span>
-                    )}
+                    {hidden > 0 && <span className="block text-[10px] text-subtle">+{hidden} mais</span>}
                   </span>
                 </div>
               );
@@ -867,7 +949,7 @@ export function AgendaClient({
       <div className={cn("mt-5 md:hidden", view === "mes" && "hidden")}>
         <div className="grid grid-cols-7 gap-1">
           {week.map((day, i) => {
-            const n = visitsFor(day).filter((v) => v.visit.status !== "cancelada").length;
+            const n = visitsFor(day).filter((v) => v.visit.status !== "cancelada").length + eventsFor(day).length;
             const isToday = day.toDateString() === new Date().toDateString();
             const on = activeMobileDay === i;
             return (
@@ -905,13 +987,18 @@ export function AgendaClient({
         {(() => {
           const day = week[activeMobileDay];
           const list = visitsFor(day);
+          const dayEvents = eventsFor(day);
           return (
             <div className="mt-4 space-y-3">
               <p className="font-mono text-[10.5px] uppercase tracking-[0.16em] text-subtle">
                 {day.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })} ·{" "}
                 {list.length} {list.length === 1 ? "visita" : "visitas"}
+                {dayEvents.length > 0 && ` · ${dayEvents.length} ${dayEvents.length === 1 ? "evento" : "eventos"}`}
               </p>
-              {list.length === 0 && (
+              {dayEvents.map((e) => (
+                <EventRow key={e.event.id} e={e} onOpen={() => setEventModal({ open: true, editing: e })} />
+              ))}
+              {list.length === 0 && dayEvents.length === 0 && (
                 <p className="rounded-2xl border border-hairline bg-card py-12 text-center text-sm text-subtle">
                   Dia livre.
                 </p>
@@ -1048,6 +1135,7 @@ export function AgendaClient({
         {strip.map((day, i) => {
           const isToday = day.toDateString() === new Date().toDateString();
           const dayVisits = visitsFor(day);
+          const dayItems = itemsFor(day);
           return (
             <div
               key={i}
@@ -1058,8 +1146,7 @@ export function AgendaClient({
               onDragLeave={() => setOverDay((d) => (d === i ? null : d))}
               onDrop={(e) => {
                 e.preventDefault();
-                const v = visits.find((x) => x.visit.id === dragId);
-                if (v) reschedule(v, day);
+                dropOn(day);
                 setDragId(null);
                 setOverDay(null);
               }}
@@ -1091,7 +1178,23 @@ export function AgendaClient({
                 </span>
               </div>
               <div className="space-y-1.5">
-                {dayVisits.map((v) => (
+                {dayItems.map(({ v: item, e: ev }) => {
+                  if (ev)
+                    return (
+                      <EventCard
+                        key={ev.event.id}
+                        e={ev}
+                        dragging={dragId === `e:${ev.event.id}`}
+                        onOpen={() => setEventModal({ open: true, editing: ev })}
+                        onDragStart={() => setDragId(`e:${ev.event.id}`)}
+                        onDragEnd={() => {
+                          setDragId(null);
+                          setOverDay(null);
+                        }}
+                      />
+                    );
+                  const v = item!;
+                  return (
                   <div
                     key={v.visit.id}
                     draggable={["agendada", "confirmada"].includes(v.visit.status)}
@@ -1179,8 +1282,9 @@ export function AgendaClient({
                       <span className="truncate">{v.property?.title ?? "—"}</span>
                     </p>
                   </div>
-                ))}
-                {dayVisits.length === 0 && (
+                  );
+                })}
+                {dayItems.length === 0 && (
                   <p className="px-1.5 py-4 text-center font-mono text-[10px] uppercase tracking-wider text-subtle/50">
                     livre
                   </p>
@@ -1192,6 +1296,21 @@ export function AgendaClient({
       </div>
 
       <LeadDrawer contactId={previewId} onClose={() => setPreviewId(null)} />
+
+      <EventModal
+        open={eventModal.open}
+        editing={eventModal.editing}
+        contacts={contacts}
+        onClose={() => setEventModal({ open: false, editing: null })}
+        onSaved={(saved) =>
+          setEvents((arr) =>
+            arr.some((x) => x.event.id === saved.event.id)
+              ? arr.map((x) => (x.event.id === saved.event.id ? saved : x))
+              : [...arr, saved],
+          )
+        }
+        onDeleted={(id) => setEvents((arr) => arr.filter((x) => x.event.id !== id))}
+      />
 
       {/* Editar visita */}
       <Modal open={!!editing} onClose={() => setEditing(null)} title="Editar visita">

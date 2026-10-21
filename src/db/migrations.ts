@@ -266,6 +266,22 @@ export const RUNTIME_MIGRATIONS = [
   `ALTER TABLE properties ADD COLUMN IF NOT EXISTS featured boolean NOT NULL DEFAULT false;`,
   `ALTER TABLE properties ADD COLUMN IF NOT EXISTS badge text;`,
   `ALTER TABLE properties ADD COLUMN IF NOT EXISTS badge_label text;`,
+  // Agenda: eventos e reuniões (cliente opcional)
+  `CREATE TABLE IF NOT EXISTS agenda_events (
+     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+     kind text NOT NULL DEFAULT 'reuniao',
+     title text NOT NULL,
+     starts_at timestamptz NOT NULL,
+     ends_at timestamptz,
+     location text,
+     notes text,
+     contact_id uuid REFERENCES contacts(id) ON DELETE SET NULL,
+     status text NOT NULL DEFAULT 'agendado',
+     created_by text,
+     created_at timestamptz NOT NULL DEFAULT now(),
+     updated_at timestamptz NOT NULL DEFAULT now()
+   );`,
+  `CREATE INDEX IF NOT EXISTS agenda_events_starts_idx ON agenda_events (starts_at);`,
 ];
 
 /** Só no banco principal (esquema public): cadastro de empresas da gerência */

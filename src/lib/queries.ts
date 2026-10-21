@@ -15,6 +15,8 @@ import {
   users,
   visits,
   type Activity,
+  type AgendaEvent,
+  agendaEvents,
   type Contact,
   type Deal,
   type Portal,
@@ -266,6 +268,21 @@ export async function listVisits(): Promise<VisitFull[]> {
     .leftJoin(contacts, eq(visits.contactId, contacts.id))
     .orderBy(visits.scheduledAt);
   return rows;
+}
+
+export type AgendaEventFull = { event: AgendaEvent; contact: { id: string; name: string; phone: string } | null };
+
+/** Eventos e reuniões da agenda, com o cliente (quando houver) */
+export async function listAgendaEvents(): Promise<AgendaEventFull[]> {
+  try {
+    return await (await getDb())
+      .select({ event: agendaEvents, contact: { id: contacts.id, name: contacts.name, phone: contacts.phone } })
+      .from(agendaEvents)
+      .leftJoin(contacts, eq(agendaEvents.contactId, contacts.id))
+      .orderBy(agendaEvents.startsAt);
+  } catch {
+    return [];
+  }
 }
 
 export type DealFull = {

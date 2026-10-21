@@ -294,6 +294,23 @@ export const contacts = pgTable("contacts", {
 
 /* ─────────────────────────── Visitas ─────────────────────────── */
 
+/** Agenda: eventos e reuniões (com ou sem cliente), ao lado das visitas */
+export const agendaEvents = pgTable("agenda_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  kind: text("kind", { enum: ["evento", "reuniao"] }).notNull().default("reuniao"),
+  title: text("title").notNull(),
+  startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+  endsAt: timestamp("ends_at", { withTimezone: true }),
+  location: text("location"),
+  notes: text("notes"),
+  /** Cliente vinculado (vazio = evento livre) */
+  contactId: uuid("contact_id").references(() => contacts.id, { onDelete: "set null" }),
+  status: text("status", { enum: ["agendado", "realizado", "cancelado"] }).notNull().default("agendado"),
+  createdBy: text("created_by"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const visits = pgTable("visits", {
   id: uuid("id").primaryKey().defaultRandom(),
   propertyId: uuid("property_id")
@@ -561,6 +578,7 @@ export type Integration = typeof integrations.$inferSelect;
 export type PropertyView = typeof propertyViews.$inferSelect;
 export type ApiKey = typeof apiKeys.$inferSelect;
 export type PropertySend = typeof propertySends.$inferSelect;
+export type AgendaEvent = typeof agendaEvents.$inferSelect;
 export type WaThread = typeof waThreads.$inferSelect;
 export type WaMessage = typeof waMessages.$inferSelect;
 export type MailMessage = typeof mailMessages.$inferSelect;

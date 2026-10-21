@@ -1,5 +1,5 @@
 import { AgendaClient } from "@/components/crm/agenda-client";
-import { listContacts, listProperties, listVisits } from "@/lib/queries";
+import { listAgendaEvents, listContacts, listProperties, listVisits } from "@/lib/queries";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
@@ -11,10 +11,11 @@ export default async function AgendaPage({
   searchParams: Promise<{ tipo?: string; visita?: string; nova?: string }>;
 }) {
   const { tipo, visita, nova } = await searchParams;
-  const [visits, contacts, properties] = await Promise.all([
+  const [visits, contacts, properties, events] = await Promise.all([
     listVisits(),
     listContacts(),
     listProperties(),
+    listAgendaEvents(),
   ]);
 
   return (
@@ -25,7 +26,7 @@ export default async function AgendaPage({
             Agendamento
           </p>
           <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight">
-            Agenda de visitas
+            Agenda
           </h1>
         </div>
         <p className="text-xs text-subtle">
@@ -34,11 +35,12 @@ export default async function AgendaPage({
       </div>
       <AgendaClient
         initialVisits={visits}
+        initialEvents={events}
         contacts={contacts.map((c) => ({ id: c.id, name: c.name }))}
         properties={properties
           .filter((p) => ["disponivel", "reservado"].includes(p.status))
           .map((p) => ({ id: p.id, code: p.code, title: p.title, type: p.type }))}
-        initialTab={tipo === "imoveis" || tipo === "terrenos" || tipo === "rurais" ? tipo : "todas"}
+        initialTab={tipo === "imoveis" || tipo === "terrenos" || tipo === "rurais" || tipo === "eventos" ? tipo : "todas"}
         openVisitId={visita}
         openNew={!!nova}
       />
