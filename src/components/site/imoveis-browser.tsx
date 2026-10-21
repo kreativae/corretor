@@ -16,7 +16,7 @@ import { APTIDAO_LABELS, kindOf, RURAL_TYPES } from "@/lib/rural";
 import { LAND_TYPES } from "@/lib/land";
 import { filtersFromSearch, type SiteSearchParams } from "@/lib/site-search";
 import { cn, plural } from "@/lib/utils";
-import { DISPLAY_DEFAULTS, gridCols, type ListingDisplay } from "@/lib/site-display";
+import { DISPLAY_DEFAULTS, denseCols, gridCols, type ListingDisplay } from "@/lib/site-display";
 import { Building2, ChevronDown, LandPlot, Search, SlidersHorizontal, Tractor } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
@@ -84,6 +84,8 @@ export function ImoveisBrowser({
   const rural = categoria === "rurais";
   const land = categoria === "terrenos";
   const base = rural ? rurais : land ? terrenos : urbanos;
+  // Colunas de cada aba (Conteúdo do site › Exibição)
+  const cols = rural ? display.columnsRural : land ? display.columnsLand : display.columns;
   const TYPES: string[] = rural
     ? [...RURAL_TYPES]
     : land
@@ -327,7 +329,7 @@ export function ImoveisBrowser({
           className={cn(
             "mt-5 grid gap-y-9 sm:gap-x-6 md:mt-6 md:gap-y-12",
             display.mobileColumns === 2 && "grid-cols-2 gap-x-3 gap-y-7",
-            gridCols(display.columns),
+            gridCols(cols),
           )}
         >
           {visible.map((p, i) => (
@@ -336,7 +338,7 @@ export function ImoveisBrowser({
               className="animate-fade-in"
               style={{ animationDelay: `${Math.min(i, 8) * 60}ms` }}
             >
-              <PropertyCard property={p} compact={display.mobileColumns === 2} />
+              <PropertyCard property={p} compact={display.mobileColumns === 2} dense={denseCols(cols)} />
             </div>
           ))}
         </div>

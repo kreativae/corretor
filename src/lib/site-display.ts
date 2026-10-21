@@ -7,7 +7,7 @@
 export type DisplaySort = "featured" | "recent" | "price_desc" | "price_asc" | "area_desc" | "views" | "random";
 export type DisplaySource = "featured_first" | "featured" | "all";
 export type HomeSectionId = "imoveis" | "terrenos" | "rurais" | "bairros";
-export type Columns = 2 | 3 | 4;
+export type Columns = 2 | 3 | 4 | 5 | 6;
 /** Celular: cards deslizando para o lado, um por linha ou duas colunas */
 export type MobileLayout = "carousel" | "list" | "grid2";
 
@@ -54,7 +54,11 @@ export type HoodsBlock = {
 };
 
 export type ListingDisplay = {
+  /** Colunas no computador na aba Imóveis */
   columns: Columns;
+  /** Colunas nas abas Terrenos e Propriedades rurais */
+  columnsLand: Columns;
+  columnsRural: Columns;
   /** Colunas no celular */
   mobileColumns: 1 | 2;
   /** Quantos por vez no celular (0 = o mesmo do computador) */
@@ -100,7 +104,7 @@ export const DISPLAY_DEFAULTS: SiteDisplay = {
   terrenos: block({ eyebrow: "Para construir", title: "" }),
   rurais: block({ eyebrow: "No campo", title: "Propriedades rurais" }),
   bairros: { show: true, eyebrow: "Por região", title: "Buscar por bairro", count: 8, columns: 4, mobileColumns: 2, mobileCount: 0, minPerHood: 1, include: "urbano" },
-  listing: { columns: 3, mobileColumns: 1, mobilePerPage: 0, sort: "recent", featuredFirst: true, perPage: 0 },
+  listing: { columns: 3, columnsLand: 3, columnsRural: 3, mobileColumns: 1, mobilePerPage: 0, sort: "recent", featuredFirst: true, perPage: 0 },
 };
 
 export const SORT_LABELS: Record<DisplaySort, string> = {
@@ -124,7 +128,7 @@ const int = (v: unknown, min: number, max: number, def: number) => {
   const n = Math.round(Number(v));
   return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : def;
 };
-const cols = (v: unknown, def: Columns): Columns => ([2, 3, 4].includes(Number(v)) ? (Number(v) as Columns) : def);
+const cols = (v: unknown, def: Columns): Columns => ([2, 3, 4, 5, 6].includes(Number(v)) ? (Number(v) as Columns) : def);
 const pick = <T extends string>(v: unknown, list: readonly T[], def: T): T => (list.includes(v as T) ? (v as T) : def);
 const text = (v: unknown, def: string) => (typeof v === "string" ? v.slice(0, 120) : def);
 
@@ -172,6 +176,9 @@ export function normalizeDisplay(v: unknown): SiteDisplay {
     },
     listing: {
       columns: cols(l.columns, D.listing.columns),
+      // Antes de existir por aba, valia a mesma para as três
+      columnsLand: cols(l.columnsLand, cols(l.columns, D.listing.columnsLand)),
+      columnsRural: cols(l.columnsRural, cols(l.columns, D.listing.columnsRural)),
       mobileColumns: Number(l.mobileColumns) === 2 ? 2 : 1,
       mobilePerPage: int(l.mobilePerPage, 0, 120, D.listing.mobilePerPage),
       sort: pick(l.sort, ["recent", "price_asc", "price_desc", "area_desc"] as const, D.listing.sort),
@@ -249,10 +256,24 @@ export function pickForBlock<T extends Item>(list: T[], b: HomeBlock, views: Rec
   return out;
 }
 
-/** Classes da grade conforme o número de colunas (tablet: 2) */
+/** Classes da grade conforme o número de colunas (tablet: 2; sobe até o número escolhido na tela larga) */
 export function gridCols(n: Columns) {
-  return n === 2 ? "sm:grid-cols-2" : n === 4 ? "sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" : "sm:grid-cols-2 lg:grid-cols-3";
+  switch (n) {
+    case 2:
+      return "sm:grid-cols-2";
+    case 4:
+      return "sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
+    case 5:
+      return "sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5";
+    case 6:
+      return "sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6";
+    default:
+      return "sm:grid-cols-2 lg:grid-cols-3";
+  }
 }
+
+/** Muitas colunas: cards estreitos, preço embaixo do título */
+export const denseCols = (n: Columns) => n >= 5;
 
 /** Grade completa de uma seção: o formato do celular + as colunas do computador */
 export function blockGrid(b: Pick<HomeBlock, "columns" | "mobile">) {

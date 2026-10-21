@@ -24,7 +24,10 @@ export function PropertyCard({
   property: p,
   featured,
   compact,
+  dense,
 }: {
+  /** Muitas colunas no computador: preço e medidas embaixo do título */
+  dense?: boolean;
   property: PropertyWithImages;
   featured?: boolean;
   /** Celular em duas colunas: textos menores e medidas embaixo do preço */
@@ -120,19 +123,19 @@ export function PropertyCard({
         </div>
       </div>
 
-      <div className="hidden items-start justify-between gap-4 pt-4 sm:flex">
+      <div className={cn("hidden gap-4 pt-4 sm:flex", dense ? "flex-col gap-1.5 pt-3" : "items-start justify-between")}>
         <div className="min-w-0">
-          <p className="font-mono text-[10.5px] uppercase tracking-[0.16em] text-subtle">
+          <p className={cn("truncate font-mono uppercase text-subtle", dense ? "text-[10px] tracking-[0.12em]" : "text-[10.5px] tracking-[0.16em]")}>
             {p.code} · {TYPE_LABELS[p.type]}
           </p>
-          <h3 className="mt-1.5 truncate font-display text-lg font-semibold tracking-tight">
+          <h3 className={cn("truncate font-display font-semibold tracking-tight", dense ? "mt-1 text-base" : "mt-1.5 text-lg")}>
             {p.title}
           </h3>
-          <p className="mt-0.5 text-sm text-subtle">
+          <p className={cn("truncate text-subtle", dense ? "text-xs" : "mt-0.5 text-sm")}>
             {p.neighborhood}, {p.city}
           </p>
         </div>
-        <div className="shrink-0 text-right">
+        <div className={cn(dense ? "min-w-0" : "shrink-0 text-right")}>
           <p className="font-mono text-sm font-medium tabular">
             {formatBRL(p.price)}
             {p.purpose === "aluguel" && (

@@ -5,7 +5,7 @@ import { PropertyCard } from "@/components/site/property-card";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 import { listDeals, listPublishedProperties, listPropertyViewTotals, getWhiteLabel } from "@/lib/queries";
-import { blockGrid, blockItem, pickForBlock, type HomeBlock, type HomeSectionId } from "@/lib/site-display";
+import { blockGrid, blockItem, denseCols, pickForBlock, type HomeBlock, type HomeSectionId } from "@/lib/site-display";
 import { getSiteContent } from "@/lib/site-content";
 import { searchHref } from "@/lib/site-search";
 import { cn, parseYouTubeUrl, plural, siteImage } from "@/lib/utils";
@@ -203,7 +203,7 @@ export default async function HomePage() {
     <div className={blockGrid(b)}>
       {list.map((p, i) => (
         <div key={p.id} data-reveal data-delay={`${(i % b.columns) * 0.06}`} className={blockItem(b, i)}>
-          <PropertyCard property={p} compact={b.mobile === "grid2"} />
+          <PropertyCard property={p} compact={b.mobile === "grid2"} dense={denseCols(b.columns)} />
         </div>
       ))}
     </div>

@@ -88,8 +88,8 @@ const groupLabel = "sm:col-span-2 -mb-1 mt-1 flex items-center gap-1.5 font-mono
 
 function ColumnsPicker({ value, onChange }: { value: Columns; onChange: (c: Columns) => void }) {
   return (
-    <div className="grid grid-cols-3 gap-1 rounded-xl bg-soft p-1">
-      {([2, 3, 4] as const).map((n) => (
+    <div className="grid grid-cols-5 gap-1 rounded-xl bg-soft p-1">
+      {([2, 3, 4, 5, 6] as const).map((n) => (
         <button
           key={n}
           type="button"
@@ -102,7 +102,7 @@ function ColumnsPicker({ value, onChange }: { value: Columns; onChange: (c: Colu
         >
           <span className="flex gap-0.5">
             {Array.from({ length: n }).map((_, i) => (
-              <span key={i} className={cn("h-3 w-1.5 rounded-sm", value === n ? "bg-accent" : "bg-hairline-strong")} />
+              <span key={i} className={cn("h-3 w-1 rounded-sm", value === n ? "bg-accent" : "bg-hairline-strong")} />
             ))}
           </span>
           {n}
@@ -443,8 +443,14 @@ export function DisplayEditor({
         <h2 className={h2}>Página “Todos os imóveis”</h2>
         <p className="mb-5 text-xs text-subtle">Vale para as abas Imóveis, Terrenos e Rurais. O visitante ainda pode trocar a ordem e filtrar.</p>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Colunas no computador">
+          <Field label="Colunas na aba Imóveis">
             <ColumnsPicker value={value.listing.columns} onChange={(columns) => set({ listing: { ...value.listing, columns } })} />
+          </Field>
+          <Field label="Colunas na aba Terrenos">
+            <ColumnsPicker value={value.listing.columnsLand} onChange={(columnsLand) => set({ listing: { ...value.listing, columnsLand } })} />
+          </Field>
+          <Field label="Colunas na aba Propriedades rurais" hint="Telas menores mostram menos colunas para os cards não ficarem espremidos">
+            <ColumnsPicker value={value.listing.columnsRural} onChange={(columnsRural) => set({ listing: { ...value.listing, columnsRural } })} />
           </Field>
           <Field label="Ordem inicial">
             <Select value={value.listing.sort} onChange={(e) => set({ listing: { ...value.listing, sort: e.target.value as SiteDisplay["listing"]["sort"] } })}>
