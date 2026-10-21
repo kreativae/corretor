@@ -5,7 +5,7 @@ import { PropertyCard } from "@/components/site/property-card";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 import { listDeals, listPublishedProperties, listPropertyViewTotals, getWhiteLabel } from "@/lib/queries";
-import { gridCols, pickForBlock, type HomeBlock, type HomeSectionId } from "@/lib/site-display";
+import { blockGrid, blockItem, pickForBlock, type HomeBlock, type HomeSectionId } from "@/lib/site-display";
 import { getSiteContent } from "@/lib/site-content";
 import { searchHref } from "@/lib/site-search";
 import { cn, parseYouTubeUrl, plural, siteImage } from "@/lib/utils";
@@ -200,15 +200,10 @@ export default async function HomePage() {
 
   /** Grade de cards de uma seção (celular: carrossel; colunas conforme a Exibição) */
   const cards = (list: P[], b: HomeBlock) => (
-    <div
-      className={cn(
-        "-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-2 [scrollbar-width:none] sm:mx-0 sm:grid sm:snap-none sm:gap-x-6 sm:gap-y-10 sm:overflow-visible sm:px-0 sm:pb-0",
-        gridCols(b.columns),
-      )}
-    >
+    <div className={blockGrid(b)}>
       {list.map((p, i) => (
-        <div key={p.id} data-reveal data-delay={`${(i % b.columns) * 0.06}`} className="w-[84%] shrink-0 snap-center sm:w-auto">
-          <PropertyCard property={p} />
+        <div key={p.id} data-reveal data-delay={`${(i % b.columns) * 0.06}`} className={blockItem(b, i)}>
+          <PropertyCard property={p} compact={b.mobile === "grid2"} />
         </div>
       ))}
     </div>
@@ -245,15 +240,20 @@ export default async function HomePage() {
           <SectionHead eyebrow={display.bairros.eyebrow} title={display.bairros.title} />
           <div
             className={cn(
-              "grid grid-cols-2 gap-3 md:gap-4",
+              "grid gap-3 sm:grid-cols-2 md:gap-4",
+              display.bairros.mobileColumns === 1 ? "grid-cols-1" : "grid-cols-2",
               display.bairros.columns === 2 ? "" : display.bairros.columns === 3 ? "lg:grid-cols-3" : "sm:grid-cols-3 lg:grid-cols-4",
             )}
           >
-            {hoods.map(([name, h]) => (
+            {hoods.map(([name, h], i) => (
               <Link
                 key={name}
                 href={searchHref({ bairro: name })}
-                className="group relative aspect-[4/3] overflow-hidden rounded-2xl bg-soft"
+                className={cn(
+                  "group relative overflow-hidden rounded-2xl bg-soft",
+                  display.bairros.mobileColumns === 1 ? "aspect-[16/9] sm:aspect-[4/3]" : "aspect-[4/3]",
+                  display.bairros.mobileCount > 0 && i >= display.bairros.mobileCount && "max-sm:hidden",
+                )}
               >
                 {h.cover ? (
                   /* eslint-disable-next-line @next/next/no-img-element */

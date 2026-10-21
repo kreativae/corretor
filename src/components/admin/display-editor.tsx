@@ -2,6 +2,7 @@
 
 import { Field, Input, Select, Switch } from "@/components/ui";
 import {
+  MOBILE_LAYOUT_LABELS,
   pickForBlock,
   SORT_LABELS,
   SOURCE_LABELS,
@@ -10,10 +11,11 @@ import {
   type DisplaySource,
   type HomeBlock,
   type HomeSectionId,
+  type MobileLayout,
   type SiteDisplay,
 } from "@/lib/site-display";
 import { cn, formatBRL } from "@/lib/utils";
-import { ArrowDown, ArrowUp, Building2, Eye, EyeOff, Home, ImageIcon, LandPlot, MapPin, Star, Tractor } from "lucide-react";
+import { ArrowDown, ArrowUp, Building2, Eye, EyeOff, Home, ImageIcon, LandPlot, MapPin, Monitor, Smartphone, Star, Tractor } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -50,6 +52,39 @@ const KIND_OF: Record<"imoveis" | "terrenos" | "rurais", DisplayItem["kind"]> = 
 
 const card = "rounded-2xl border border-hairline bg-card p-6 card-elev";
 const h2 = "mb-1 font-display text-base font-semibold tracking-tight";
+
+/** Botões lado a lado (formato e colunas no celular) */
+function Segmented<T extends string | number>({
+  value,
+  options,
+  onChange,
+}: {
+  value: T;
+  options: { value: T; label: string }[];
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div className="grid gap-1 rounded-xl bg-soft p-1" style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}>
+      {options.map((o) => (
+        <button
+          key={String(o.value)}
+          type="button"
+          onClick={() => onChange(o.value)}
+          aria-pressed={value === o.value}
+          className={cn(
+            "flex h-9 items-center justify-center rounded-lg px-2 text-xs font-medium transition-colors",
+            value === o.value ? "bg-card text-ink shadow-sm" : "text-subtle hover:text-ink",
+          )}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Título de grupo dentro do cartão (Computador / Celular) */
+const groupLabel = "sm:col-span-2 -mb-1 mt-1 flex items-center gap-1.5 font-mono text-[10.5px] uppercase tracking-[0.16em] text-subtle";
 
 function ColumnsPicker({ value, onChange }: { value: Columns; onChange: (c: Columns) => void }) {
   return (
@@ -205,12 +240,34 @@ export function DisplayEditor({
                       placeholder={k === "imoveis" ? collectionTitle : k === "terrenos" ? "Título do card Terrenos" : "Propriedades rurais"}
                     />
                   </Field>
-                  <Field label="Quantos aparecem">
+                  <Field label="Quantos no computador">
                     <Input type="number" min={1} max={24} value={b.count} onChange={(e) => setBlock(k, { count: Number(e.target.value) || 1 })} />
                   </Field>
-                  <Field label="Colunas no computador" hint="No celular, os cards deslizam para o lado">
+                  <Field label="Colunas no computador">
                     <ColumnsPicker value={b.columns} onChange={(columns) => setBlock(k, { columns })} />
                   </Field>
+                  <p className={groupLabel}>
+                    <Smartphone className="size-3" /> No celular
+                  </p>
+                  <Field label="Formato no celular">
+                    <Segmented
+                      value={b.mobile}
+                      options={(Object.keys(MOBILE_LAYOUT_LABELS) as MobileLayout[]).map((v) => ({ value: v, label: MOBILE_LAYOUT_LABELS[v] }))}
+                      onChange={(mobile) => setBlock(k, { mobile })}
+                    />
+                  </Field>
+                  <Field label="Quantos no celular" hint="0 = os mesmos do computador">
+                    <Input
+                      type="number"
+                      min={0}
+                      max={24}
+                      value={b.mobileCount}
+                      onChange={(e) => setBlock(k, { mobileCount: Math.max(0, Number(e.target.value) || 0) })}
+                    />
+                  </Field>
+                  <p className={groupLabel}>
+                    <Monitor className="size-3" /> Quais e em que ordem
+                  </p>
                   <Field label="Quais entram">
                     <Select value={b.source} onChange={(e) => setBlock(k, { source: e.target.value as DisplaySource })}>
                       {Object.entries(SOURCE_LABELS).map(([v, l]) => (
@@ -349,6 +406,25 @@ export function DisplayEditor({
             <Field label="Colunas no computador">
               <ColumnsPicker value={value.bairros.columns} onChange={(columns) => set({ bairros: { ...value.bairros, columns } })} />
             </Field>
+            <Field label="Colunas no celular">
+              <Segmented
+                value={value.bairros.mobileColumns}
+                options={[
+                  { value: 1, label: "Um por linha" },
+                  { value: 2, label: "Duas colunas" },
+                ]}
+                onChange={(mobileColumns) => set({ bairros: { ...value.bairros, mobileColumns } })}
+              />
+            </Field>
+            <Field label="Quantos no celular" hint="0 = os mesmos do computador">
+              <Input
+                type="number"
+                min={0}
+                max={24}
+                value={value.bairros.mobileCount}
+                onChange={(e) => set({ bairros: { ...value.bairros, mobileCount: Math.max(0, Number(e.target.value) || 0) } })}
+              />
+            </Field>
             <Field label="Mínimo de imóveis no bairro" hint="Bairro com menos que isso não aparece">
               <Input type="number" min={1} max={50} value={value.bairros.minPerHood} onChange={(e) => set({ bairros: { ...value.bairros, minPerHood: Number(e.target.value) || 1 } })} />
             </Field>
@@ -380,6 +456,25 @@ export function DisplayEditor({
           </Field>
           <Field label="Quantos por vez" hint='0 = todos. Com número, aparece o botão "Ver mais"'>
             <Input type="number" min={0} max={120} value={value.listing.perPage} onChange={(e) => set({ listing: { ...value.listing, perPage: Math.max(0, Number(e.target.value) || 0) } })} />
+          </Field>
+          <Field label="Colunas no celular">
+            <Segmented
+              value={value.listing.mobileColumns}
+              options={[
+                { value: 1, label: "Um por linha" },
+                { value: 2, label: "Duas colunas" },
+              ]}
+              onChange={(mobileColumns) => set({ listing: { ...value.listing, mobileColumns } })}
+            />
+          </Field>
+          <Field label="Quantos por vez no celular" hint="0 = o mesmo do computador">
+            <Input
+              type="number"
+              min={0}
+              max={120}
+              value={value.listing.mobilePerPage}
+              onChange={(e) => set({ listing: { ...value.listing, mobilePerPage: Math.max(0, Number(e.target.value) || 0) } })}
+            />
           </Field>
           <label className="flex items-center justify-between gap-3 self-end rounded-xl bg-soft px-4 py-3">
             <span>

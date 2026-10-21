@@ -19,7 +19,7 @@ import { cn, plural } from "@/lib/utils";
 import { DISPLAY_DEFAULTS, gridCols, type ListingDisplay } from "@/lib/site-display";
 import { Building2, ChevronDown, LandPlot, Search, SlidersHorizontal, Tractor } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 
 const URBAN_TYPES = ["apartamento", "casa", "cobertura", "estudio"];
 
@@ -95,7 +95,19 @@ export function ImoveisBrowser({
     sort: display.sort,
     ...filtersFromSearch(initialSearch),
   }));
-  const [limit, setLimit] = useState(display.perPage);
+  // "Ver mais": páginas abertas; o tamanho da página pode ser outro no celular
+  const [pages, setPages] = useState(1);
+  const isMobile = useSyncExternalStore(
+    (cb) => {
+      const mq = window.matchMedia("(max-width: 639px)");
+      mq.addEventListener("change", cb);
+      return () => mq.removeEventListener("change", cb);
+    },
+    () => window.matchMedia("(max-width: 639px)").matches,
+    () => false,
+  );
+  const pageSize = isMobile ? display.mobilePerPage || display.perPage : display.perPage;
+  const limit = pageSize > 0 ? pages * pageSize : 0;
   const [showFilters, setShowFilters] = useState(false);
   // No celular, os atalhos de tipo/finalidade ficam recolhidos
   const [showQuick, setShowQuick] = useState(false);
@@ -106,7 +118,7 @@ export function ImoveisBrowser({
   function switchCategoria(c: Categoria) {
     setCategoria(c);
     setFilters({ ...EMPTY_PROPERTY_FILTERS, sort: display.sort });
-    setLimit(display.perPage);
+    setPages(1);
     router.replace(c === "urbanos" ? pathname : `${pathname}?categoria=${c}`, { scroll: false });
   }
 
@@ -121,7 +133,7 @@ export function ImoveisBrowser({
   const [seenFilters, setSeenFilters] = useState(filters);
   if (seenFilters !== filters) {
     setSeenFilters(filters);
-    setLimit(display.perPage);
+    setPages(1);
   }
   const visible = limit > 0 ? filtered.slice(0, limit) : filtered;
   const chips = activePropertyChips(filters, rural);
@@ -311,24 +323,30 @@ export function ImoveisBrowser({
         </div>
       ) : (
         <>
-        <div className={cn("mt-5 grid gap-x-6 gap-y-9 md:mt-6 md:gap-y-12", gridCols(display.columns))}>
+        <div
+          className={cn(
+            "mt-5 grid gap-y-9 sm:gap-x-6 md:mt-6 md:gap-y-12",
+            display.mobileColumns === 2 && "grid-cols-2 gap-x-3 gap-y-7",
+            gridCols(display.columns),
+          )}
+        >
           {visible.map((p, i) => (
             <div
               key={p.id}
               className="animate-fade-in"
               style={{ animationDelay: `${Math.min(i, 8) * 60}ms` }}
             >
-              <PropertyCard property={p} />
+              <PropertyCard property={p} compact={display.mobileColumns === 2} />
             </div>
           ))}
         </div>
         {visible.length < filtered.length && (
           <button
             type="button"
-            onClick={() => setLimit((n) => n + display.perPage)}
+            onClick={() => setPages((n) => n + 1)}
             className="mx-auto mt-10 flex h-12 items-center justify-center gap-2 rounded-full border border-hairline-strong px-8 text-sm font-medium transition-colors hover:bg-soft"
           >
-            Ver mais {Math.min(display.perPage, filtered.length - visible.length)}
+            Ver mais {Math.min(pageSize, filtered.length - visible.length)}
             <span className="font-mono text-xs text-subtle">
               ({visible.length} de {filtered.length})
             </span>

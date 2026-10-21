@@ -51,6 +51,9 @@ import {
   Mountain,
 } from "lucide-react";
 import type { Metadata } from "next";
+import { getDb } from "@/db";
+import { users } from "@/db/schema";
+import { and, eq } from "drizzle-orm";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -82,6 +85,18 @@ export default async function ImovelPage({ params }: { params: Params }) {
   ]);
 
   if (!p || !p.published) notFound();
+  // Corretor responsável pelo imóvel (cadastro da Equipe); sem responsável, o nome de Conteúdo do site
+  const [resp] = p.responsibleId
+    ? await (await getDb())
+        .select({ name: users.name, title: users.title, creci: users.creci })
+        .from(users)
+        .where(and(eq(users.id, p.responsibleId), eq(users.active, true)))
+        .catch(() => [])
+    : [];
+  const brokerName = resp?.name || content.detail.brokerName || wl.orgName;
+  const brokerRole = resp
+    ? `${resp.title?.trim() || content.detail.brokerRole || "Corretor"}${resp.creci ? ` · CRECI ${resp.creci}` : ""}`
+    : content.detail.brokerRole || "Atendimento exclusivo";
   // Região no anúncio: círculo em volta do endereço cadastrado (ou do bairro); o ponto não aparece
   const area = mapOpts.areaMode === "off" ? null : await areaCenter(p);
   const tiles = tilesFor(mapCfg);
@@ -339,14 +354,14 @@ export default async function ImovelPage({ params }: { params: Params }) {
 
               <div className="mt-5 flex items-center gap-3 rounded-xl bg-soft p-3.5">
                 <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-ink font-mono text-xs font-semibold text-canvas">
-                  {initials(content.detail.brokerName || wl.orgName)}
+                  {initials(brokerName)}
                 </span>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium">
-                    {content.detail.brokerName || wl.orgName}
+                    {brokerName}
                   </p>
                   <p className="text-[11px] text-subtle">
-                    {content.detail.brokerRole || "Atendimento exclusivo"}
+                    {brokerRole}
                   </p>
                 </div>
               </div>

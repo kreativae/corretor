@@ -771,7 +771,7 @@ export function SiteEditor({
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field
                     label="Nome do corretor exibido"
-                    hint="Vazio = nome da organização. Na ficha, vale o corretor logado."
+                    hint="Para imóveis sem corretor responsável. Com responsável, aparece o nome e o cargo dele (Equipe). Vazio = nome da organização."
                   >
                     <Input
                       value={c.detail.brokerName}

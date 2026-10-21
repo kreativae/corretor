@@ -23,9 +23,12 @@ function specsLine(p: PropertyWithImages) {
 export function PropertyCard({
   property: p,
   featured,
+  compact,
 }: {
   property: PropertyWithImages;
   featured?: boolean;
+  /** Celular em duas colunas: textos menores e medidas embaixo do preço */
+  compact?: boolean;
 }) {
   return (
     <Link
@@ -53,7 +56,13 @@ export function PropertyCard({
           </div>
         )}
 
-        <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-4">
+        <div
+          className={cn(
+            "absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-4",
+            // Duas colunas no celular: etiquetas menores para caber na foto
+            compact && "max-sm:p-2 max-sm:[&_span]:px-2 max-sm:[&_span]:py-1 max-sm:[&_span]:text-[10px]",
+          )}
+        >
           <span className="flex min-w-0 flex-wrap items-center gap-1.5">
             {p.badgeView && (
               <span
@@ -79,8 +88,23 @@ export function PropertyCard({
         </div>
       </div>
 
+      {/* Celular em duas colunas */}
+      {compact && (
+        <div className="pt-2 sm:hidden">
+          <p className="truncate font-mono text-[9.5px] uppercase tracking-[0.12em] text-subtle">
+            {p.code} · {p.neighborhood}
+          </p>
+          <h3 className="mt-0.5 line-clamp-2 font-display text-sm font-semibold leading-snug tracking-tight">{p.title}</h3>
+          <p className="mt-1 font-mono text-[13px] font-medium tabular">
+            {formatBRL(p.price)}
+            {p.purpose === "aluguel" && <span className="text-[10px] text-subtle"> /mês</span>}
+          </p>
+          <p className="truncate text-[11px] text-subtle">{specsLine(p)}</p>
+        </div>
+      )}
+
       {/* Celular: título inteiro e preço em destaque embaixo */}
-      <div className="pt-3 sm:hidden">
+      <div className={cn("pt-3 sm:hidden", compact && "hidden")}>
         <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-subtle">
           {p.code} · {TYPE_LABELS[p.type]} · {p.neighborhood}
         </p>
