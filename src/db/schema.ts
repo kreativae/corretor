@@ -307,6 +307,10 @@ export const agendaEvents = pgTable("agenda_events", {
   contactId: uuid("contact_id").references(() => contacts.id, { onDelete: "set null" }),
   status: text("status", { enum: ["agendado", "realizado", "cancelado"] }).notNull().default("agendado"),
   createdBy: text("created_by"),
+  remindedAt: timestamp("reminded_at", { withTimezone: true }),
+  googleEventId: text("google_event_id"),
+  googleEtag: text("google_etag"),
+  googleSyncedAt: timestamp("google_synced_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -329,6 +333,8 @@ export const visits = pgTable("visits", {
   googleEventId: text("google_event_id"),
   googleEtag: text("google_etag"),
   googleSyncedAt: timestamp("google_synced_at", { withTimezone: true }),
+  /** Lembrete por WhatsApp já enviado para este horário (reagendar zera) */
+  remindedAt: timestamp("reminded_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

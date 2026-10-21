@@ -498,7 +498,7 @@ export function AgendaClient({
       const contact = contacts.find((c) => c.id === form.contactId) as unknown as Contact;
       const property = properties.find((p) => p.id === form.propertyId) as unknown as Property;
       setVisits((arr) => [...arr, { visit: created, contact, property }]);
-      toast.success("Visita agendada — lembrete enviado ao cliente.");
+      toast.success("Visita agendada.");
       setOpen(false);
       router.refresh();
     } catch {

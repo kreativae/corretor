@@ -282,6 +282,12 @@ export const RUNTIME_MIGRATIONS = [
      updated_at timestamptz NOT NULL DEFAULT now()
    );`,
   `CREATE INDEX IF NOT EXISTS agenda_events_starts_idx ON agenda_events (starts_at);`,
+  // Lembrete por WhatsApp (uma vez por horário) e Google Calendar nos eventos
+  `ALTER TABLE visits ADD COLUMN IF NOT EXISTS reminded_at timestamptz;`,
+  `ALTER TABLE agenda_events ADD COLUMN IF NOT EXISTS reminded_at timestamptz;`,
+  `ALTER TABLE agenda_events ADD COLUMN IF NOT EXISTS google_event_id text;`,
+  `ALTER TABLE agenda_events ADD COLUMN IF NOT EXISTS google_etag text;`,
+  `ALTER TABLE agenda_events ADD COLUMN IF NOT EXISTS google_synced_at timestamptz;`,
 ];
 
 /** Só no banco principal (esquema public): cadastro de empresas da gerência */

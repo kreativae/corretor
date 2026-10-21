@@ -3,6 +3,7 @@ import { currentConn, dbFor, getDb } from "@/db";
 import { settings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { sanitizeWatermark, WATERMARK_DEFAULTS, type WatermarkSettings } from "@/lib/watermark-settings";
+import { REMINDER_DEFAULTS, sanitizeReminders, type ReminderSettings } from "@/lib/reminder-settings";
 import { BADGE_DEFAULTS, sanitizeBadges, type BadgeSettings } from "@/lib/badges";
 import { MAP_OPTIONS_DEFAULTS, sanitizeMapOptions, type MapOptions } from "@/lib/map-options";
 import { sanitizeStatCards, STAT_CARDS_DEFAULTS, type StatCards } from "@/lib/stat-cards";
@@ -31,6 +32,15 @@ export async function getStatCards(): Promise<StatCards> {
     return sanitizeStatCards((row?.value ?? {}) as Record<string, unknown>);
   } catch {
     return STAT_CARDS_DEFAULTS;
+  }
+}
+
+export async function getReminderSettings(): Promise<ReminderSettings> {
+  try {
+    const [row] = await (await getDb()).select().from(settings).where(eq(settings.key, "reminders"));
+    return row ? sanitizeReminders(row.value as Record<string, unknown>) : REMINDER_DEFAULTS;
+  } catch {
+    return REMINDER_DEFAULTS;
   }
 }
 

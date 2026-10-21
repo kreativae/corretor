@@ -3,11 +3,13 @@ import "server-only";
 import { getDb } from "@/db";
 import {
   activities,
+  agendaEvents,
   contacts,
   deals,
   integrations,
   properties,
   visits,
+  type AgendaEvent,
   type Contact,
   type Integration,
   type Property,
@@ -448,6 +450,111 @@ function calendarEventBody(
   };
 }
 
+function agendaEventBody(ev: AgendaEvent, contact: Contact | null) {
+  const start = new Date(ev.startsAt);
+  const end = ev.endsAt ? new Date(ev.endsAt) : new Date(start.getTime() + 60 * 60_000);
+  const kind = ev.kind === "evento" ? "Evento" : "Reunião";
+  return {
+    summary: contact ? `${kind} · ${ev.title} · ${contact.name}` : `${kind} · ${ev.title}`,
+    description: [`${kind} da agenda do CRM.`, contact ? `Cliente: ${contact.name} (${contact.phone})` : null, ev.notes ? `Observações: ${ev.notes}` : null]
+      .filter(Boolean)
+      .join("\n"),
+    location: ev.location ?? "",
+    start: { dateTime: start.toISOString(), timeZone: "America/Sao_Paulo" },
+    end: { dateTime: end.toISOString(), timeZone: "America/Sao_Paulo" },
+    attendees: contact?.email ? [{ email: contact.email, displayName: contact.name }] : [],
+    extendedProperties: { private: { imobEventId: ev.id } },
+  };
+}
+
+/**
+ * Eventos e reuniões da agenda no Google Calendar, nos dois sentidos (mesma regra das
+ * visitas: quem mudou por último vence; cancelado sai do Google).
+ */
+async function syncAgendaEventsCalendar(
+  integration: Integration,
+  calendarId: string,
+  startedAt: Date,
+  result: GoogleSyncResult,
+) {
+  const base = `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events`;
+  const rows = await (await getDb())
+    .select({ ev: agendaEvents, contact: contacts })
+    .from(agendaEvents)
+    .leftJoin(contacts, eq(agendaEvents.contactId, contacts.id));
+  const mark = async (id: string, set: Partial<typeof agendaEvents.$inferInsert>) =>
+    (await getDb()).update(agendaEvents).set(set).where(eq(agendaEvents.id, id));
+
+  for (const { ev, contact } of rows) {
+    try {
+      const create = async () => {
+        const created = await googleApi<GoogleEvent>(integration, `${base}?sendUpdates=all`, {
+          method: "POST",
+          body: JSON.stringify(agendaEventBody(ev, contact)),
+        });
+        await mark(ev.id, { googleEventId: created.id, googleEtag: created.etag, googleSyncedAt: startedAt });
+        result.pushed += 1;
+      };
+      if (!ev.googleEventId) {
+        if (ev.status === "cancelado") result.unchanged += 1;
+        else await create();
+        continue;
+      }
+      let remote: GoogleEvent;
+      try {
+        remote = await googleApi<GoogleEvent>(integration, `${base}/${encodeURIComponent(ev.googleEventId)}`);
+      } catch (error) {
+        // Apagado no Google: recria se ainda vale aqui
+        if (error instanceof GoogleApiError && [404, 410].includes(error.status)) {
+          if (ev.status !== "cancelado") await create();
+          continue;
+        }
+        throw error;
+      }
+      const syncedMs = ev.googleSyncedAt?.getTime() ?? 0;
+      const localMs = ev.updatedAt.getTime();
+      const remoteMs = remote.updated ? new Date(remote.updated).getTime() : 0;
+      const localChanged = localMs > syncedMs + 1000;
+      const remoteChanged = remoteMs > syncedMs + 1000;
+      const url = `${base}/${encodeURIComponent(ev.googleEventId)}?sendUpdates=all`;
+
+      if (localChanged && (!remoteChanged || localMs > remoteMs)) {
+        if (ev.status === "cancelado") {
+          await googleApi<Record<string, never>>(integration, url, { method: "DELETE" });
+          await mark(ev.id, { googleSyncedAt: startedAt });
+        } else {
+          const updated = await googleApi<GoogleEvent>(integration, url, {
+            method: "PATCH",
+            body: JSON.stringify(agendaEventBody(ev, contact)),
+            headers: remote.etag ? { "If-Match": remote.etag } : undefined,
+          });
+          await mark(ev.id, { googleEtag: updated.etag, googleSyncedAt: startedAt });
+        }
+        result.pushed += 1;
+      } else if (remoteChanged) {
+        const rs = remote.start?.dateTime ? new Date(remote.start.dateTime) : null;
+        const re = remote.end?.dateTime ? new Date(remote.end.dateTime) : null;
+        const validStart = rs && !Number.isNaN(rs.getTime()) ? rs : null;
+        await mark(ev.id, {
+          ...(validStart ? { startsAt: validStart, updatedAt: new Date(remote.updated!) } : {}),
+          ...(re && !Number.isNaN(re.getTime()) && ev.endsAt ? { endsAt: re } : {}),
+          ...(remote.status === "cancelled" ? { status: "cancelado" as const } : {}),
+          // Mudou o horário no Google: o lembrete sai de novo
+          ...(validStart && validStart.getTime() !== ev.startsAt.getTime() ? { remindedAt: null } : {}),
+          googleEtag: remote.etag,
+          googleSyncedAt: startedAt,
+        });
+        result.pulled += 1;
+      } else {
+        await mark(ev.id, { googleEtag: remote.etag, googleSyncedAt: startedAt });
+        result.unchanged += 1;
+      }
+    } catch (error) {
+      result.errors.push(error instanceof Error ? error.message : "Erro em evento Google");
+    }
+  }
+}
+
 /** Sincronização bidirecional das visitas com o Google Calendar. */
 export async function syncGoogleCalendar(
   integration: Integration,
@@ -572,7 +679,12 @@ export async function syncGoogleCalendar(
           .update(visits)
           .set({
             ...(remoteStart && !Number.isNaN(remoteStart.getTime())
-              ? { scheduledAt: remoteStart, updatedAt: new Date(remote.updated!) }
+              ? {
+                  scheduledAt: remoteStart,
+                  updatedAt: new Date(remote.updated!),
+                  // Mudou o horário no Google: o lembrete sai de novo
+                  ...(remoteStart.getTime() !== new Date(visit.scheduledAt).getTime() ? { remindedAt: null } : {}),
+                }
               : {}),
             ...(remote.status === "cancelled" ? { status: "cancelada" as const } : {}),
             googleEtag: remote.etag,
@@ -591,6 +703,8 @@ export async function syncGoogleCalendar(
       result.errors.push(error instanceof Error ? error.message : "Erro em evento Google");
     }
   }
+
+  await syncAgendaEventsCalendar(integration, calendarId, startedAt, result);
 
   const processed = result.pulled + result.pushed + result.unchanged;
   await (await getDb())
@@ -619,4 +733,46 @@ export async function syncGoogleIntegration(integration: Integration) {
     return syncGoogleCalendar(integration);
   }
   throw new Error("Esta integração não usa o sincronizador Google.");
+}
+
+/** Integrações Google com sincronização automática ligada e o intervalo vencido */
+export async function syncDueIntegrations() {
+  const candidates = (await (await getDb()).select().from(integrations)).filter(
+    (item) => item.category === "google" && item.connected && item.autoSync,
+  );
+  const now = Date.now();
+  const due = candidates.filter(
+    (item) =>
+      !item.lastSyncAt ||
+      now - item.lastSyncAt.getTime() >= item.syncIntervalMin * 60_000,
+  );
+
+  const results: {
+    provider: string;
+    ok: boolean;
+    pulled?: number;
+    pushed?: number;
+    error?: string;
+  }[] = [];
+
+  for (const integration of due) {
+    try {
+      const result = await syncGoogleIntegration(integration);
+      results.push({
+        provider: integration.provider,
+        ok: result.errors.length === 0,
+        pulled: result.pulled,
+        pushed: result.pushed,
+        ...(result.errors.length ? { error: result.errors.join("; ") } : {}),
+      });
+    } catch (error) {
+      results.push({
+        provider: integration.provider,
+        ok: false,
+        error: error instanceof Error ? error.message : "Falha desconhecida",
+      });
+    }
+  }
+
+  return { checked: candidates.length, synced: due.length, results };
 }

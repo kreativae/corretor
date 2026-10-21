@@ -51,7 +51,12 @@ A Evolution tem Postgres próprio dentro do compose — não usa o banco do CRM.
 
 ## 3. Agendador (substitui o cron do `vercel.json`)
 
-Fora da Vercel o `vercel.json` não roda. No app do CRM › **Scheduled Tasks** › **+ Add**:
+O próprio servidor chama `/api/cron/tick` a cada 10 minutos (`src/instrumentation.ts`): lembretes
+da agenda por WhatsApp e sincronização do Google no intervalo de cada integração. Não precisa
+configurar nada. `TICK_INTERVAL_MIN` muda o intervalo; `TICK_DISABLED=1` desliga.
+
+A tarefa abaixo ficou opcional (só reforço diário da sincronização do Google).
+No app do CRM › **Scheduled Tasks** › **+ Add**:
 
 - **Name:** `google-sync`
 - **Command:**

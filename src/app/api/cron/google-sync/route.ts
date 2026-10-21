@@ -1,8 +1,7 @@
-import { getDb, withTenant } from "@/db";
+import { withTenant } from "@/db";
 import { connOf, listTenants } from "@/lib/tenant";
-import { integrations } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
-import { syncGoogleIntegration } from "@/lib/google-sync";
+import { syncDueIntegrations } from "@/lib/google-sync";
 import { NextResponse } from "next/server";
 
 /**
@@ -24,50 +23,9 @@ export async function POST(req: Request) {
   // Cada empresa tem as próprias integrações
   const report = [];
   for (const tenant of await listTenants(true)) {
-    report.push({ empresa: tenant.slug, ...(await withTenant(connOf(tenant), syncDue)) });
+    report.push({ empresa: tenant.slug, ...(await withTenant(connOf(tenant), syncDueIntegrations)) });
   }
   return NextResponse.json({ empresas: report });
-}
-
-async function syncDue() {
-  const candidates = (await (await getDb()).select().from(integrations)).filter(
-    (item) => item.category === "google" && item.connected && item.autoSync,
-  );
-  const now = Date.now();
-  const due = candidates.filter(
-    (item) =>
-      !item.lastSyncAt ||
-      now - item.lastSyncAt.getTime() >= item.syncIntervalMin * 60_000,
-  );
-
-  const results: {
-    provider: string;
-    ok: boolean;
-    pulled?: number;
-    pushed?: number;
-    error?: string;
-  }[] = [];
-
-  for (const integration of due) {
-    try {
-      const result = await syncGoogleIntegration(integration);
-      results.push({
-        provider: integration.provider,
-        ok: result.errors.length === 0,
-        pulled: result.pulled,
-        pushed: result.pushed,
-        ...(result.errors.length ? { error: result.errors.join("; ") } : {}),
-      });
-    } catch (error) {
-      results.push({
-        provider: integration.provider,
-        ok: false,
-        error: error instanceof Error ? error.message : "Falha desconhecida",
-      });
-    }
-  }
-
-  return { checked: candidates.length, synced: due.length, results };
 }
 
 export async function GET(req: Request) {

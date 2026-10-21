@@ -48,6 +48,8 @@ export async function PATCH(
       }
     }
 
+    // Novo horário: o lembrete por WhatsApp sai de novo
+    if (update.scheduledAt) update.remindedAt = null;
     const [updated] = await (await getDb())
       .update(visits)
       .set(update)

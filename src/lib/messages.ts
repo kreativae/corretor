@@ -12,6 +12,8 @@ export type MessageKey =
   | "selBtnDetails"
   | "selBtnFicha"
   | "selWaCard"
+  | "remindVisit"
+  | "remindEvent"
   | "leadSubject"
   | "leadReturnSubject"
   | "leadFooter";
@@ -35,6 +37,10 @@ export const MESSAGE_DEFAULTS: Messages = {
   selBtnFicha: "Ficha completa",
   selWaCard:
     "*{titulo}*\n_{tipo} · {codigo}_\n\n*Região* - {regiao}\n*Dimensão* - {dimensao}\n*Valor* - {valor}\n\nVer fotos e detalhes: {link}\nFicha completa: {ficha}",
+  remindVisit:
+    "Olá, {primeiro_nome}! Passando para lembrar da sua visita:\n\n*{imovel}* ({codigo})\n*Quando* - {data} às {hora}\n*Onde* - {endereco}\n\nQualquer imprevisto, é só responder aqui.",
+  remindEvent:
+    "Olá, {primeiro_nome}! Passando para lembrar:\n\n*{titulo}*\n*Quando* - {data} às {hora}\n*Onde* - {local}\n\nQualquer imprevisto, é só responder aqui.",
   leadSubject: "Novo lead: {nome} · {interesse}",
   leadReturnSubject: "Lead retornou: {nome} · {interesse}",
   leadFooter: "Aviso automático do CRM — altere os destinatários em Admin → Configurações.",
@@ -77,6 +83,26 @@ export const MESSAGE_GROUPS: {
         label: "Mensagem de cada imóvel",
         where: "Legenda da foto de cada imóvel. *texto* = negrito, _texto_ = itálico",
         vars: WA_CARD_VARS,
+        multiline: true,
+      },
+    ],
+  },
+  {
+    title: "Lembretes da agenda (WhatsApp)",
+    desc: "Enviados ao cliente antes da visita, reunião ou evento (antecedência em Configurações › Lembretes da agenda). Linha com variável vazia some.",
+    items: [
+      {
+        key: "remindVisit",
+        label: "Lembrete de visita",
+        where: "Visitas agendadas ou confirmadas",
+        vars: ["nome", "primeiro_nome", "data", "hora", "imovel", "codigo", "endereco"],
+        multiline: true,
+      },
+      {
+        key: "remindEvent",
+        label: "Lembrete de reunião ou evento",
+        where: "Reuniões e eventos com cliente vinculado",
+        vars: ["nome", "primeiro_nome", "data", "hora", "titulo", "tipo", "local"],
         multiline: true,
       },
     ],

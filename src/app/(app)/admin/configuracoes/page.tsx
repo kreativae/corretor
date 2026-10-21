@@ -6,7 +6,9 @@ import { MapOptionsCard } from "@/components/admin/map-options-card";
 import { WatermarkCard } from "@/components/admin/watermark-card";
 import { SecurityCard } from "@/components/admin/security-card";
 import { BadgesCard } from "@/components/admin/badges-card";
-import { getBadgeSettings, getFeatures, getMapOptions, getMessages, getSecuritySettings, getStatCards, getWatermarkSettings } from "@/lib/features";
+import { RemindersCard } from "@/components/admin/reminders-card";
+import { getWhatsAppConfig, whatsappReady } from "@/lib/whatsapp";
+import { getBadgeSettings, getReminderSettings, getFeatures, getMapOptions, getMessages, getSecuritySettings, getStatCards, getWatermarkSettings } from "@/lib/features";
 import { MessagesCard } from "@/components/admin/messages-card";
 import { WhatsAppCard } from "@/components/admin/whatsapp-card";
 import { WhiteLabelCard } from "@/components/admin/white-label-card";
@@ -26,7 +28,7 @@ export default async function ConfiguracoesPage() {
     (await getDb()).select().from(apiKeys).orderBy(apiKeys.createdAt),
     getWhiteLabel(),
   ]);
-  const [features, statCards, mapOptions, watermark, audit, messages, security, badges] = await Promise.all([
+  const [features, statCards, mapOptions, watermark, audit, messages, security, badges, reminders, waCfg] = await Promise.all([
     getFeatures(),
     getStatCards(),
     getMapOptions(),
@@ -35,6 +37,8 @@ export default async function ConfiguracoesPage() {
     getMessages(),
     getSecuritySettings(),
     getBadgeSettings(),
+    getReminderSettings(),
+    getWhatsAppConfig(),
   ]);
 
   return (
@@ -70,6 +74,7 @@ export default async function ConfiguracoesPage() {
       />
       <BadgesCard initial={badges} />
       <WhatsAppCard />
+      <RemindersCard initial={reminders} waReady={whatsappReady(waCfg)} />
       <MessagesCard initial={messages} />
       {/* Portais imobiliários: anúncios pelo feed XML e leads de volta para o CRM */}
       <section className="card-elev rounded-2xl border border-hairline bg-card p-5 md:p-6">
