@@ -20,21 +20,37 @@ export const EVENT_STYLE = {
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
-/** Horários de 15 em 15 minutos */
-const QUARTERS = Array.from({ length: 96 }, (_, i) => `${pad(Math.floor(i / 4))}:${pad((i % 4) * 15)}`);
+const HOURS = Array.from({ length: 24 }, (_, i) => pad(i));
+const MINUTES = ["00", "15", "30", "45"];
 
+/** Horário em duas listas: hora e minutos (de 15 em 15) */
 function TimeSelect({ value, onChange, optional }: { value: string; onChange: (v: string) => void; optional?: boolean }) {
-  // Horário fora da grade (vindo do Google, por exemplo) continua na lista
-  const list = value && !QUARTERS.includes(value) ? [...QUARTERS, value].sort() : QUARTERS;
+  const [h, m] = value ? value.split(":") : ["", ""];
+  // Minuto fora da grade (vindo do Google, por exemplo) continua na lista
+  const minutes = m && !MINUTES.includes(m) ? [...MINUTES, m].sort() : MINUTES;
   return (
-    <Select value={value} onChange={(e) => onChange(e.target.value)}>
-      {optional && <option value="">Sem fim</option>}
-      {list.map((t) => (
-        <option key={t} value={t}>
-          {t}
-        </option>
-      ))}
-    </Select>
+    <div className="grid grid-cols-2 gap-1.5">
+      <Select
+        value={h}
+        onChange={(e) => onChange(e.target.value ? `${e.target.value}:${m || "00"}` : "")}
+        aria-label="Hora"
+      >
+        {optional && <option value="">—</option>}
+        {HOURS.map((x) => (
+          <option key={x} value={x}>
+            {x}h
+          </option>
+        ))}
+      </Select>
+      <Select value={m} onChange={(e) => onChange(`${h || "00"}:${e.target.value}`)} disabled={optional && !h} aria-label="Minutos">
+        {!h && <option value="">—</option>}
+        {minutes.map((x) => (
+          <option key={x} value={x}>
+            {x}
+          </option>
+        ))}
+      </Select>
+    </div>
   );
 }
 const hhmm = (d: Date | string) => new Date(d).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
@@ -313,8 +329,8 @@ export function EventModal({
             maxLength={160}
           />
         </Field>
-        <div className="grid grid-cols-3 gap-3">
-          <Field label="Data">
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Data" className="col-span-2">
             <Input type="date" value={form.date} onChange={(e) => set({ date: e.target.value })} />
           </Field>
           <Field label="Início">
