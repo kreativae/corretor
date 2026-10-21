@@ -191,6 +191,30 @@ function matchKey(raw: string) {
   return { ddd: n.slice(0, 2), last8: n.slice(-8) };
 }
 
+/**
+ * O mesmo celular brasileiro com e sem o 9 (5543999360535 x 554399360535): o WhatsApp entrega
+ * números antigos sem o 9, e quem digita o número põe o 9. As duas formas são uma conversa só.
+ */
+export function phoneVariants(d: string) {
+  if (!d.startsWith("55")) return [d];
+  if (d.length === 13 && d[4] === "9") return [d, d.slice(0, 4) + d.slice(5)];
+  if (d.length === 12 && /[6-9]/.test(d[4])) return [d, `${d.slice(0, 4)}9${d.slice(4)}`];
+  return [d];
+}
+
+/** Número da conversa já existente para esse celular (com ou sem o 9); senão, o próprio número */
+export async function threadPhone(line: string, phone: string) {
+  const variants = phoneVariants(phone);
+  if (variants.length < 2) return phone;
+  const rows = await (await getDb())
+    .select({ phone: waThreads.phone, inbound: waThreads.lastInboundAt })
+    .from(waThreads)
+    .where(and(eq(waThreads.line, line), inArray(waThreads.phone, variants)));
+  if (!rows.length) return phone;
+  // A forma em que o cliente já escreveu é a que o WhatsApp usa
+  return (rows.find((r) => r.inbound) ?? rows.find((r) => r.phone === phone) ?? rows[0]).phone;
+}
+
 export async function findContactByPhone(raw: string) {
   const key = matchKey(raw);
   if (!key) return null;
@@ -282,6 +306,7 @@ async function recordOutgoing(
   phone: string,
   m: { type: string; body: string; waMessageId: string | null; sentBy: string },
 ) {
+  phone = await threadPhone(line, phone);
   const [thread] = await (await getDb()).select().from(waThreads).where(threadKey(line, phone));
   const contactId = thread?.contactId ?? (await findContactByPhone(phone))?.id ?? null;
   const [row] = await (await getDb())
@@ -433,6 +458,7 @@ export async function ingestFromMe(line: string, m: NormalizedMessage) {
       await (await getDb()).update(waMessages).set({ mediaId: m.mediaId, mediaMime: m.mime }).where(eq(waMessages.id, dup.id));
     return;
   }
+  m = { ...m, phone: await threadPhone(line, m.phone) };
   const [thread] = await (await getDb()).select().from(waThreads).where(threadKey(line, m.phone));
   const contactId = thread?.contactId ?? (await findContactByPhone(m.phone))?.id ?? null;
   await (await getDb())
@@ -451,7 +477,7 @@ export async function ingestFromMe(line: string, m: NormalizedMessage) {
 export async function ingestNormalized(n: NormalizedMessage, cfg: LineConfig, baseUrl: string) {
   const line = cfg.line;
   const m = { id: n.id };
-  const phone = n.phone;
+  const phone = await threadPhone(line, n.phone);
   const at = n.at;
   const { body, mediaId, mime } = n;
   const profileName = n.profileName;

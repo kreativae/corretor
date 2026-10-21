@@ -292,6 +292,32 @@ export const RUNTIME_MIGRATIONS = [
   `ALTER TABLE agenda_events ADD COLUMN IF NOT EXISTS meet_url text;`,
   // Ponto de foco das fotos (onde o corte se centra), por foto
   `ALTER TABLE properties ADD COLUMN IF NOT EXISTS image_focus jsonb;`,
+  // WhatsApp: junta as conversas do mesmo celular com e sem o 9 (fica a forma em que o cliente escreveu)
+  `DO $$
+   DECLARE r record; keep text; gone text;
+   BEGIN
+     FOR r IN
+       SELECT a.line, a.phone AS p12, b.phone AS p13, a.last_inbound_at AS in12, b.last_inbound_at AS in13
+       FROM wa_threads a
+       JOIN wa_threads b ON b.line = a.line AND b.phone = left(a.phone, 4) || '9' || substr(a.phone, 5)
+       WHERE length(a.phone) = 12 AND a.phone LIKE '55%'
+     LOOP
+       IF r.in13 IS NOT NULL AND r.in12 IS NULL THEN keep := r.p13; gone := r.p12; ELSE keep := r.p12; gone := r.p13; END IF;
+       UPDATE wa_messages SET phone = keep WHERE line = r.line AND phone = gone;
+       UPDATE wa_threads k SET
+         contact_id = COALESCE(k.contact_id, d.contact_id),
+         profile_name = COALESCE(k.profile_name, d.profile_name),
+         last_message = CASE WHEN d.last_message_at > k.last_message_at THEN d.last_message ELSE k.last_message END,
+         last_message_at = GREATEST(k.last_message_at, d.last_message_at),
+         last_inbound_at = GREATEST(k.last_inbound_at, d.last_inbound_at),
+         unread = k.unread + d.unread,
+         archived = k.archived AND d.archived,
+         created_at = LEAST(k.created_at, d.created_at)
+       FROM wa_threads d
+       WHERE k.line = r.line AND k.phone = keep AND d.line = r.line AND d.phone = gone;
+       DELETE FROM wa_threads WHERE line = r.line AND phone = gone;
+     END LOOP;
+   END $$;`,
 ];
 
 /** Só no banco principal (esquema public): cadastro de empresas da gerência */
