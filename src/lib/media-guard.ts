@@ -1,5 +1,5 @@
 import "server-only";
-import { currentConn, getDb } from "@/db";
+import { currentConn, DEFAULT_SCHEMA, getDb } from "@/db";
 import { partners, properties, propertyImages } from "@/db/schema";
 import { eq, like } from "drizzle-orm";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
@@ -84,9 +84,12 @@ export function isHotlink(req: Request) {
 
 /* ───────────── Cache em disco das versões públicas ───────────── */
 
-function cacheDir() {
+/** Cache por empresa (a principal na raiz, como sempre; as outras na pasta delas) */
+async function cacheDir() {
   const dir = process.env.UPLOAD_DIR?.trim();
-  return dir ? path.join(dir, "_publico") : "";
+  if (!dir) return "";
+  const { schema } = await currentConn();
+  return schema === DEFAULT_SCHEMA ? path.join(dir, "_publico") : path.join(dir, "t", schema, "_publico");
 }
 
 export function publicCacheKey(...parts: string[]) {
@@ -94,7 +97,7 @@ export function publicCacheKey(...parts: string[]) {
 }
 
 export async function readPublicCache(key: string) {
-  const dir = cacheDir();
+  const dir = await cacheDir();
   if (!dir) return null;
   try {
     const raw = await readFile(path.join(dir, key.slice(0, 2), key));
@@ -107,7 +110,7 @@ export async function readPublicCache(key: string) {
 }
 
 export async function writePublicCache(key: string, type: string, data: Buffer) {
-  const dir = cacheDir();
+  const dir = await cacheDir();
   if (!dir) return;
   try {
     const sub = path.join(dir, key.slice(0, 2));

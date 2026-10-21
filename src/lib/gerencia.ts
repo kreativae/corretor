@@ -1,5 +1,5 @@
 import "server-only";
-import { dbFor, withTenant } from "@/db";
+import { dbFor, DEFAULT_SCHEMA, withTenant } from "@/db";
 import {
   activities,
   contacts,
@@ -12,7 +12,7 @@ import { getAccount, saveAccount } from "@/lib/account";
 import { hashPassword } from "@/lib/password";
 import { WL_DEFAULTS } from "@/lib/queries";
 import { isRuralType } from "@/lib/rural";
-import { connOf, createTenant, deleteTenant, type Tenant } from "@/lib/tenant";
+import { connOf, createTenant, deleteTenant, listTenants, type Tenant } from "@/lib/tenant";
 import { and, count, desc, eq, gte, ne } from "drizzle-orm";
 
 /** Resumo de uma empresa para a gerência (consulta o banco dela) */
@@ -111,6 +111,26 @@ function prefixFrom(name: string) {
       : (words[0] ?? "IMV")
     ).slice(0, 4) || "IMV"
   );
+}
+
+/**
+ * Domínio da gerência → identidade da empresa: o endereço oficial (com www) usado nos
+ * links do site, sitemap, feed de portais e e-mails. Só nas outras empresas: a principal
+ * continua com o que está em Administração.
+ */
+export async function syncCompanyDomain(slug: string) {
+  const t = (await listTenants(true)).find((x) => x.slug === slug);
+  if (!t || t.schemaName === DEFAULT_SCHEMA) return;
+  const conn = connOf(t);
+  await withTenant(conn, async () => {
+    const db = dbFor(conn);
+    const [row] = await db.select().from(settings).where(eq(settings.key, "whiteLabel"));
+    const wl = (row?.value ?? {}) as Record<string, unknown>;
+    const domain = t.domains[0] ? `www.${t.domains[0]}` : "";
+    if (wl.domain === domain) return;
+    if (row) await db.update(settings).set({ value: { ...wl, domain } }).where(eq(settings.key, "whiteLabel"));
+    else await db.insert(settings).values({ key: "whiteLabel", value: { ...WL_DEFAULTS, domain } });
+  });
 }
 
 /** Nova empresa: banco zerado, identidade com o nome dela e o administrador */

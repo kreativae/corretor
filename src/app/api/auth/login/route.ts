@@ -1,4 +1,4 @@
-import { dbFor } from "@/db";
+import { dbFor, DEFAULT_SCHEMA } from "@/db";
 import { users } from "@/db/schema";
 import { verifyPassword } from "@/lib/auth";
 import { finishLogin, LOGIN_MAX_PER_EMAIL, LOGIN_MAX_PER_IP, LOGIN_WINDOW_MS, waitMessage } from "@/lib/login";
@@ -33,7 +33,16 @@ export async function POST(req: Request) {
       }
     }
 
-    const tenants = await listTenants(true);
+    // No domínio de uma empresa, procura nela primeiro (e-mail igual em duas empresas)
+    const host = (req.headers.get("x-forwarded-host") || req.headers.get("host") || "")
+      .split(",")[0]
+      .trim()
+      .toLowerCase()
+      .replace(/:\d+$/, "")
+      .replace(/^www\./, "");
+    const all = await listTenants(true);
+    const hostTenant = host ? all.find((t) => t.domains.includes(host)) : undefined;
+    const tenants = hostTenant ? [hostTenant, ...all.filter((t) => t !== hostTenant)] : all;
     let found: { tenant: Tenant; user: typeof users.$inferSelect } | null = null;
     let inactive = false;
     for (const tenant of tenants) {
@@ -61,6 +70,25 @@ export async function POST(req: Request) {
     }
     clearHits(byEmail);
     const { tenant, user } = found;
+
+    // Conta de outra empresa no domínio desta: a sessão não valeria aqui (cookie por domínio).
+    // Avisa e manda para o endereço certo (a gerência entra em qualquer domínio).
+    if (hostTenant && tenant.slug !== hostTenant.slug && user.role !== "superadmin") {
+      const url = tenant.domains[0]
+        ? `https://www.${tenant.domains[0]}/login`
+        : tenant.schemaName === DEFAULT_SCHEMA && process.env.NEXT_PUBLIC_SITE_URL
+          ? `${process.env.NEXT_PUBLIC_SITE_URL.replace(/\/+$/, "")}/login`
+          : null;
+      return NextResponse.json(
+        {
+          error: url
+            ? `Esta conta é de ${tenant.name}. Abrindo o endereço certo…`
+            : `Esta conta é de ${tenant.name}. Entre pelo endereço dessa empresa.`,
+          url,
+        },
+        { status: 409 },
+      );
+    }
 
     // Duas etapas: a sessão só nasce depois do código do app (/api/auth/2fa)
     if (user.totpEnabledAt && user.totpSecret) {

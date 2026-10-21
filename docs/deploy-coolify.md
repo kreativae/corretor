@@ -27,7 +27,7 @@ A Evolution tem Postgres próprio dentro do compose — não usa o banco do CRM.
 
 1. **DNS:** registro `A` do domínio do CRM → IP do servidor.
 2. Coolify › projeto › **+ New › Public/Private Repository** → `kreativae/corretor`,
-   branch `main`, **Build Pack: Dockerfile**, porta **3000**.
+   branch `server`, **Build Pack: Dockerfile**, porta **3000**.
 3. **Domains:** o domínio do CRM com `https://`. Empresas com **domínio próprio**
    (coluna `domains` da tabela `tenants`) também entram aqui, separadas por vírgula,
    cada uma com o DNS apontando para o servidor.
@@ -120,3 +120,30 @@ Use a URL da seção **GitHub** (`/source/github/`), não a de baixo (GitLab): c
 GitLab, o GitHub recebe 200 mas o corpo diz "Only push and merge_request events are
 allowed" e nada é publicado. Para testar depois de corrigir, faça um push novo: o
 "Redeliver" do GitHub reenvia para o endereço antigo.
+
+## Novo cliente (outra empresa no mesmo servidor, com domínio próprio)
+
+Cada empresa tem banco próprio (esquema `t_<identificador>`), arquivos próprios
+(`UPLOAD_DIR/t/<esquema>/`) e configurações próprias. A empresa principal não muda.
+
+1. **Gerência** (`/gerencia`) › **Nova empresa**: nome, identificador, plano e o
+   administrador (nome, e-mail e senha). O e-mail não pode ter conta em outra empresa.
+2. Na página da empresa › **Cadastro** › **Domínios do site**: `empresadocliente.com.br`
+   (sem www). Salvar já preenche o endereço oficial `www.empresadocliente.com.br` na
+   identidade da empresa (links, sitemap, feed de portais, e-mails).
+3. **DNS do cliente** (Registro.br ou onde estiver): registro `A` de `@` e de `www`
+   para o IP do servidor.
+4. **Coolify** › app do CRM › **Domains**: acrescente
+   `https://empresadocliente.com.br,https://www.empresadocliente.com.br` e faça
+   **Redeploy** (gera o certificado). O endereço sem www redireciona para o com www.
+5. O cliente entra em `https://www.empresadocliente.com.br/login` e configura:
+   - **Administração**: marca, cores, contatos;
+   - **Configurações › WhatsApp**: ler o QR code com o número dele;
+   - **Administração › E-mail** (opcional): conta no Resend com o domínio dele verificado;
+   - **Configurações › Integrações** (opcional): Google Calendar/Contatos com o projeto
+     do Google Cloud dele, endereço de retorno
+     `https://www.empresadocliente.com.br/api/integrations/google/callback`.
+
+Quem tenta entrar pelo domínio de outra empresa é levado ao endereço da própria.
+Excluir a empresa na gerência apaga banco e arquivos dela (irreversível).
+

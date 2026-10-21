@@ -1,5 +1,6 @@
 import { getSuperadmin } from "@/lib/auth";
 import { deleteTenant, updateTenant } from "@/lib/tenant";
+import { syncCompanyDomain } from "@/lib/gerencia";
 import { NextResponse } from "next/server";
 
 type Params = { params: Promise<{ slug: string }> };
@@ -11,6 +12,8 @@ export async function PATCH(req: Request, { params }: Params) {
   const b = (await req.json().catch(() => ({}))) as { name?: string; domains?: string[] };
   try {
     await updateTenant(slug, { name: b.name, domains: Array.isArray(b.domains) ? b.domains.map(String) : undefined });
+    // O mesmo domínio vira o endereço oficial da empresa (links, sitemap, feed, e-mails)
+    await syncCompanyDomain(slug);
     return NextResponse.json({ ok: true });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Falha ao salvar." }, { status: 400 });

@@ -1,4 +1,5 @@
-import { controlDb } from "@/db";
+import { controlDb, DEFAULT_SCHEMA } from "@/db";
+import { emailInOtherCompany } from "@/lib/tenant";
 import { users } from "@/db/schema";
 import { getSuperadmin, hashPassword } from "@/lib/auth";
 import { eq } from "drizzle-orm";
@@ -15,6 +16,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Informe nome e e-mail válidos." }, { status: 400 });
   }
   if (password.length < 8) return NextResponse.json({ error: "A senha deve ter ao menos 8 caracteres." }, { status: 400 });
+  const other = await emailInOtherCompany(email, DEFAULT_SCHEMA);
+  if (other) return NextResponse.json({ error: `Este e-mail já tem conta em ${other}. Use outro e-mail.` }, { status: 409 });
   const [existing] = await controlDb.select({ id: users.id }).from(users).where(eq(users.email, email));
   if (existing) {
     await controlDb.update(users).set({ role: "superadmin", name, passwordHash: hashPassword(password), active: true }).where(eq(users.id, existing.id));

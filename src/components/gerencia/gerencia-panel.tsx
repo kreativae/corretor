@@ -347,7 +347,7 @@ export function GerenciaPanel({
               <Field label="Nome interno">
                 <Input value={label} onChange={(e) => setLabel(e.target.value)} />
               </Field>
-              <Field label="Domínios do site" hint="Separados por vírgula. Aponte o domínio para a Vercel e adicione no projeto.">
+              <Field label="Domínios do site" hint="Sem www, separados por vírgula (o primeiro é o oficial; o site abre sempre com www). No DNS do cliente, aponte o domínio e o www para o IP do servidor; no Coolify, acrescente https://dominio e https://www.dominio em Domains e faça Redeploy.">
                 <Input value={domains} onChange={(e) => setDomains(e.target.value)} placeholder="silvaimoveis.com.br" className="font-mono text-xs" />
               </Field>
               <Button variant="outline" size="sm" onClick={saveInfo} loading={busy}>

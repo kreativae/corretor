@@ -10,10 +10,14 @@ const AUTH_TEMP_DISABLED = process.env.AUTH_OPEN === "1";
 /** Espelho de TENANT_HEADER em src/lib/tenant.ts. */
 const TENANT_HEADER = "x-imob-tenant";
 
+/** Espelho de PATH_HEADER em src/lib/tenant.ts (endereço pedido, para o www das empresas). */
+const PATH_HEADER = "x-imob-path";
+
 /** Repassa ?t=empresa como cabeçalho interno (e descarta o que vier do cliente) */
 function forward(req: NextRequest) {
   const headers = new Headers(req.headers);
   headers.delete(TENANT_HEADER);
+  headers.set(PATH_HEADER, req.nextUrl.pathname + req.nextUrl.search);
   const t = req.nextUrl.searchParams.get("t");
   if (t && /^[a-z0-9-]{1,40}$/.test(t)) headers.set(TENANT_HEADER, t);
   return NextResponse.next({ request: { headers } });

@@ -1,6 +1,6 @@
 import { getSuperadmin } from "@/lib/auth";
 import { createCompany } from "@/lib/gerencia";
-import { slugify } from "@/lib/tenant";
+import { emailInOtherCompany, slugify } from "@/lib/tenant";
 import { NextResponse } from "next/server";
 
 export const maxDuration = 60;
@@ -22,6 +22,8 @@ export async function POST(req: Request) {
   }
   if (adminPassword.length < 8) return NextResponse.json({ error: "A senha do administrador deve ter ao menos 8 caracteres." }, { status: 400 });
   try {
+    const other = await emailInOtherCompany(adminEmail);
+    if (other) return NextResponse.json({ error: `Este e-mail já tem conta em ${other}. Use outro e-mail para o administrador.` }, { status: 409 });
     const t = await createCompany({ name, slug, adminName, adminEmail, adminPassword, plan: str(b.plan, 60) });
     return NextResponse.json({ ok: true, slug: t.slug });
   } catch (e) {

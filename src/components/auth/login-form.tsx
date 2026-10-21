@@ -76,6 +76,11 @@ export function LoginForm({ nextPath, passkeys = false }: { nextPath?: string; p
       const data = await res.json();
       if (!res.ok) {
         setError(data.error ?? "Não foi possível entrar.");
+        // Conta de outra empresa: vai para o login no domínio dela
+        if (data.url) {
+          window.setTimeout(() => window.location.assign(data.url), 1500);
+          return;
+        }
         if (data.restart) {
           setStep("senha");
           setCode("");

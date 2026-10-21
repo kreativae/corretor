@@ -1,10 +1,12 @@
 import "server-only";
-import { controlDb, DEFAULT_SCHEMA, dropConn, urlFor, type TenantConn } from "@/db";
+import path from "node:path";
+import { controlDb, dbFor, DEFAULT_SCHEMA, dropConn, urlFor, type TenantConn } from "@/db";
 import { Client } from "pg";
 import { BASE_SCHEMA_SQL } from "@/db/base-schema";
 import { RUNTIME_MIGRATIONS } from "@/db/migrations";
 import { sql } from "drizzle-orm";
 import { cookies, headers } from "next/headers";
+import { permanentRedirect } from "next/navigation";
 import { cache } from "react";
 import { randomBytes } from "node:crypto";
 
@@ -169,6 +171,14 @@ export async function deleteTenant(slug: string) {
   if (t.dbUser) await dropRole(t.dbUser).catch((err) => console.error("[empresa] usuário de banco não removido", err));
   await controlDb.execute(sql`delete from tenants where id = ${t.id}`);
   cached = null;
+  // Fotos, documentos e anexos da empresa (pasta própria no disco do servidor)
+  const dir = process.env.UPLOAD_DIR?.trim();
+  if (dir && /^t_[a-z0-9_]+$/.test(t.schemaName)) {
+    const { rm } = await import("node:fs/promises");
+    await rm(path.join(dir, "t", t.schemaName), { recursive: true, force: true }).catch((err) =>
+      console.error("[empresa] arquivos não removidos", err),
+    );
+  }
 }
 
 export async function updateTenant(slug: string, patch: { name?: string; domains?: string[] }) {
@@ -200,4 +210,38 @@ export async function siteBaseUrl(wlDomain: string, fallback?: string) {
   if (fallback) return fallback;
   const host = (await headers()).get("host");
   return host ? `https://${host}` : "https://localhost";
+}
+
+/** Endereço pedido (repassado pelo middleware) */
+const PATH_HEADER = "x-imob-path";
+
+/**
+ * Empresas (não a principal) sempre com www, como o site principal: quem abre
+ * empresa.com.br vai para www.empresa.com.br (mesmo caminho). Chamado no layout raiz,
+ * então só páginas: as rotas de API (webhooks) não são redirecionadas.
+ */
+export async function tenantWwwRedirect() {
+  const h = await headers();
+  const host = (h.get("x-forwarded-host") || h.get("host") || "").split(",")[0].trim().toLowerCase().replace(/:\d+$/, "");
+  if (!host || host.startsWith("www.") || !host.includes(".")) return;
+  const t = (await listTenants()).find((x) => x.schemaName !== DEFAULT_SCHEMA && x.domains.includes(host));
+  if (!t) return;
+  const p = h.get(PATH_HEADER) || "/";
+  permanentRedirect(`https://www.${host}${p.startsWith("/") ? p : "/"}`);
+}
+
+/**
+ * E-mail já usado por uma conta de outra empresa (o login é único para todas). Devolve o
+ * nome da empresa, ou null. `exceptSchema`: a empresa onde a conta está sendo criada.
+ */
+export async function emailInOtherCompany(email: string, exceptSchema?: string) {
+  const addr = email.trim().toLowerCase();
+  for (const t of await listTenants(true)) {
+    if (t.schemaName === exceptSchema) continue;
+    const res = await dbFor(connOf(t))
+      .execute(sql`select 1 from users where lower(email) = ${addr} limit 1`)
+      .catch(() => null);
+    if (res?.rows.length) return t.name;
+  }
+  return null;
 }

@@ -1,4 +1,5 @@
-import { getDb } from "@/db";
+import { currentConn, getDb } from "@/db";
+import { emailInOtherCompany } from "@/lib/tenant";
 import { passwordProblem } from "@/lib/password";
 import { activities, users } from "@/db/schema";
 import { hashPassword, requireAdmin } from "@/lib/auth";
@@ -40,6 +41,11 @@ export async function POST(req: Request) {
         { error: "Já existe um usuário com este e-mail." },
         { status: 409 },
       );
+    }
+    // Login é um só para todas as empresas: o mesmo e-mail não pode estar em duas
+    const other = await emailInOtherCompany(email, (await currentConn()).schema);
+    if (other) {
+      return NextResponse.json({ error: "Este e-mail já tem conta em outra empresa do sistema. Use outro e-mail." }, { status: 409 });
     }
 
     const mailbox = cleanMailbox(body.mailbox) || null;

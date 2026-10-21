@@ -78,7 +78,7 @@ export function GerenciaLogin({ keyConfigured }: { keyConfigured: boolean }) {
             <>
               {!keyConfigured && (
                 <p className="rounded-xl bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
-                  Defina a variável <code className="font-mono">GERENCIA_KEY</code> (mínimo 12 caracteres) na Vercel e faça um
+                  Defina a variável <code className="font-mono">GERENCIA_KEY</code> (mínimo 12 caracteres) nas variáveis do servidor (Coolify) e faça um
                   novo deploy para liberar o primeiro acesso.
                 </p>
               )}

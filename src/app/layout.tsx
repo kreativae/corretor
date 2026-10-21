@@ -1,3 +1,4 @@
+import { tenantWwwRedirect } from "@/lib/tenant";
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono, Montserrat } from "next/font/google";
 import type { CSSProperties, ReactNode } from "react";
@@ -53,6 +54,8 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
+  // Empresas da gerência: endereço sem www vai para o com www (a principal não muda)
+  await tenantWwwRedirect();
   const wl = await getWhiteLabel();
   const accent = hexToRgbTriplet(wl.accent) ?? "244 117 37";
 

@@ -5,6 +5,7 @@ import { createReadStream } from "node:fs";
 import { mkdir, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { Readable } from "node:stream";
+import { currentConn, DEFAULT_SCHEMA } from "@/db";
 
 /**
  * Armazenamento de arquivos: disco do servidor quando UPLOAD_DIR está definido
@@ -65,12 +66,35 @@ const TYPES: Record<string, string> = {
 const typeOf = (pathname: string) =>
   TYPES[pathname.toLowerCase().split(".").pop() ?? ""] ?? "application/octet-stream";
 
-/** Caminho no disco, sem escapar de UPLOAD_DIR */
-function diskPath(pathname: string) {
-  const root = path.resolve(uploadDir());
+/**
+ * Pasta de cada empresa no armazenamento. A principal fica na raiz, como sempre esteve;
+ * as outras em "t/<esquema>". Os caminhos gravados no banco não mudam ("imoveis/x.jpg"):
+ * a mesma URL, num domínio de outra empresa, só alcança os arquivos dela.
+ */
+export async function tenantFolder() {
+  const { schema } = await currentConn();
+  return schema === DEFAULT_SCHEMA ? "" : `t/${schema}`;
+}
+
+/** Caminho no disco, sem escapar da pasta da empresa */
+async function diskPath(pathname: string) {
+  const folder = await tenantFolder();
+  // A principal (raiz) não enxerga as pastas das outras empresas
+  if (!folder && /^t[\/]/.test(pathname.replace(/^[\/]+/, ""))) throw new Error("Caminho inválido.");
+  const root = path.resolve(uploadDir(), folder);
   const full = path.resolve(root, pathname);
   if (!full.startsWith(root + path.sep)) throw new Error("Caminho inválido.");
   return full;
+}
+
+/** Vercel Blob: o mesmo esquema de pastas (principal na raiz) */
+async function blobPath(pathname: string) {
+  const folder = await tenantFolder();
+  return folder ? `${folder}/${pathname}` : pathname;
+}
+async function blobUnprefix(pathname: string) {
+  const folder = await tenantFolder();
+  return folder && pathname.startsWith(`${folder}/`) ? pathname.slice(folder.length + 1) : pathname;
 }
 
 /** "imoveis/foto.jpg" → "imoveis/foto-<aleatório>.jpg", como o addRandomSuffix do Blob */
@@ -101,7 +125,7 @@ export async function putFile(
 ): Promise<Stored> {
   if (isLocalStorage()) {
     const finalPath = withSuffix(pathname);
-    const full = diskPath(finalPath);
+    const full = await diskPath(finalPath);
     await mkdir(path.dirname(full), { recursive: true });
     const data = Buffer.isBuffer(body) ? body : Buffer.from(await body.arrayBuffer());
     await writeFile(full, data);
@@ -112,12 +136,12 @@ export async function putFile(
   const options = { token, addRandomSuffix: true, contentType: opts.contentType } as const;
   const other = opts.prefer === "public" ? "private" : "public";
   try {
-    const blob = await put(pathname, body, { ...options, access: opts.prefer });
-    return { pathname: blob.pathname, url: opts.prefer === "public" ? blob.url : "", access: opts.prefer };
+    const blob = await put(await blobPath(pathname), body, { ...options, access: opts.prefer });
+    return { pathname: await blobUnprefix(blob.pathname), url: opts.prefer === "public" ? blob.url : "", access: opts.prefer };
   } catch (e) {
     if (!(e instanceof Error && /public|private/i.test(e.message))) throw e;
-    const blob = await put(pathname, body, { ...options, access: other });
-    return { pathname: blob.pathname, url: other === "public" ? blob.url : "", access: other };
+    const blob = await put(await blobPath(pathname), body, { ...options, access: other });
+    return { pathname: await blobUnprefix(blob.pathname), url: other === "public" ? blob.url : "", access: other };
   }
 }
 
@@ -130,7 +154,7 @@ export async function getFile(
 ): Promise<FileRead | null> {
   if (isLocalStorage()) {
     try {
-      const full = diskPath(pathname);
+      const full = await diskPath(pathname);
       const info = await stat(full);
       if (!info.isFile()) return null;
       const stream = Readable.toWeb(createReadStream(full)) as ReadableStream<Uint8Array>;
@@ -141,7 +165,7 @@ export async function getFile(
   }
   const token = blobToken();
   if (!token) return null;
-  const r = await get(pathname, { access, token }).catch(() => null);
+  const r = await get(/^https?:\/\//.test(pathname) ? pathname : await blobPath(pathname), { access, token }).catch(() => null);
   if (!r || r.statusCode !== 200) return null;
   return { stream: r.stream, contentType: r.blob.contentType, size: r.blob.size };
 }
@@ -150,7 +174,7 @@ export async function getFile(
 export async function headFile(urlOrPathname: string) {
   if (isLocalStorage()) {
     const pathname = pathnameOf(urlOrPathname);
-    const info = await stat(diskPath(pathname)).catch(() => null);
+    const info = await stat(await diskPath(pathname)).catch(() => null);
     return info?.isFile() ? { pathname, url: "", size: info.size, contentType: typeOf(pathname) } : null;
   }
   const token = blobToken();
@@ -166,7 +190,7 @@ export async function deleteFiles(list: string[]) {
     await Promise.all(
       list.map((item) =>
         Promise.resolve()
-          .then(() => unlink(diskPath(pathnameOf(item))))
+          .then(async () => unlink(await diskPath(pathnameOf(item))))
           .catch((e) => e?.code !== "ENOENT" && console.error("[arquivos]", e)),
       ),
     );
