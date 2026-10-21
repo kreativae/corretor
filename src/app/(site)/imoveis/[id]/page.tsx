@@ -15,6 +15,7 @@ import {
   normalizeRural,
   pricePerAlq,
   ruralAreas,
+  crmPropertyPath,
 } from "@/lib/rural";
 import { Gallery } from "@/components/site/gallery";
 import { PropertyCard } from "@/components/site/property-card";
@@ -34,6 +35,7 @@ import { getSiteContent } from "@/lib/site-content";
 import { cn, formatBRL, initials, formatNumber, parseYouTubeUrl, siteImage } from "@/lib/utils";
 import {
   BedDouble,
+  Pencil,
   Car,
   Check,
   FileDown,
@@ -52,6 +54,7 @@ import {
 } from "lucide-react";
 import type { Metadata } from "next";
 import { getDb } from "@/db";
+import { getSiteEditor } from "@/lib/auth";
 import { focusOf } from "@/lib/image-focus";
 import { users } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
@@ -74,7 +77,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 
 export default async function ImovelPage({ params }: { params: Params }) {
   const { id } = await params;
-  const [wl, p, published, content, msgs, mapOpts, mapCfg, badgeSettings] = await Promise.all([
+  const [wl, p, published, content, msgs, mapOpts, mapCfg, badgeSettings, editor] = await Promise.all([
     getWhiteLabel(),
     getPropertyByCode(id),
     listPublishedProperties(),
@@ -83,6 +86,7 @@ export default async function ImovelPage({ params }: { params: Params }) {
     getMapOptions(),
     getMapProvider(),
     getBadgeSettings(),
+    getSiteEditor(),
   ]);
 
   if (!p || !p.published) notFound();
@@ -172,6 +176,16 @@ export default async function ImovelPage({ params }: { params: Params }) {
             </p>
           </div>
           <div data-reveal className="flex flex-wrap items-center gap-2">
+            {/* Logado: atalho para editar o anúncio no CRM */}
+            {editor && (
+              <Link
+                href={crmPropertyPath(p, "/editar")}
+                className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-soft px-3 py-1 text-xs font-medium text-subtle transition-colors hover:border-hairline-strong hover:text-ink"
+              >
+                <Pencil className="size-3" />
+                Editar este anúncio
+              </Link>
+            )}
             {(() => {
               // Mesmo selo do card (a lista pública já vem com ele resolvido)
               const b = published.find((x) => x.id === p.id)?.badgeView;
