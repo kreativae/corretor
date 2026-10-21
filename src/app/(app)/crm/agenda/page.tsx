@@ -1,6 +1,7 @@
 import { AgendaClient } from "@/components/crm/agenda-client";
 import { listAgendaEvents, listContacts, listProperties, listVisits } from "@/lib/queries";
 import { getReminderSettings } from "@/lib/features";
+import { calendarIntegration } from "@/lib/google-meet";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
@@ -12,12 +13,13 @@ export default async function AgendaPage({
   searchParams: Promise<{ tipo?: string; visita?: string; nova?: string }>;
 }) {
   const { tipo, visita, nova } = await searchParams;
-  const [visits, contacts, properties, events, reminders] = await Promise.all([
+  const [visits, contacts, properties, events, reminders, calendar] = await Promise.all([
     listVisits(),
     listContacts(),
     listProperties(),
     listAgendaEvents(),
     getReminderSettings(),
+    calendarIntegration().catch(() => null),
   ]);
 
   return (
@@ -40,6 +42,7 @@ export default async function AgendaPage({
       <AgendaClient
         initialVisits={visits}
         initialEvents={events}
+        googleConnected={!!calendar}
         contacts={contacts.map((c) => ({ id: c.id, name: c.name }))}
         properties={properties
           .filter((p) => ["disponivel", "reservado"].includes(p.status))

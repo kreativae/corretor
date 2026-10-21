@@ -3,6 +3,7 @@ import { activities, agendaEvents } from "@/db/schema";
 import { apiUser, unauthorized } from "@/lib/api-auth";
 import { NextResponse } from "next/server";
 import { eventFields } from "./shared";
+import { ensureMeet } from "@/lib/google-meet";
 
 /** Novo evento ou reunião na agenda */
 export async function POST(req: Request) {
@@ -23,6 +24,14 @@ export async function POST(req: Request) {
       kind: "visit",
       text: `${row.kind === "evento" ? "Evento agendado" : "Reunião agendada"}: ${row.title}.`,
     });
+  }
+  // Link do Google Meet já na criação (se pedido)
+  if (body.meet === true) {
+    try {
+      return NextResponse.json(await ensureMeet(row));
+    } catch (e) {
+      return NextResponse.json({ ...row, meetError: e instanceof Error ? e.message : "Não foi possível gerar o Meet." });
+    }
   }
   return NextResponse.json(row);
 }

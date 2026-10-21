@@ -40,7 +40,7 @@ export const MESSAGE_DEFAULTS: Messages = {
   remindVisit:
     "Olá, {primeiro_nome}! Passando para lembrar da sua visita:\n\n*{imovel}* ({codigo})\n*Quando* - {data} às {hora}\n*Onde* - {endereco}\n\nQualquer imprevisto, é só responder aqui.",
   remindEvent:
-    "Olá, {primeiro_nome}! Passando para lembrar:\n\n*{titulo}*\n*Quando* - {data} às {hora}\n*Onde* - {local}\n\nQualquer imprevisto, é só responder aqui.",
+    "Olá, {primeiro_nome}! Passando para lembrar:\n\n*{titulo}*\n*Quando* - {data} às {hora}\n*Onde* - {local}\n*Link da reunião* - {meet}\n\nQualquer imprevisto, é só responder aqui.",
   leadSubject: "Novo lead: {nome} · {interesse}",
   leadReturnSubject: "Lead retornou: {nome} · {interesse}",
   leadFooter: "Aviso automático do CRM — altere os destinatários em Admin → Configurações.",
@@ -102,7 +102,7 @@ export const MESSAGE_GROUPS: {
         key: "remindEvent",
         label: "Lembrete de reunião ou evento",
         where: "Reuniões e eventos com cliente vinculado",
-        vars: ["nome", "primeiro_nome", "data", "hora", "titulo", "tipo", "local"],
+        vars: ["nome", "primeiro_nome", "data", "hora", "titulo", "tipo", "local", "meet"],
         multiline: true,
       },
     ],

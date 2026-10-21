@@ -5,6 +5,7 @@ import { apiUser, unauthorized } from "@/lib/api-auth";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { eventFields } from "../shared";
+import { ensureMeet } from "@/lib/google-meet";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -27,6 +28,13 @@ export async function PATCH(req: Request, { params }: Params) {
     .where(eq(agendaEvents.id, id))
     .returning();
   if (!row) return NextResponse.json({ error: "Não encontrado." }, { status: 404 });
+  if (body.meet === true && !row.meetUrl) {
+    try {
+      return NextResponse.json(await ensureMeet(row));
+    } catch (e) {
+      return NextResponse.json({ ...row, meetError: e instanceof Error ? e.message : "Não foi possível gerar o Meet." });
+    }
+  }
   return NextResponse.json(row);
 }
 

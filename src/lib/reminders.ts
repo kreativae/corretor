@@ -93,6 +93,7 @@ export async function runReminders() {
       titulo: event.title,
       tipo: event.kind === "evento" ? "Evento" : "Reunião",
       local: event.location ?? "",
+      meet: event.meetUrl ?? "",
     });
     try {
       await sendText(line, contact.phone, text, "Lembrete automático");

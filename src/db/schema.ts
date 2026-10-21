@@ -311,6 +311,8 @@ export const agendaEvents = pgTable("agenda_events", {
   googleEventId: text("google_event_id"),
   googleEtag: text("google_etag"),
   googleSyncedAt: timestamp("google_synced_at", { withTimezone: true }),
+  /** Link do Google Meet (gerado pela agenda) */
+  meetUrl: text("meet_url"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

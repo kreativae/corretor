@@ -1,9 +1,9 @@
 "use client";
 
-import { Button, Field, Input, Modal, Select, Textarea } from "@/components/ui";
+import { Button, Field, Input, Modal, Select, Switch, Textarea } from "@/components/ui";
 import type { AgendaEvent } from "@/db/schema";
 import { cn } from "@/lib/utils";
-import { CalendarClock, Check, MapPin, Trash2, Users } from "lucide-react";
+import { CalendarClock, Check, Copy, ExternalLink, MapPin, Trash2, Users, Video } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -19,6 +19,24 @@ export const EVENT_STYLE = {
 } as const;
 
 const pad = (n: number) => String(n).padStart(2, "0");
+
+/** Horários de 15 em 15 minutos */
+const QUARTERS = Array.from({ length: 96 }, (_, i) => `${pad(Math.floor(i / 4))}:${pad((i % 4) * 15)}`);
+
+function TimeSelect({ value, onChange, optional }: { value: string; onChange: (v: string) => void; optional?: boolean }) {
+  // Horário fora da grade (vindo do Google, por exemplo) continua na lista
+  const list = value && !QUARTERS.includes(value) ? [...QUARTERS, value].sort() : QUARTERS;
+  return (
+    <Select value={value} onChange={(e) => onChange(e.target.value)}>
+      {optional && <option value="">Sem fim</option>}
+      {list.map((t) => (
+        <option key={t} value={t}>
+          {t}
+        </option>
+      ))}
+    </Select>
+  );
+}
 const hhmm = (d: Date | string) => new Date(d).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
 export function eventTime(e: AgendaEvent) {
@@ -62,6 +80,7 @@ export function EventCard({
       <p className="flex items-center gap-1.5 font-mono text-xs font-semibold tabular">
         <KindIcon kind={ev.kind} className="size-3 text-subtle" />
         {eventTime(ev)}
+        {ev.meetUrl && <Video className="ml-auto size-3.5 text-emerald-600" aria-label="Google Meet" />}
       </p>
       <p className={cn("mt-1 truncate text-xs font-medium", ev.status === "cancelado" && "line-through")}>{ev.title}</p>
       <p className="truncate text-[10.5px] text-subtle">
@@ -112,6 +131,17 @@ export function EventRow({ e, onOpen }: { e: EventLite; onOpen: () => void }) {
         <span className={cn("block truncate text-[15px] font-medium leading-tight", ev.status === "cancelado" && "line-through")}>
           {ev.title}
         </span>
+        {ev.meetUrl && (
+          <a
+            href={ev.meetUrl}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(x) => x.stopPropagation()}
+            className="mt-1 inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-300"
+          >
+            <Video className="size-3" /> Entrar no Meet
+          </a>
+        )}
         <span className="mt-0.5 flex items-center gap-1 truncate text-xs text-subtle">
           {ev.location && <MapPin className="size-3 shrink-0" />}
           <span className="truncate">{[e.contact?.name, ev.location].filter(Boolean).join(" · ") || "Sem cliente"}</span>
@@ -131,6 +161,7 @@ type FormState = {
   contactId: string;
   notes: string;
   status: AgendaEvent["status"];
+  meet: boolean;
 };
 
 function initialForm(e: EventLite | null, defaultDate?: Date): FormState {
@@ -147,6 +178,7 @@ function initialForm(e: EventLite | null, defaultDate?: Date): FormState {
       contactId: e.event.contactId ?? "",
       notes: e.event.notes ?? "",
       status: e.event.status,
+      meet: false,
     };
   }
   const d = defaultDate ?? new Date();
@@ -160,6 +192,7 @@ function initialForm(e: EventLite | null, defaultDate?: Date): FormState {
     contactId: "",
     notes: "",
     status: "agendado",
+    meet: false,
   };
 }
 
@@ -171,6 +204,7 @@ export function EventModal({
   open,
   editing,
   contacts,
+  googleConnected = false,
   onClose,
   onSaved,
   onDeleted,
@@ -178,6 +212,8 @@ export function EventModal({
   open: boolean;
   editing: EventLite | null;
   contacts: { id: string; name: string }[];
+  /** Google Calendar conectado: dá para gerar o link do Meet */
+  googleConnected?: boolean;
   onClose: () => void;
   onSaved: (e: EventLite) => void;
   onDeleted: (id: string) => void;
@@ -213,14 +249,18 @@ export function EventModal({
           location: form.location,
           contactId: form.contactId || null,
           notes: form.notes,
+          meet: form.meet,
           ...(editing ? { status: form.status } : {}),
         }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Não foi possível salvar.");
       const c = contacts.find((x) => x.id === data.contactId);
-      onSaved({ event: data, contact: c ? { id: c.id, name: c.name, phone: "" } : null });
+      const { meetError, ...saved } = data;
+      onSaved({ event: saved, contact: c ? { id: c.id, name: c.name, phone: "" } : null });
       toast.success(editing ? "Atualizado." : form.kind === "reuniao" ? "Reunião agendada." : "Evento agendado.");
+      if (meetError) toast.warning("Salvo, mas sem o link do Meet", { description: meetError });
+      else if (form.meet && saved.meetUrl) toast.success("Link do Google Meet gerado.");
       onClose();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Não foi possível salvar.");
@@ -278,10 +318,21 @@ export function EventModal({
             <Input type="date" value={form.date} onChange={(e) => set({ date: e.target.value })} />
           </Field>
           <Field label="Início">
-            <Input type="time" step={300} value={form.start} onChange={(e) => set({ start: e.target.value })} />
+            <TimeSelect
+              value={form.start}
+              onChange={(start) => {
+                // Mantém a duração ao mudar o início (padrão: 1 hora)
+                const [sh, sm] = form.start.split(":").map(Number);
+                const [eh, em] = (form.end || "").split(":").map(Number);
+                const dur = form.end ? eh * 60 + em - (sh * 60 + sm) : 0;
+                const [nh, nm] = start.split(":").map(Number);
+                const endMin = nh * 60 + nm + (dur > 0 ? dur : 60);
+                set({ start, end: form.end && endMin < 24 * 60 ? `${pad(Math.floor(endMin / 60))}:${pad(endMin % 60)}` : form.end });
+              }}
+            />
           </Field>
           <Field label="Fim" hint="Opcional">
-            <Input type="time" step={300} value={form.end} onChange={(e) => set({ end: e.target.value })} />
+            <TimeSelect value={form.end} onChange={(end) => set({ end })} optional />
           </Field>
         </div>
         <Field label="Cliente" hint="Vazio = evento livre, sem cliente">
@@ -300,6 +351,38 @@ export function EventModal({
         <Field label="Local" hint="Endereço, sala ou link da chamada">
           <Input value={form.location} onChange={(e) => set({ location: e.target.value })} maxLength={200} />
         </Field>
+        {editing?.event.meetUrl ? (
+          <div className="flex items-center gap-2 rounded-xl bg-emerald-500/10 px-3 py-2.5 text-sm">
+            <Video className="size-4 shrink-0 text-emerald-600" />
+            <span className="min-w-0 flex-1 truncate font-mono text-xs">{editing.event.meetUrl}</span>
+            <button
+              type="button"
+              onClick={() => navigator.clipboard.writeText(editing.event.meetUrl!).then(() => toast.success("Link copiado."))}
+              className="grid size-8 place-items-center rounded-full hover:bg-card"
+              aria-label="Copiar link do Meet"
+            >
+              <Copy className="size-4" />
+            </button>
+            <a href={editing.event.meetUrl} target="_blank" rel="noreferrer" className="grid size-8 place-items-center rounded-full hover:bg-card" aria-label="Abrir o Meet">
+              <ExternalLink className="size-4" />
+            </a>
+          </div>
+        ) : (
+          <label className={cn("flex items-center justify-between gap-3 rounded-xl bg-soft px-4 py-3", !googleConnected && "opacity-60")}>
+            <span className="flex items-center gap-2.5">
+              <Video className="size-4 text-subtle" />
+              <span>
+                <span className="block text-sm font-medium">Gerar link do Google Meet</span>
+                <span className="block text-[11px] text-subtle">
+                  {googleConnected
+                    ? "Cria a videochamada no Google Calendar; o link vai no lembrete do cliente"
+                    : "Conecte o Google Calendar em Configurações para usar"}
+                </span>
+              </span>
+            </span>
+            <Switch checked={form.meet} onChange={(v) => set({ meet: v })} disabled={!googleConnected} />
+          </label>
+        )}
         <Field label="Observações">
           <Textarea rows={3} value={form.notes} onChange={(e) => set({ notes: e.target.value })} />
         </Field>

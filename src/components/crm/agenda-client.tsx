@@ -79,6 +79,7 @@ const FILTERS_KEY = "crm-agenda-filters";
 export function AgendaClient({
   initialVisits,
   initialEvents = [],
+  googleConnected = false,
   contacts,
   properties,
   initialTab = "todas",
@@ -88,6 +89,8 @@ export function AgendaClient({
   initialVisits: VisitLite[];
   /** Eventos e reuniões (cliente opcional) */
   initialEvents?: EventLite[];
+  /** Google Calendar conectado (link do Meet nas reuniões) */
+  googleConnected?: boolean;
   contacts: { id: string; name: string }[];
   properties: { id: string; code: string; title: string; type: string }[];
   initialTab?: AgendaTab;
@@ -1301,6 +1304,7 @@ export function AgendaClient({
         open={eventModal.open}
         editing={eventModal.editing}
         contacts={contacts}
+        googleConnected={googleConnected}
         onClose={() => setEventModal({ open: false, editing: null })}
         onSaved={(saved) =>
           setEvents((arr) =>

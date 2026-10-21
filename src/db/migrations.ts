@@ -288,6 +288,8 @@ export const RUNTIME_MIGRATIONS = [
   `ALTER TABLE agenda_events ADD COLUMN IF NOT EXISTS google_event_id text;`,
   `ALTER TABLE agenda_events ADD COLUMN IF NOT EXISTS google_etag text;`,
   `ALTER TABLE agenda_events ADD COLUMN IF NOT EXISTS google_synced_at timestamptz;`,
+  // Link do Google Meet gerado para a reunião
+  `ALTER TABLE agenda_events ADD COLUMN IF NOT EXISTS meet_url text;`,
 ];
 
 /** Só no banco principal (esquema public): cadastro de empresas da gerência */

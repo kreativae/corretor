@@ -450,7 +450,7 @@ function calendarEventBody(
   };
 }
 
-function agendaEventBody(ev: AgendaEvent, contact: Contact | null) {
+export function agendaEventBody(ev: AgendaEvent, contact: Contact | null) {
   const start = new Date(ev.startsAt);
   const end = ev.endsAt ? new Date(ev.endsAt) : new Date(start.getTime() + 60 * 60_000);
   const kind = ev.kind === "evento" ? "Evento" : "Reunião";

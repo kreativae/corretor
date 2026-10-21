@@ -85,12 +85,34 @@ export function Badge({
 const fieldBase =
   "w-full rounded-xl border border-hairline bg-card px-3.5 text-sm text-ink outline-none transition-all duration-200 placeholder:text-subtle/50 hover:border-hairline-strong focus:border-[rgb(var(--accent))] focus:ring-4 focus:ring-[rgb(var(--accent))/0.15]";
 
+const PICKER_TYPES = ["date", "time", "datetime-local", "month", "week"];
+
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
   function Input({ className, ...props }, ref) {
     if (props.type === "number") {
       return <NumberInput ref={ref} className={cn(fieldBase, "h-10", className)} {...props} />;
     }
-    return <input ref={ref} className={cn(fieldBase, "h-10", className)} {...props} />;
+    // Data e hora: clicar em qualquer parte do campo abre o calendário (não só o ícone)
+    const picker = PICKER_TYPES.includes(props.type ?? "");
+    return (
+      <input
+        ref={ref}
+        className={cn(fieldBase, "h-10", picker && "cursor-pointer", className)}
+        {...props}
+        onClick={
+          picker
+            ? (e) => {
+                props.onClick?.(e);
+                try {
+                  e.currentTarget.showPicker?.();
+                } catch {
+                  /* navegador sem showPicker ou campo desabilitado: segue o padrão */
+                }
+              }
+            : props.onClick
+        }
+      />
+    );
   },
 );
 
