@@ -69,7 +69,7 @@ async function publicPhoto(req: Request, pathname: string) {
     return new Response("Too many requests", { status: 429, headers: { "Retry-After": "600" } });
   }
 
-  const mode = await photoMode(pathname);
+  const mode = await photoMode(pathname, new URL(req.url).searchParams.get("wm"));
   const base = await getWatermarkSettings();
   const off = { ...base, logo: false, lines: false };
   const wm =

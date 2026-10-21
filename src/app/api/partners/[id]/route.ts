@@ -1,6 +1,7 @@
 import { getDb } from "@/db";
 import { activities, partners } from "@/db/schema";
 import { apiUser, unauthorized } from "@/lib/api-auth";
+import { clearPhotoModeCache } from "@/lib/media-guard";
 import { sanitizePartner } from "@/lib/partners";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
@@ -19,6 +20,7 @@ export async function PATCH(req: Request, { params }: Params) {
       .where(eq(partners.id, id))
       .returning();
     if (!updated) return NextResponse.json({ error: "Parceiro não encontrado" }, { status: 404 });
+    clearPhotoModeCache();
     return NextResponse.json(updated);
   } catch (e) {
     console.error(e);

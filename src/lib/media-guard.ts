@@ -17,12 +17,16 @@ import path from "node:path";
 /** Maior lado da foto entregue ao público */
 export const PUBLIC_MAX_PX = 1600;
 
-/** Modo da marca d'água da foto: o do parceiro dono do imóvel; foto sem imóvel = padrão */
+/**
+ * Modo da marca d'água da foto: o do parceiro dono do imóvel; foto sem imóvel = padrão.
+ * `requested` é o ?wm= da página ("nenhuma" vai sem ?wm): se diferir do que está guardado, o parceiro mudou e o banco é consultado
+ * de novo (quem decide continua sendo o banco).
+ */
 const modeCache = new Map<string, { at: number; mode: string }>();
-export async function photoMode(pathname: string): Promise<string> {
+export async function photoMode(pathname: string, requested?: string | null): Promise<string> {
   const key = `${(await currentConn()).schema}:${pathname}`;
   const hit = modeCache.get(key);
-  if (hit && Date.now() - hit.at < 10 * 60_000) return hit.mode;
+  if (hit && Date.now() - hit.at < 10 * 60_000 && (!requested || hit.mode === requested)) return hit.mode;
   let mode = "padrao";
   try {
     const [row] = await (await getDb())
@@ -39,6 +43,11 @@ export async function photoMode(pathname: string): Promise<string> {
   if (modeCache.size > 5000) modeCache.clear();
   modeCache.set(key, { at: Date.now(), mode });
   return mode;
+}
+
+/** Esquece os modos guardados (parceiro salvo ou imóvel trocou de parceiro) */
+export function clearPhotoModeCache() {
+  modeCache.clear();
 }
 
 /* ───────────── Endereço assinado (feed dos portais) ───────────── */
