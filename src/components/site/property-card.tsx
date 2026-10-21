@@ -96,10 +96,10 @@ export function PropertyCard({
       {/* Celular em duas colunas */}
       {compact && (
         <div className="pt-2 sm:hidden">
-          <p className="truncate font-mono text-[9.5px] uppercase tracking-[0.12em] text-subtle">
+          <h3 className="line-clamp-2 font-display text-sm font-semibold leading-snug tracking-tight">{p.title}</h3>
+          <p className="mt-0.5 truncate font-mono text-[9.5px] uppercase tracking-[0.12em] text-subtle">
             {p.code} · {p.neighborhood}
           </p>
-          <h3 className="mt-0.5 line-clamp-2 font-display text-sm font-semibold leading-snug tracking-tight">{p.title}</h3>
           <p className="mt-1 font-mono text-[13px] font-medium tabular">
             {formatBRL(p.price)}
             {p.purpose === "aluguel" && <span className="text-[10px] text-subtle"> /mês</span>}
@@ -108,14 +108,12 @@ export function PropertyCard({
         </div>
       )}
 
-      {/* Celular: título inteiro e preço em destaque embaixo */}
+      {/* Celular: título colado à foto, código e preço embaixo */}
       <div className={cn("pt-3 sm:hidden", compact && "hidden")}>
-        <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-subtle">
+        <h3 className="line-clamp-2 font-display text-lg font-semibold leading-snug tracking-tight">{p.title}</h3>
+        <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.16em] text-subtle">
           {p.code} · {TYPE_LABELS[p.type]} · {p.neighborhood}
         </p>
-        <h3 className="mt-1 line-clamp-2 font-display text-lg font-semibold leading-snug tracking-tight">
-          {p.title}
-        </h3>
         <div className="mt-2 flex items-baseline justify-between gap-3">
           <p className="font-mono text-base font-medium tabular">
             {formatBRL(p.price)}
@@ -127,28 +125,32 @@ export function PropertyCard({
 
       {dense ? (
         /* 5 ou 6 colunas: tudo empilhado, para caber no card estreito */
-        <div className="hidden flex-col gap-1.5 pt-3 sm:flex">
+        <div className="hidden flex-col gap-1 pt-3 sm:flex">
           <div className="min-w-0">
-            <p className="truncate font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">
-              {p.code} · {TYPE_LABELS[p.type]}
-            </p>
-            <h3 className="mt-1 truncate font-display text-base font-semibold tracking-tight">{p.title}</h3>
+            <h3 className="truncate font-display text-base font-semibold tracking-tight">{p.title}</h3>
             <p className="truncate text-xs text-subtle">
               {p.neighborhood}, {p.city}
             </p>
           </div>
-          <div className="min-w-0">
-            <p className="font-mono text-sm font-medium tabular">
+          <div className="mt-1 min-w-0">
+            <p className="truncate font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">
+              {p.code} · {TYPE_LABELS[p.type]}
+            </p>
+            <p className="mt-0.5 font-mono text-sm font-medium tabular">
               {formatBRL(p.price)}
               {p.purpose === "aluguel" && <span className="text-subtle"> /mês</span>}
             </p>
-            <p className="mt-0.5 truncate text-xs text-subtle">{specsLine(p)}</p>
+            <p className="truncate text-xs text-subtle">{specsLine(p)}</p>
           </div>
         </div>
       ) : (
-        /* Código e tipo | preço e medidas (metade cada); título e local na largura toda */
-        <div className="hidden pt-4 sm:block">
-          <div className="grid grid-cols-2 items-start gap-3">
+        /* Título e local na largura toda, colados à foto; embaixo código e tipo | preço e medidas */
+        <div className="hidden pt-3 sm:block">
+          <h3 className="truncate font-display text-lg font-semibold tracking-tight">{p.title}</h3>
+          <p className="mt-0.5 truncate text-sm text-subtle">
+            {p.neighborhood}, {p.city}
+          </p>
+          <div className="mt-3 grid grid-cols-2 items-start gap-3">
             <p className="min-w-0 truncate pt-0.5 font-mono text-[10px] uppercase tracking-[0.1em] text-subtle">
               {p.code} · {TYPE_LABELS[p.type]}
             </p>
@@ -160,10 +162,6 @@ export function PropertyCard({
               <p className="mt-0.5 truncate text-xs text-subtle">{specsLine(p)}</p>
             </div>
           </div>
-          <h3 className="mt-1.5 truncate font-display text-lg font-semibold tracking-tight">{p.title}</h3>
-          <p className="mt-0.5 truncate text-sm text-subtle">
-            {p.neighborhood}, {p.city}
-          </p>
         </div>
       )}
     </Link>
