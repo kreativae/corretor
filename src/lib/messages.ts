@@ -11,11 +11,15 @@ export type MessageKey =
   | "selAttachNote"
   | "selBtnDetails"
   | "selBtnFicha"
+  | "selWaCard"
   | "leadSubject"
   | "leadReturnSubject"
   | "leadFooter";
 
 export type Messages = Record<MessageKey, string>;
+
+/** Variáveis da mensagem de cada imóvel no WhatsApp */
+export const WA_CARD_VARS = ["titulo", "tipo", "codigo", "regiao", "dimensao", "valor", "finalidade", "link", "ficha"];
 
 export const MESSAGE_DEFAULTS: Messages = {
   waSiteInterest: "Olá! Tenho interesse no imóvel {codigo} — {titulo} ({preco}). Podemos conversar?",
@@ -29,6 +33,8 @@ export const MESSAGE_DEFAULTS: Messages = {
   selAttachNote: "📎 As fichas completas em PDF seguem anexas a este e-mail.",
   selBtnDetails: "Ver fotos e detalhes",
   selBtnFicha: "Ficha completa",
+  selWaCard:
+    "*{titulo}*\n_{tipo} · {codigo}_\n\n*Região* - {regiao}\n*Dimensão* - {dimensao}\n*Valor* - {valor}\n\nVer fotos e detalhes: {link}\nFicha completa: {ficha}",
   leadSubject: "Novo lead: {nome} · {interesse}",
   leadReturnSubject: "Lead retornou: {nome} · {interesse}",
   leadFooter: "Aviso automático do CRM — altere os destinatários em Admin → Configurações.",
@@ -63,6 +69,19 @@ export const MESSAGE_GROUPS: {
     ],
   },
   {
+    title: "WhatsApp ao cliente (Negociação)",
+    desc: "Mensagem de cada imóvel enviada pelo WhatsApp (Negociação e smart match). Linha com variável vazia some.",
+    items: [
+      {
+        key: "selWaCard",
+        label: "Mensagem de cada imóvel",
+        where: "Legenda da foto de cada imóvel. *texto* = negrito, _texto_ = itálico",
+        vars: WA_CARD_VARS,
+        multiline: true,
+      },
+    ],
+  },
+  {
     title: "Aviso de novo lead (interno)",
     desc: "E-mail que a equipe recebe a cada novo contato.",
     items: [
@@ -72,6 +91,22 @@ export const MESSAGE_GROUPS: {
     ],
   },
 ];
+
+/**
+ * Mensagem de um imóvel no WhatsApp a partir do modelo: linha cujas variáveis ficaram
+ * todas vazias some (ex.: sem medidas, some a linha "Dimensão").
+ */
+export function waCardText(template: string, vars: Record<string, string | null | undefined>) {
+  const lines = template.replace(/\r/g, "").split("\n").filter((line) => {
+    const used = [...line.matchAll(/\{(\w+)\}/g)].map((m) => m[1]);
+    return !used.length || used.some((k) => (vars[k] ?? "").toString().trim());
+  });
+  return lines
+    .join("\n")
+    .replace(/\{(\w+)\}/g, (_, k: string) => (vars[k] ?? "").toString())
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
 
 /** Completa os valores salvos com os padrões (campo vazio = padrão). */
 export function mergeMessages(saved: unknown): Messages {

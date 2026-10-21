@@ -42,6 +42,8 @@ export async function POST(req: Request) {
   const toName = String(body.toName ?? "").trim().slice(0, 120);
   const subject = String(body.subject ?? "").trim().slice(0, 200) || "Seleção de imóveis";
   const message = String(body.message ?? "").trim().slice(0, 3000);
+  // Modelo da mensagem de cada imóvel, ajustado neste envio (vazio = o de Configurações › Mensagens)
+  const cardTemplate = String(body.cardTemplate ?? "").slice(0, 2000);
   const photos = body.photos !== false && cfg.provider === "evolution";
   const ids: string[] = Array.isArray(body.propertyIds) ? body.propertyIds.map(String).slice(0, MAX_PROPS) : [];
   const attachments: SentAttachment[] =
@@ -97,7 +99,7 @@ export async function POST(req: Request) {
       await pause(900);
     }
     for (const p of props) {
-      const text = selectionWaCard(p, baseUrl, msgs);
+      const text = selectionWaCard(p, baseUrl, msgs, cardTemplate);
       const img = photos && p.cover ? await coverJpeg(siteImage(p.cover, p.wm)!, origin).catch(() => null) : null;
       if (img) await sendMediaUrl(cfg, toPhone, img, { caption: text, fileName: `${p.code}.jpg`, mime: "image/jpeg", sentBy: user.name });
       else await sendText(cfg, toPhone, text, user.name);

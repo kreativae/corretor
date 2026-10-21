@@ -1,5 +1,5 @@
 import "server-only";
-import { fillMessage, MESSAGE_DEFAULTS, type Messages } from "@/lib/messages";
+import { fillMessage, MESSAGE_DEFAULTS, waCardText, type Messages } from "@/lib/messages";
 import { TYPE_LABELS } from "@/lib/labels";
 import type { PropertyWithImages } from "@/lib/queries";
 import { selectionSpecs } from "@/lib/selection-email";
@@ -13,19 +13,24 @@ export function selectionWaIntro(toName: string, message: string, msgs: Messages
   return [greeting && `*${greeting}*`, message.trim()].filter(Boolean).join("\n\n");
 }
 
-/** Texto de um imóvel (legenda da foto ou mensagem sozinha), no formato do WhatsApp */
-export function selectionWaCard(p: PropertyWithImages, baseUrl: string, msgs: Messages = MESSAGE_DEFAULTS) {
+/** Valores das variáveis da mensagem de um imóvel (modelo em Configurações › Mensagens) */
+export function selectionWaVars(p: PropertyWithImages, baseUrl: string) {
   const page = `${baseUrl}/imoveis/${p.code}`;
-  const place = [p.neighborhood, p.city].filter(Boolean).join(", ");
-  const specs = selectionSpecs(p);
-  // Sem ícones e sem "R$" no valor: o WhatsApp não transforma em link de pagamento
-  const value = formatBRL(p.price).replace(/^R\$\s*/, "");
-  const title = [`*${p.title.trim()}*`, `_${TYPE_LABELS[p.type] ?? p.type} · ${p.code}_`];
-  const info = [
-    place ? `*Região* - ${place}` : "",
-    specs ? `*Dimensão* - ${specs}` : "",
-    `*Valor* - ${value}${p.purpose === "aluguel" ? " por mês" : ""}`,
-  ];
-  const links = [p.published ? `${msgs.selBtnDetails}: ${page}` : "", `${msgs.selBtnFicha}: ${page}/ficha`];
-  return [title.join("\n"), info.filter(Boolean).join("\n"), links.filter(Boolean).join("\n")].join("\n\n");
+  return {
+    titulo: p.title.trim(),
+    tipo: TYPE_LABELS[p.type] ?? p.type,
+    codigo: p.code,
+    regiao: [p.neighborhood, p.city].filter(Boolean).join(", "),
+    dimensao: selectionSpecs(p),
+    // Sem "R$": o WhatsApp não transforma em link de pagamento
+    valor: `${formatBRL(p.price).replace(/^R\$\s*/, "")}${p.purpose === "aluguel" ? " por mês" : ""}`,
+    finalidade: p.purpose === "aluguel" ? "Aluguel" : "Venda",
+    link: p.published ? page : "",
+    ficha: `${page}/ficha`,
+  };
+}
+
+/** Texto de um imóvel (legenda da foto ou mensagem sozinha), pelo modelo do WhatsApp */
+export function selectionWaCard(p: PropertyWithImages, baseUrl: string, msgs: Messages = MESSAGE_DEFAULTS, template?: string) {
+  return waCardText(template?.trim() || msgs.selWaCard, selectionWaVars(p, baseUrl));
 }

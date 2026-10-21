@@ -24,7 +24,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { fillMessage, MESSAGE_DEFAULTS, type Messages } from "@/lib/messages";
+import { fillMessage, MESSAGE_DEFAULTS, WA_CARD_VARS, waCardText, type Messages } from "@/lib/messages";
 import { toast } from "sonner";
 
 export type NegContact = {
@@ -60,6 +60,40 @@ const norm = (s: string) =>
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase();
+
+/** Variáveis da prévia (no envio, o servidor usa os dados completos e o endereço do site) */
+function previewVars(p: NegProperty) {
+  const page = `…/imoveis/${p.code}`;
+  return {
+    titulo: p.title,
+    tipo: TYPE_LABELS[p.type] ?? p.type,
+    codigo: p.code,
+    regiao: [p.neighborhood, p.city].filter(Boolean).join(", "),
+    dimensao: p.specs,
+    valor: `${formatBRL(p.price).replace(/^R\$\s*/, "")}${p.purpose === "aluguel" ? " por mês" : ""}`,
+    finalidade: p.purpose === "aluguel" ? "Aluguel" : "Venda",
+    link: p.published ? page : "",
+    ficha: `${page}/ficha`,
+  };
+}
+
+/** Texto com a formatação do WhatsApp: *negrito* e _itálico_ */
+function WaPreview({ text }: { text: string }) {
+  const parts = text.split(/(\*[^*\n]+\*|_[^_\n]+_)/g);
+  return (
+    <p className="whitespace-pre-wrap break-words text-[13px] leading-relaxed">
+      {parts.map((part, i) =>
+        /^\*[^*]+\*$/.test(part) ? (
+          <strong key={i}>{part.slice(1, -1)}</strong>
+        ) : /^_[^_]+_$/.test(part) ? (
+          <em key={i}>{part.slice(1, -1)}</em>
+        ) : (
+          part
+        ),
+      )}
+    </p>
+  );
+}
 
 /** Abre a ficha num iframe fora da tela; ela gera o PDF e devolve por postMessage. */
 function fichaPdf(code: string) {
@@ -152,8 +186,34 @@ export function NegotiationClient({
   const [channel, setChannel] = useState<"email" | "whatsapp">(
     waReady && (!emailReady || (initialContact && !initialContact.email)) ? "whatsapp" : "email",
   );
-  const wa = channel === "whatsapp";
+  // Canal disponível conforme o que o contato tem: só e-mail, só WhatsApp ou os dois (aí vale a escolha)
+  const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toEmail.trim());
+  const phoneDigits = toPhone.replace(/\D/g, "");
+  const validPhone = phoneDigits.length >= 10 && phoneDigits.length <= 13;
+  const emailOk = emailReady && validEmail;
+  const waOk = waReady && validPhone;
+  const wa = channel === "whatsapp" ? waOk || !emailOk : !(emailOk || !waOk);
   const [photos, setPhotos] = useState(true);
+  // Modelo da mensagem de cada imóvel no WhatsApp (padrão em Configurações › Mensagens)
+  const [cardTpl, setCardTpl] = useState(msgs.selWaCard);
+  const [savingTpl, setSavingTpl] = useState(false);
+  async function saveTplAsDefault() {
+    setSavingTpl(true);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: "messages", value: { ...msgs, selWaCard: cardTpl } }),
+      });
+      if (!res.ok) throw new Error(res.status === 403 || res.status === 401 ? "Só administradores mudam o padrão." : "Não foi possível salvar.");
+      toast.success("Modelo salvo como padrão (Configurações › Mensagens).");
+      router.refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível salvar.");
+    } finally {
+      setSavingTpl(false);
+    }
+  }
 
   /* ── imóveis ── */
   const [selected, setSelected] = useState<string[]>(initialIds.filter((id) => properties.some((p) => p.id === id)));
@@ -258,9 +318,6 @@ export function NegotiationClient({
           primeiro_nome: firstName(toName),
         });
   const finalSubject = subject.trim() || autoSubject;
-  const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toEmail.trim());
-  const phoneDigits = toPhone.replace(/\D/g, "");
-  const validPhone = phoneDigits.length >= 10 && phoneDigits.length <= 13;
   const canAttach = !wa || waQr;
   const canSend = (wa ? waReady && validPhone : emailReady && validEmail) && chosen.length > 0 && !sending;
 
@@ -295,6 +352,7 @@ export function NegotiationClient({
           subject: finalSubject,
           message,
           photos,
+          cardTemplate: cardTpl,
           propertyIds: chosen.map((p) => p.id),
           attachments,
         }),
@@ -556,30 +614,6 @@ export function NegotiationClient({
               Mensagem
             </h2>
             <div className="mt-4 space-y-3">
-              <div className="grid grid-cols-2 gap-1 rounded-xl bg-soft p-1" role="tablist" aria-label="Enviar por">
-                {(
-                  [
-                    ["whatsapp", "WhatsApp", MessageCircle, waReady],
-                    ["email", "E-mail", Mail, emailReady],
-                  ] as const
-                ).map(([k, label, Icon, ready]) => (
-                  <button
-                    key={k}
-                    type="button"
-                    role="tab"
-                    aria-selected={channel === k}
-                    onClick={() => setChannel(k)}
-                    className={cn(
-                      "flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                      channel === k ? "bg-card text-ink shadow-sm" : "text-subtle hover:text-ink",
-                    )}
-                  >
-                    <Icon className="size-4" />
-                    {label}
-                    {!ready && <span className="text-[10px] font-normal text-subtle">(não configurado)</span>}
-                  </button>
-                ))}
-              </div>
               {!wa && (
                 <label className="block">
                   <span className="mb-1.5 block text-xs font-medium text-subtle">Assunto</span>
@@ -592,29 +626,45 @@ export function NegotiationClient({
                 </span>
                 <Textarea rows={4} value={message} onChange={(e) => setMessage(e.target.value)} />
               </label>
-              {wa && waQr && (
-                <label className="flex items-center gap-2 text-sm">
-                  <Switch checked={photos} onChange={setPhotos} />
-                  <ImageIcon className="size-4 text-subtle" />
-                  Enviar a foto de capa de cada imóvel
-                </label>
-              )}
-              {canAttach && (
-                <label className="flex items-center gap-2 text-sm">
-                  <Switch checked={attach} onChange={setAttach} />
-                  <Paperclip className="size-4 text-subtle" />
-                  {wa ? "Mandar também as fichas em PDF" : "Anexar as fichas em PDF"}
-                </label>
-              )}
-              <p className="text-[11px] text-subtle">
-                {wa
-                  ? `Sai do seu WhatsApp, uma mensagem por imóvel${waQr && photos ? " (foto com legenda)" : ""}: título, local, medidas, preço e os links para o site e para a ficha. A conversa aparece na página WhatsApp.`
-                  : "O e-mail traz foto, preço e botões para o site e para a ficha de cada imóvel. As respostas vão para o “Responder para” de Administração › E-mail (ou, se vazio, para o seu e-mail)."}
-              </p>
-              {attach && !wa && (
-                <p className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-600 dark:text-amber-400">
-                  Anexos aumentam a chance de cair no lixo eletrônico, principalmente no Outlook/Hotmail e no primeiro contato. Prefira anexar só para quem já conversa com você.
-                </p>
+              {wa && (
+                <div className="space-y-2 rounded-xl border border-hairline p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-xs font-medium text-subtle">Mensagem de cada imóvel</span>
+                    <span className="flex items-center gap-3 text-[11px]">
+                      {cardTpl !== msgs.selWaCard && (
+                        <button type="button" onClick={() => setCardTpl(msgs.selWaCard)} className="text-subtle hover:text-ink">
+                          Voltar ao padrão
+                        </button>
+                      )}
+                      {cardTpl !== msgs.selWaCard && (
+                        <button type="button" onClick={saveTplAsDefault} disabled={savingTpl} className="font-medium text-accent hover:underline disabled:opacity-50">
+                          {savingTpl ? "Salvando…" : "Salvar como padrão"}
+                        </button>
+                      )}
+                    </span>
+                  </div>
+                  <Textarea rows={9} value={cardTpl} onChange={(e) => setCardTpl(e.target.value)} className="font-mono text-[13px]" />
+                  <div className="flex flex-wrap gap-1">
+                    {WA_CARD_VARS.map((v) => (
+                      <button
+                        key={v}
+                        type="button"
+                        onClick={() => setCardTpl((t) => `${t}{${v}}`)}
+                        className="rounded-full border border-hairline px-2 py-0.5 font-mono text-[10.5px] text-subtle hover:border-hairline-strong hover:text-ink"
+                        title="Inserir no fim do texto"
+                      >
+                        {`{${v}}`}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-subtle">*texto* = negrito · _texto_ = itálico · linha com variável vazia some</p>
+                  {chosen[0] && (
+                    <div className="rounded-lg bg-soft px-3 py-2">
+                      <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.14em] text-subtle">Prévia · {chosen[0].code}</p>
+                      <WaPreview text={waCardText(cardTpl, previewVars(chosen[0]))} />
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </section>
@@ -625,6 +675,37 @@ export function NegotiationClient({
           <h2 className={h2}>
             {wa ? <MessageCircle className="size-4" /> : <Mail className="size-4" />} Resumo
           </h2>
+          <div className="mt-4 grid grid-cols-2 gap-1 rounded-xl bg-soft p-1" role="tablist" aria-label="Enviar por">
+            {(
+              [
+                ["whatsapp", "WhatsApp", MessageCircle, waOk, !waReady ? "não configurado" : "sem número"],
+                ["email", "E-mail", Mail, emailOk, !emailReady ? "não configurado" : "sem e-mail"],
+              ] as const
+            ).map(([k, label, Icon, ok, why]) => {
+              const on = (k === "whatsapp") === wa;
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  role="tab"
+                  aria-selected={on}
+                  disabled={!ok}
+                  onClick={() => setChannel(k)}
+                  title={ok ? undefined : `Indisponível: ${why}`}
+                  className={cn(
+                    "flex flex-col items-center justify-center rounded-lg px-2 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-45",
+                    on && ok ? "bg-card text-ink shadow-sm" : "text-subtle hover:text-ink",
+                  )}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Icon className="size-4" />
+                    {label}
+                  </span>
+                  {!ok && <span className="text-[10px] font-normal">{why}</span>}
+                </button>
+              );
+            })}
+          </div>
           <dl className="mt-4 space-y-2 text-sm">
             <div className="flex justify-between gap-3">
               <dt className="text-subtle">Para</dt>
@@ -658,6 +739,32 @@ export function NegotiationClient({
               </li>
             ))}
           </ul>
+          <div className="mt-4 space-y-2.5 border-t border-hairline pt-4">
+            {wa && waQr && (
+              <label className="flex items-center gap-2 text-sm">
+                <Switch checked={photos} onChange={setPhotos} />
+                <ImageIcon className="size-4 text-subtle" />
+                Foto de capa de cada imóvel
+              </label>
+            )}
+            {canAttach && (
+              <label className="flex items-center gap-2 text-sm">
+                <Switch checked={attach} onChange={setAttach} />
+                <Paperclip className="size-4 text-subtle" />
+                {wa ? "Fichas em PDF" : "Anexar fichas em PDF"}
+              </label>
+            )}
+            <p className="text-[11px] leading-relaxed text-subtle">
+              {wa
+                ? `Sai do seu WhatsApp, uma mensagem por imóvel${waQr && photos ? " (foto com a legenda)" : ""}. A conversa aparece na página WhatsApp.`
+                : "Foto, preço e botões para o site e a ficha de cada imóvel. Respostas vão para o “Responder para” de Administração › E-mail."}
+            </p>
+            {attach && !wa && (
+              <p className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-600 dark:text-amber-400">
+                Anexos aumentam a chance de cair no lixo eletrônico, principalmente no Outlook/Hotmail e no primeiro contato.
+              </p>
+            )}
+          </div>
           <Button variant="accent" className="mt-5 w-full" onClick={send} disabled={!canSend}>
             {sending ? <Loader2 className="size-4 animate-spin" /> : wa ? <MessageCircle className="size-4" /> : <Send className="size-4" />}
             {sending ? "Enviando…" : wa ? "Enviar pelo WhatsApp" : "Enviar por e-mail"}
