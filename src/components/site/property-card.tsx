@@ -123,28 +123,47 @@ export function PropertyCard({
         </div>
       </div>
 
-      <div className={cn("hidden gap-4 pt-4 sm:flex", dense ? "flex-col gap-1.5 pt-3" : "items-start justify-between")}>
-        <div className="min-w-0">
-          <p className={cn("truncate font-mono uppercase text-subtle", dense ? "text-[10px] tracking-[0.12em]" : "text-[10.5px] tracking-[0.16em]")}>
-            {p.code} · {TYPE_LABELS[p.type]}
-          </p>
-          <h3 className={cn("truncate font-display font-semibold tracking-tight", dense ? "mt-1 text-base" : "mt-1.5 text-lg")}>
-            {p.title}
-          </h3>
-          <p className={cn("truncate text-subtle", dense ? "text-xs" : "mt-0.5 text-sm")}>
+      {dense ? (
+        /* 5 ou 6 colunas: tudo empilhado, para caber no card estreito */
+        <div className="hidden flex-col gap-1.5 pt-3 sm:flex">
+          <div className="min-w-0">
+            <p className="truncate font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">
+              {p.code} · {TYPE_LABELS[p.type]}
+            </p>
+            <h3 className="mt-1 truncate font-display text-base font-semibold tracking-tight">{p.title}</h3>
+            <p className="truncate text-xs text-subtle">
+              {p.neighborhood}, {p.city}
+            </p>
+          </div>
+          <div className="min-w-0">
+            <p className="font-mono text-sm font-medium tabular">
+              {formatBRL(p.price)}
+              {p.purpose === "aluguel" && <span className="text-subtle"> /mês</span>}
+            </p>
+            <p className="mt-0.5 truncate text-xs text-subtle">{specsLine(p)}</p>
+          </div>
+        </div>
+      ) : (
+        /* Código e tipo | preço e medidas (metade cada); título e local na largura toda */
+        <div className="hidden pt-4 sm:block">
+          <div className="grid grid-cols-2 items-start gap-3">
+            <p className="min-w-0 truncate pt-0.5 font-mono text-[10px] uppercase tracking-[0.1em] text-subtle">
+              {p.code} · {TYPE_LABELS[p.type]}
+            </p>
+            <div className="min-w-0 text-right">
+              <p className="truncate font-mono text-sm font-medium tabular">
+                {formatBRL(p.price)}
+                {p.purpose === "aluguel" && <span className="text-subtle"> /mês</span>}
+              </p>
+              <p className="mt-0.5 truncate text-xs text-subtle">{specsLine(p)}</p>
+            </div>
+          </div>
+          <h3 className="mt-1.5 truncate font-display text-lg font-semibold tracking-tight">{p.title}</h3>
+          <p className="mt-0.5 truncate text-sm text-subtle">
             {p.neighborhood}, {p.city}
           </p>
         </div>
-        <div className={cn(dense ? "min-w-0" : "shrink-0 text-right")}>
-          <p className="font-mono text-sm font-medium tabular">
-            {formatBRL(p.price)}
-            {p.purpose === "aluguel" && (
-              <span className="text-subtle"> /mês</span>
-            )}
-          </p>
-          <p className="mt-0.5 text-xs text-subtle">{specsLine(p)}</p>
-        </div>
-      </div>
+      )}
     </Link>
   );
 }
