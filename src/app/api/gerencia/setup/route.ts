@@ -8,14 +8,14 @@ import { createHash, timingSafeEqual } from "node:crypto";
 const digest = (s: string) => createHash("sha256").update(s).digest();
 
 /**
- * Primeiro acesso da gerência: exige a chave GERENCIA_KEY (variável da Vercel).
+ * Primeiro acesso (ou recuperação) da gerência: exige a chave GERENCIA_KEY (variável do servidor).
  * Cria o usuário de gerência — ou promove um e-mail já existente — e já entra.
  */
 export async function POST(req: Request) {
   const expected = process.env.GERENCIA_KEY ?? "";
   if (expected.length < 12) {
     return NextResponse.json(
-      { error: "Defina a variável GERENCIA_KEY (mínimo 12 caracteres) na Vercel e faça um novo deploy." },
+      { error: "Defina a variável GERENCIA_KEY (mínimo 12 caracteres) no Coolify (Environment Variables) e reinicie o app." },
       { status: 400 },
     );
   }
