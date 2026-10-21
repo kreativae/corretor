@@ -118,7 +118,7 @@ export default async function FichaPage({
         qrSvg={qrSvg}
         qrKind={qrKind ?? undefined}
         qrUrl={qrUrl}
-        whatsappUrl={digits ? `https://wa.me/${digits}?text=${encodeURIComponent(fillMessage(msgs.waFichaInterest, { codigo: p.code, titulo: p.title, preco: formatBRL(p.price) }))}` : undefined}
+        whatsappUrl={digits ? `https://wa.me/${digits.length === 10 || digits.length === 11 ? `55${digits}` : digits}?text=${encodeURIComponent(fillMessage(msgs.waFichaInterest, { codigo: p.code, titulo: p.title, preco: formatBRL(p.price) }))}` : undefined}
       />
       </FitSheet>
     </div>

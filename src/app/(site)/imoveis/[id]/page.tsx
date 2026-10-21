@@ -88,12 +88,15 @@ export default async function ImovelPage({ params }: { params: Params }) {
   // Corretor responsável pelo imóvel (cadastro da Equipe); sem responsável, o nome de Conteúdo do site
   const [resp] = p.responsibleId
     ? await (await getDb())
-        .select({ name: users.name, title: users.title, creci: users.creci })
+        .select({ name: users.name, title: users.title, creci: users.creci, phone: users.phone })
         .from(users)
         .where(and(eq(users.id, p.responsibleId), eq(users.active, true)))
         .catch(() => [])
     : [];
   const brokerName = resp?.name || content.detail.brokerName || wl.orgName;
+  // WhatsApp direto vai para o corretor responsável (número da Equipe); sem número, o da imobiliária
+  const respDigits = (resp?.phone ?? "").replace(/\D/g, "");
+  const waNumber = respDigits.length >= 10 ? (respDigits.length <= 11 ? `55${respDigits}` : respDigits) : wl.phone;
   const brokerRole = resp
     ? `${resp.title?.trim() || content.detail.brokerRole || "Corretor"}${resp.creci ? ` · CRECI ${resp.creci}` : ""}`
     : content.detail.brokerRole || "Atendimento exclusivo";
@@ -372,7 +375,7 @@ export default async function ImovelPage({ params }: { params: Params }) {
                     {content.visit.cta}
                   </span>
                 </a>
-                <a href={`https://wa.me/${wl.phone}?text=${waText}`} target="_blank" rel="noreferrer">
+                <a href={`https://wa.me/${waNumber}?text=${waText}`} target="_blank" rel="noreferrer">
                   <span className="flex h-11 w-full items-center justify-center gap-2 rounded-full bg-accent text-sm font-medium text-on-accent transition-all duration-300 hover:brightness-110">
                     <MessageCircle className="size-4" />
                     WhatsApp direto
@@ -447,7 +450,7 @@ export default async function ImovelPage({ params }: { params: Params }) {
               <FileDown className="size-5" />
             </a>
             <a
-              href={`https://wa.me/${wl.phone}?text=${waText}`}
+              href={`https://wa.me/${waNumber}?text=${waText}`}
               target="_blank"
               rel="noreferrer"
               aria-label="WhatsApp"
