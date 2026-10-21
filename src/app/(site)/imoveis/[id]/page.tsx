@@ -52,6 +52,7 @@ import {
 } from "lucide-react";
 import type { Metadata } from "next";
 import { getDb } from "@/db";
+import { focusOf } from "@/lib/image-focus";
 import { users } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import Link from "next/link";
@@ -193,6 +194,7 @@ export default async function ImovelPage({ params }: { params: Params }) {
         <div data-reveal className="mt-8">
           <Gallery
             images={p.images.map((i) => siteImage(i.url, p.wm))}
+            positions={p.images.map((i) => focusOf(p.imageFocus, i.url))}
             title={p.title}
             videoId={parseYouTubeUrl(p.videoUrl)}
             videoWatermark={`/api/watermark/overlay?wm=${p.wm}`}

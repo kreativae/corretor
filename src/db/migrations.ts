@@ -290,6 +290,8 @@ export const RUNTIME_MIGRATIONS = [
   `ALTER TABLE agenda_events ADD COLUMN IF NOT EXISTS google_synced_at timestamptz;`,
   // Link do Google Meet gerado para a reunião
   `ALTER TABLE agenda_events ADD COLUMN IF NOT EXISTS meet_url text;`,
+  // Ponto de foco das fotos (onde o corte se centra), por foto
+  `ALTER TABLE properties ADD COLUMN IF NOT EXISTS image_focus jsonb;`,
 ];
 
 /** Só no banco principal (esquema public): cadastro de empresas da gerência */

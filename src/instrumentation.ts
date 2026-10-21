@@ -9,9 +9,10 @@ export async function register() {
   if (process.env.VERCEL || process.env.TICK_DISABLED === "1") return;
   if (process.env.NODE_ENV !== "production" && process.env.TICK_DEV !== "1") return;
 
-  const { randomBytes } = await import("node:crypto");
   // Token só deste processo: ninguém de fora consegue disparar a batida sem o CRON_SECRET
-  process.env.TICK_TOKEN ||= randomBytes(24).toString("hex");
+  process.env.TICK_TOKEN ||= Array.from(globalThis.crypto.getRandomValues(new Uint8Array(24)), (b) =>
+    b.toString(16).padStart(2, "0"),
+  ).join("");
   const minutes = Math.max(1, Number(process.env.TICK_INTERVAL_MIN) || 10);
   const url = `http://127.0.0.1:${process.env.PORT || 3000}/api/cron/tick`;
 

@@ -95,6 +95,7 @@ export function PropertyForm({
     videoUrl: initial?.videoUrl ?? "",
     features: initial?.features ?? ([] as string[]),
     images: (initial?.images ?? []).map((i) => i.url),
+    imageFocus: (initial?.imageFocus ?? {}) as Record<string, string>,
     published: initial?.published ?? true,
     featured: initial?.featured ?? false,
     badge: initial?.badge ?? "",
@@ -224,6 +225,7 @@ export function PropertyForm({
         videoUrl: form.videoUrl.trim() || null,
         features: form.features,
         images: imageUrls,
+        imageFocus: form.imageFocus,
         published: form.published,
         featured: form.featured,
         badge: form.badge || null,
@@ -434,7 +436,12 @@ export function PropertyForm({
                 {imageUrls.length} {imageUrls.length === 1 ? "foto" : "fotos"}
               </span>
             </h2>
-            <PhotoManager images={form.images} onChange={setImages} />
+            <PhotoManager
+              images={form.images}
+              onChange={setImages}
+              focus={form.imageFocus}
+              onFocusChange={(imageFocus) => setForm((f) => ({ ...f, imageFocus }))}
+            />
             <p className="mt-3 flex items-center gap-1.5 text-[11px] text-subtle">
               <ImageIcon className="size-3.5" />
               A primeira foto vira a capa do anúncio.

@@ -187,6 +187,8 @@ export const properties = pgTable("properties", {
   land: jsonb("land").$type<LandData>(),
   /** Imóvel de parceiro (captado por outro corretor/imobiliária) */
   videoUrl: text("video_url"),
+  /** Ponto de foco de cada foto ({ url: "x% y%" }); vazio = centro */
+  imageFocus: jsonb("image_focus").$type<Record<string, string>>(),
   /** Destaque: vai primeiro (ou só ele) nas seções da home, conforme Conteúdo do site › Exibição */
   featured: boolean("featured").notNull().default(false),
   /** Selo no card do site: id de um selo de Configurações › Selos (vazio = sem selo) */

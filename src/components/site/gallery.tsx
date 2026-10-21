@@ -11,8 +11,11 @@ export function Gallery({
   title,
   videoId,
   videoWatermark,
+  positions = [],
 }: {
   images: string[];
+  /** Ponto de foco de cada foto (object-position), na mesma ordem */
+  positions?: (string | undefined)[];
   title: string;
   /** Id do vídeo do YouTube (botão "Ver vídeo") */
   videoId?: string | null;
@@ -125,6 +128,7 @@ export function Gallery({
                 alt={i === 0 ? title : `${title} — foto ${i + 1}`}
                 loading={i === 0 ? "eager" : "lazy"}
                 className="absolute inset-0 h-full w-full object-cover"
+                style={{ objectPosition: positions[i] }}
               />
             </button>
           ))}
@@ -154,7 +158,8 @@ export function Gallery({
         <div
           className={cn(
             "relative",
-            images.length === 1 ? "lg:col-span-3 lg:aspect-[21/9]" : "lg:col-span-2",
+            // Uma foto só: menos larga que antes (21:9), para cortar menos em cima e embaixo
+            images.length === 1 ? "lg:col-span-3 lg:aspect-[2/1]" : "lg:col-span-2",
             images.length === 2 && "lg:aspect-[16/10]",
             images.length > 2 && "lg:row-span-2",
           )}
@@ -169,6 +174,7 @@ export function Gallery({
             src={images[0]}
             alt={title}
             className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-expo group-hover:scale-[1.03]"
+            style={{ objectPosition: positions[0] }}
           />
         </button>
         <div className="absolute bottom-4 right-4 flex items-center gap-2">
@@ -198,6 +204,7 @@ export function Gallery({
               alt={`${title} — foto ${i + 2}`}
               loading="lazy"
               className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-expo group-hover:scale-[1.05]"
+              style={{ objectPosition: positions[i + 1] }}
             />
           </button>
         ))}

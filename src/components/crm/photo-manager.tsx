@@ -1,8 +1,9 @@
 "use client";
 
-import { Button, Input } from "@/components/ui";
+import { Button, Input, Modal } from "@/components/ui";
+import { focusOf, focusValue, type ImageFocus } from "@/lib/image-focus";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, ImagePlus, Link2, Loader2, Star, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Crosshair, ImagePlus, Link2, Loader2, Star, X } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { compressImage, MAX_UPLOAD_BYTES, sendFile } from "@/lib/upload-client";
@@ -13,10 +14,16 @@ type Pending = { id: string; name: string; progress: number };
 export function PhotoManager({
   images,
   onChange,
+  focus = {},
+  onFocusChange,
 }: {
   images: string[];
   onChange: (next: string[] | ((cur: string[]) => string[])) => void;
+  /** Ponto de foco de cada foto (onde o corte se centra no site) */
+  focus?: ImageFocus;
+  onFocusChange?: (next: ImageFocus) => void;
 }) {
+  const [focusing, setFocusing] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState<Pending[]>([]);
   const [dragging, setDragging] = useState(false);
@@ -111,7 +118,21 @@ export function PhotoManager({
               className="group relative aspect-[4/3] overflow-hidden rounded-xl border border-hairline bg-soft"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={src} alt="" loading="lazy" className="size-full object-cover" />
+              <img src={src} alt="" loading="lazy" className="size-full object-cover" style={{ objectPosition: focusOf(focus, src) }} />
+              {onFocusChange && (
+                <button
+                  type="button"
+                  onClick={() => setFocusing(src)}
+                  title="Ponto de foco: o que não pode ser cortado"
+                  className={cn(
+                    "absolute right-11 top-2 flex h-7 items-center gap-1 rounded-full px-2 text-[11px] text-white transition-opacity sm:opacity-0 sm:group-hover:opacity-100",
+                    focus[src] ? "bg-accent sm:opacity-100" : "bg-black/60",
+                  )}
+                >
+                  <Crosshair className="size-3.5" />
+                  Foco
+                </button>
+              )}
               {i === 0 && (
                 <span className="absolute left-2 top-2 rounded-full bg-accent px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-on-accent">
                   Capa
@@ -170,6 +191,22 @@ export function PhotoManager({
         </div>
       )}
 
+      {onFocusChange && (
+        <FocusPicker
+          src={focusing}
+          value={focusing ? focusOf(focus, focusing) : undefined}
+          onClose={() => setFocusing(null)}
+          onSave={(v) => {
+            if (!focusing) return;
+            const next = { ...focus };
+            if (v) next[focusing] = v;
+            else delete next[focusing];
+            onFocusChange(next);
+            setFocusing(null);
+          }}
+        />
+      )}
+
       <div className="flex gap-2">
         <div className="relative flex-1">
           <Link2 className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-subtle" />
@@ -193,3 +230,82 @@ export function PhotoManager({
     </div>
   );
 }
+
+/**
+ * Escolha do ponto de foco: clique na foto inteira e veja como ficam os cortes da capa
+ * (larga) e do card (4:3).
+ */
+function FocusPicker({
+  src,
+  value,
+  onClose,
+  onSave,
+}: {
+  src: string | null;
+  value: string | undefined;
+  onClose: () => void;
+  onSave: (v: string | undefined) => void;
+}) {
+  const [point, setPoint] = useState<string | undefined>(value);
+  const [seen, setSeen] = useState(src);
+  if (seen !== src) {
+    setSeen(src);
+    setPoint(value);
+  }
+  const [px, py] = (point ?? "50% 50%").split(" ").map((v) => parseFloat(v));
+  return (
+    <Modal open={!!src} onClose={onClose} title="Ponto de foco da foto">
+      {src && (
+        <div className="space-y-4">
+          <p className="text-xs text-subtle">
+            Clique no que não pode ser cortado (a casa, a fachada, a vista). Nas fotos cortadas do site, esse ponto fica sempre visível.
+          </p>
+          <div
+            className="relative cursor-crosshair overflow-hidden rounded-xl bg-soft"
+            onClick={(e) => {
+              const r = e.currentTarget.getBoundingClientRect();
+              setPoint(focusValue(((e.clientX - r.left) / r.width) * 100, ((e.clientY - r.top) / r.height) * 100));
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={src} alt="" className="block w-full select-none" draggable={false} />
+            <span
+              className="pointer-events-none absolute size-7 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-accent/60 shadow-lg ring-2 ring-black/30"
+              style={{ left: `${px}%`, top: `${py}%` }}
+            />
+          </div>
+          <div className="grid grid-cols-[2fr_1fr] gap-3">
+            <figure>
+              <div className="aspect-[2/1] overflow-hidden rounded-lg bg-soft">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={src} alt="" className="size-full object-cover" style={{ objectPosition: point }} />
+              </div>
+              <figcaption className="mt-1 text-[11px] text-subtle">Capa do anúncio</figcaption>
+            </figure>
+            <figure>
+              <div className="aspect-[4/3] overflow-hidden rounded-lg bg-soft">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={src} alt="" className="size-full object-cover" style={{ objectPosition: point }} />
+              </div>
+              <figcaption className="mt-1 text-[11px] text-subtle">Card nas listas</figcaption>
+            </figure>
+          </div>
+          <div className="flex flex-wrap justify-between gap-2">
+            <Button type="button" variant="ghost" onClick={() => setPoint(undefined)}>
+              Voltar ao centro
+            </Button>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancelar
+              </Button>
+              <Button type="button" variant="accent" onClick={() => onSave(point === "50% 50%" ? undefined : point)}>
+                Usar este ponto
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </Modal>
+  );
+}
+

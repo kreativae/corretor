@@ -1,3 +1,4 @@
+import { sanitizeFocus } from "@/lib/image-focus";
 import { cleanPropertyBadge } from "@/lib/badges";
 import { apiUser, unauthorized } from "@/lib/api-auth";
 import { getDb } from "@/db";
@@ -34,6 +35,7 @@ export async function POST(req: Request) {
       "responsibleId" in body ? body.responsibleId : (await getCurrentUser())?.id,
     );
     cleanPropertyBadge(data);
+    if ("imageFocus" in data) data.imageFocus = sanitizeFocus(data.imageFocus, Array.isArray(body.images) ? body.images.map(String) : undefined);
     // Observações: texto livre, vazio = não aparece no site nem na ficha
     if ("notes" in data) data.notes = String(data.notes ?? "").trim().slice(0, 2000) || null;
     // Vídeo: só link válido do YouTube

@@ -4,6 +4,7 @@ import { cn, formatBRL, formatNumber, siteImage } from "@/lib/utils";
 import { APTIDAO_LABELS, formatAlq, isRuralType, normalizeRural } from "@/lib/rural";
 import { isLandType, landDimensions, normalizeLand } from "@/lib/land";
 import { ArrowUpRight } from "lucide-react";
+import { focusOf } from "@/lib/image-focus";
 import Link from "next/link";
 
 /** "120 m² · 3 quartos", "310 alq · Dupla aptidão" ou "450 m² · 15 × 30 m" */
@@ -50,6 +51,7 @@ export function PropertyCard({
           <img
             src={siteImage(p.cover, p.wm)}
             alt={p.title}
+            style={{ objectPosition: focusOf(p.imageFocus, p.cover) }}
             loading="lazy"
             className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-expo group-hover:scale-[1.05]"
           />
