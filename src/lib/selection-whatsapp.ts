@@ -18,13 +18,14 @@ export function selectionWaCard(p: PropertyWithImages, baseUrl: string, msgs: Me
   const page = `${baseUrl}/imoveis/${p.code}`;
   const place = [p.neighborhood, p.city].filter(Boolean).join(", ");
   const specs = selectionSpecs(p);
-  const head = [
-    `*${p.title.trim()}*`,
-    `_${TYPE_LABELS[p.type] ?? p.type} · ${p.code}_`,
-    place ? `📍 ${place}` : "",
-    specs ? `📐 ${specs}` : "",
-    `💰 *${formatBRL(p.price)}*${p.purpose === "aluguel" ? " /mês" : ""}`,
+  // Sem ícones e sem "R$" no valor: o WhatsApp não transforma em link de pagamento
+  const value = formatBRL(p.price).replace(/^R\$\s*/, "");
+  const title = [`*${p.title.trim()}*`, `_${TYPE_LABELS[p.type] ?? p.type} · ${p.code}_`];
+  const info = [
+    place ? `*Região* - ${place}` : "",
+    specs ? `*Dimensão* - ${specs}` : "",
+    `*Valor* - ${value}${p.purpose === "aluguel" ? " por mês" : ""}`,
   ];
-  const links = [p.published ? `🔗 ${msgs.selBtnDetails}: ${page}` : "", `📄 ${msgs.selBtnFicha}: ${page}/ficha`];
-  return [head.filter(Boolean).join("\n"), links.filter(Boolean).join("\n")].join("\n\n");
+  const links = [p.published ? `${msgs.selBtnDetails}: ${page}` : "", `${msgs.selBtnFicha}: ${page}/ficha`];
+  return [title.join("\n"), info.filter(Boolean).join("\n"), links.filter(Boolean).join("\n")].join("\n\n");
 }
