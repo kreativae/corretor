@@ -95,7 +95,8 @@ export async function POST(req: Request) {
       selectionEmailHtml({
         wl,
         baseUrl: await emailBaseUrl(wl.domain, requestPublicOrigin(req)),
-        toName,
+        // Sem a saudação: o e-mail começa direto pelos imóveis
+        toName: body.intro === false ? "" : toName,
         message,
         properties: props,
         broker: { name: me?.name || user.name, title: me?.title, phone: me?.phone || user.phone },

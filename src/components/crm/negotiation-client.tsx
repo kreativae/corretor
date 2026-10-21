@@ -11,6 +11,7 @@ import {
   FileText,
   ImageIcon,
   Loader2,
+  Hand,
   Mail,
   MessageCircle,
   Paperclip,
@@ -194,6 +195,8 @@ export function NegotiationClient({
   const waOk = waReady && validPhone;
   const wa = channel === "whatsapp" ? waOk || !emailOk : !(emailOk || !waOk);
   const [photos, setPhotos] = useState(true);
+  // Saudação + texto antes dos imóveis; desligado, vai só a proposta
+  const [greet, setGreet] = useState(true);
   // Modelo da mensagem de cada imóvel no WhatsApp (padrão em Configurações › Mensagens)
   const [cardTpl, setCardTpl] = useState(msgs.selWaCard);
   const [savingTpl, setSavingTpl] = useState(false);
@@ -350,7 +353,8 @@ export function NegotiationClient({
           toEmail,
           toPhone,
           subject: finalSubject,
-          message,
+          message: greet ? message : "",
+          intro: greet,
           photos,
           cardTemplate: cardTpl,
           propertyIds: chosen.map((p) => p.id),
@@ -620,11 +624,17 @@ export function NegotiationClient({
                   <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder={autoSubject} />
                 </label>
               )}
-              <label className="block">
+              <label className={cn("block", !greet && "opacity-50")}>
                 <span className="mb-1.5 block text-xs font-medium text-subtle">
-                  Texto {toName && <span className="font-normal">(começa com &quot;{fillMessage(msgs.selGreeting, { nome: toName, primeiro_nome: firstName(toName) })}&quot;)</span>}
+                  {greet ? (
+                    <>
+                      Texto {toName && <span className="font-normal">(começa com &quot;{fillMessage(msgs.selGreeting, { nome: toName, primeiro_nome: firstName(toName) })}&quot;)</span>}
+                    </>
+                  ) : (
+                    "Texto (desligado no resumo: vai só a proposta)"
+                  )}
                 </span>
-                <Textarea rows={4} value={message} onChange={(e) => setMessage(e.target.value)} />
+                <Textarea rows={4} value={message} onChange={(e) => setMessage(e.target.value)} disabled={!greet} />
               </label>
               {wa && (
                 <div className="space-y-2 rounded-xl border border-hairline p-3">
@@ -740,6 +750,11 @@ export function NegotiationClient({
             ))}
           </ul>
           <div className="mt-4 space-y-2.5 border-t border-hairline pt-4">
+            <label className="flex items-center gap-2 text-sm">
+              <Switch checked={greet} onChange={setGreet} />
+              <Hand className="size-4 text-subtle" />
+              Mensagem de “Olá” antes
+            </label>
             {wa && waQr && (
               <label className="flex items-center gap-2 text-sm">
                 <Switch checked={photos} onChange={setPhotos} />
