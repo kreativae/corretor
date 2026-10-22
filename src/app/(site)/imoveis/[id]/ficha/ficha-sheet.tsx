@@ -313,18 +313,18 @@ export function FichaSheet({
         </div>
       </div>
 
-      {/* Fotos: principal + duas laterais */}
+      {/* Fotos: principal + duas laterais (com uma só, a linha única precisa de 1fr, senão a foto cresce e cobre o resto) */}
       {imgs.length > 0 && (
         <div
-          className={`mt-[5mm] grid h-[92mm] shrink-0 gap-[2mm] ${
-            imgs.length > 1 ? "grid-cols-3 grid-rows-2" : "grid-cols-1"
+          className={`mt-[5mm] grid h-[92mm] shrink-0 gap-[2mm] overflow-hidden ${
+            imgs.length > 1 ? "grid-cols-3 grid-rows-2" : "grid-cols-1 grid-rows-1"
           }`}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={imgs[0]}
             alt={p.title}
-            className={`size-full rounded-md object-cover ${
+            className={`size-full min-h-0 rounded-md object-cover ${
               imgs.length > 1 ? "col-span-2 row-span-2" : ""
             }`}
           />
@@ -334,7 +334,7 @@ export function FichaSheet({
               key={i}
               src={src}
               alt=""
-              className={`size-full rounded-md object-cover ${
+              className={`size-full min-h-0 rounded-md object-cover ${
                 imgs.length === 2 ? "row-span-2" : ""
               }`}
             />
@@ -466,10 +466,10 @@ export function FichaSheet({
         </div>
 
         {imgs.length > 3 && (
-          <div className="mt-[5mm] grid h-[52mm] shrink-0 grid-cols-3 gap-[2mm]">
+          <div className="mt-[5mm] grid h-[52mm] shrink-0 grid-cols-3 grid-rows-1 gap-[2mm] overflow-hidden">
             {imgs.slice(3, 6).map((src, i) => (
               /* eslint-disable-next-line @next/next/no-img-element */
-              <img key={i} src={src} alt="" className="size-full rounded-md object-cover" />
+              <img key={i} src={src} alt="" className="size-full min-h-0 rounded-md object-cover" />
             ))}
           </div>
         )}
