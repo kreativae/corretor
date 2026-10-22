@@ -22,6 +22,9 @@ services:
       - DEL_INSTANCE=false
       - CONFIG_SESSION_PHONE_CLIENT=CRM Carlos Amâncio
       - CONFIG_SESSION_PHONE_NAME=Chrome
+      # Versão do WhatsApp Web (web.whatsapp.com › Configurações › Ajuda). Se o QR code/código parar
+      # de conectar, o WhatsApp atualizou: troque aqui pela versão nova e faça o Redeploy.
+      - CONFIG_SESSION_PHONE_VERSION=2.3000.1051310411
     volumes:
       - evolution_instances:/evolution/instances
     depends_on:

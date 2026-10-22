@@ -23,6 +23,11 @@ para o servidor: veja as seções 5 (banco) e 6 (arquivos).
 
 A Evolution tem Postgres próprio dentro do compose — não usa o banco do CRM.
 
+**QR code ou código parou de conectar?** Quase sempre o WhatsApp Web mudou de versão. Abra
+web.whatsapp.com › Configurações › Ajuda, copie a versão (ex.: `2.3000.1051310411`), troque a
+variável `CONFIG_SESSION_PHONE_VERSION` do serviço evolution e faça o **Redeploy**. Se continuar,
+apague a instância em `https://evolution.SEU-DOMINIO/manager` e reconecte pelo CRM.
+
 ## 2. CRM
 
 1. **DNS:** registro `A` do domínio do CRM → IP do servidor.
