@@ -35,6 +35,7 @@ import {
   Tractor,
   LandPlot,
   Wallet,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -270,6 +271,22 @@ export function Kanban({
     } catch {
       setDeals(prev);
       toast.error("Não foi possível mover a negociação.");
+    }
+  }
+
+  /** Só o card sai do pipeline; o contato continua cadastrado */
+  async function removeDeal(dealId: string, name: string) {
+    if (!confirm(`Tirar a negociação de ${name} do pipeline? O contato continua cadastrado.`)) return;
+    const prev = deals;
+    setDeals((arr) => arr.filter((d) => d.deal.id !== dealId));
+    try {
+      const res = await fetch(`/api/deals/${dealId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+      toast.success("Tirado do pipeline.");
+      router.refresh();
+    } catch {
+      setDeals(prev);
+      toast.error("Não foi possível tirar do pipeline.");
     }
   }
 
@@ -777,13 +794,25 @@ export function Kanban({
                     }}
                     title="Arraste para mover · clique para visão rápida do lead"
                     className={cn(
-                      "cursor-grab rounded-xl border border-hairline bg-canvas transition-all duration-200 hover:border-hairline-strong hover:shadow-md active:cursor-grabbing",
+                      "group/deal relative cursor-grab rounded-xl border border-hairline bg-canvas transition-all duration-200 hover:border-hairline-strong hover:shadow-md active:cursor-grabbing",
                       layout === "ajustar" ? "p-2.5" : "p-3.5",
                       dragId === deal.id && "rotate-2 opacity-40",
                       highlight === deal.id && "ring-2 ring-[rgb(var(--accent))] ring-offset-2 ring-offset-canvas",
                     )}
                   >
-                    <div className="flex items-center gap-2.5">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeDeal(deal.id, contact?.name ?? "contato");
+                      }}
+                      title="Tirar do pipeline (o contato continua)"
+                      aria-label="Tirar do pipeline"
+                      className="absolute right-2 top-2 grid size-7 place-items-center rounded-full text-subtle opacity-0 transition hover:bg-soft hover:text-ink focus-visible:opacity-100 group-hover/deal:opacity-100 max-md:opacity-100"
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                    <div className="flex items-center gap-2.5 pr-6">
                       <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-soft font-mono text-[10px] font-semibold text-subtle">
                         {contact ? initials(contact.name) : "—"}
                       </span>

@@ -46,3 +46,23 @@ export async function PATCH(
     return NextResponse.json({ error: "Falha ao atualizar negociação" }, { status: 500 });
   }
 }
+
+/** Tira a negociação do pipeline: só o card sai; o contato, o imóvel e o histórico continuam */
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  if (!(await apiUser())) return unauthorized();
+  try {
+    const { id } = await params;
+    const [removed] = await (await getDb()).delete(deals).where(eq(deals.id, id)).returning();
+    if (!removed) return NextResponse.json({ error: "Negociação não encontrada" }, { status: 404 });
+    await (await getDb()).insert(activities).values({
+      entity: "contato",
+      entityId: removed.contactId,
+      kind: "stage",
+      text: `Negociação tirada do pipeline (estava em “${DEAL_STAGE_LABELS[removed.stage]}”).`,
+    });
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    return NextResponse.json({ error: "Falha ao tirar do pipeline" }, { status: 500 });
+  }
+}
