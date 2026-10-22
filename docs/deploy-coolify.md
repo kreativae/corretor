@@ -27,6 +27,9 @@ A Evolution tem Postgres próprio dentro do compose — não usa o banco do CRM.
 web.whatsapp.com › Configurações › Ajuda, copie a versão (ex.: `2.3000.1051310411`), troque a
 variável `CONFIG_SESSION_PHONE_VERSION` do serviço evolution e faça o **Redeploy**. Se continuar,
 apague a instância em `https://evolution.SEU-DOMINIO/manager` e reconecte pelo CRM.
+Ao reconectar, o CRM busca sozinho as mensagens dos últimos 7 dias (e há o botão **Buscar mensagens
+perdidas** em Configurações › WhatsApp). Para isso a Evolution precisa de `DATABASE_SAVE_DATA_HISTORIC=true`:
+é com ela que guarda o histórico que o celular manda ao conectar.
 
 ## 2. CRM
 

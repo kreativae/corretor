@@ -686,7 +686,7 @@ export async function evolutionBackfill(cfg: LineConfig, baseUrl: string, days =
   const since = Date.now() / 1000 - days * 86_400;
   type Page = { messages?: { records?: Record<string, unknown>[]; pages?: number } };
   const found: Record<string, unknown>[] = [];
-  for (let page = 1; page <= 10; page++) {
+  for (let page = 1; page <= Math.max(10, days * 5); page++) {
     const d = await evo<Page>(cfg, `/chat/findMessages/${inst(cfg)}`, {
       method: "POST",
       body: JSON.stringify({ where: {}, page, offset: 100 }),

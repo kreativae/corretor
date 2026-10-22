@@ -5,6 +5,9 @@ import { requestPublicOrigin } from "@/lib/google";
 import { ensureEvolutionWebhook, evolutionBackfill, evolutionState, forLine, getWhatsAppConfig, lineFor, MAIN_LINE } from "@/lib/whatsapp";
 import { after, NextResponse } from "next/server";
 
+/** Último estado visto por número: ao voltar a conectar, busca o que chegou enquanto estava fora */
+const lastState = new Map<string, string>();
+
 /** Conectado? (open) e qual número. ?line=main: o número principal (Configurações, só administrador) */
 export async function GET(req: Request) {
   const user = await apiUser();
@@ -18,13 +21,18 @@ export async function GET(req: Request) {
   const cfg = main ? forLine(base, MAIN_LINE) : await lineFor(user.id, base);
   try {
     const st = await evolutionState(cfg);
+    const conn = await currentConn();
+    const k = `${conn.schema}|${cfg.evolutionInstance}`;
+    const reconnected = st.state === "open" && lastState.get(k) !== "open";
+    lastState.set(k, st.state);
     if (st.state === "open") {
-      // Endereço do webhook desatualizado (domínio mudou): corrige e recupera as mensagens perdidas
+      // Endereço do webhook desatualizado (domínio mudou) ou número que acabou de reconectar:
+      // corrige e recupera as mensagens perdidas
       const baseUrl = requestPublicOrigin(req);
-      const conn = await currentConn();
       after(() =>
         withTenant(conn, async () => {
-          if (await ensureEvolutionWebhook(cfg, baseUrl)) await evolutionBackfill(cfg, baseUrl);
+          const moved = await ensureEvolutionWebhook(cfg, baseUrl);
+          if (moved || reconnected) await evolutionBackfill(cfg, baseUrl, reconnected ? 7 : 3);
         }).catch((e) => console.error("[evolution webhook]", e)),
       );
     }

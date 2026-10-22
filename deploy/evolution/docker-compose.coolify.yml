@@ -17,6 +17,8 @@ services:
       - DATABASE_CONNECTION_URI=postgresql://$SERVICE_USER_POSTGRES:$SERVICE_PASSWORD_POSTGRES@postgres:5432/evolution
       - DATABASE_SAVE_DATA_INSTANCE=true
       - DATABASE_SAVE_DATA_NEW_MESSAGE=true
+      # Guarda o histórico que o celular manda ao reconectar: o CRM recupera o que chegou enquanto estava fora
+      - DATABASE_SAVE_DATA_HISTORIC=true
       - CACHE_REDIS_ENABLED=false
       - CACHE_LOCAL_ENABLED=true
       - DEL_INSTANCE=false

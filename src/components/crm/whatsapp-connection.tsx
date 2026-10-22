@@ -2,7 +2,7 @@
 
 import { Button, Input } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, Loader2, LogOut, PlugZap, QrCode, RefreshCw } from "lucide-react";
+import { CheckCircle2, History, Loader2, LogOut, PlugZap, QrCode, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -37,6 +37,7 @@ export function WhatsAppConnection({
   const [connecting, setConnecting] = useState(false);
   const [pairNumber, setPairNumber] = useState("");
   const [pairCode, setPairCode] = useState<string | null>(null);
+  const [rescuing, setRescuing] = useState(false);
 
   const refreshState = useCallback(async () => {
     const r = await fetch(`/api/whatsapp/evolution/status${line ? `?line=${line}` : ""}`, { cache: "no-store" }).catch(() => null);
@@ -99,6 +100,29 @@ export function WhatsAppConnection({
     }
   }
 
+  /** Traz as mensagens que a Evolution recebeu e não chegaram ao CRM (ex.: enquanto estava desconectado) */
+  async function rescue() {
+    setRescuing(true);
+    try {
+      const res = await fetch("/api/whatsapp/evolution/resgatar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ line, days: 7 }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error);
+      toast.success(
+        data.found
+          ? `${data.found} mensagens dos últimos 7 dias conferidas; as que faltavam entraram nas conversas.`
+          : "Nenhuma mensagem dos últimos 7 dias no servidor do WhatsApp.",
+      );
+    } catch (e) {
+      toast.error(e instanceof Error && e.message ? e.message : "Não foi possível buscar as mensagens.");
+    } finally {
+      setRescuing(false);
+    }
+  }
+
   async function logout() {
     if (!confirm("Desconectar o WhatsApp do CRM? As conversas salvas continuam no sistema.")) return;
     const res = await fetch("/api/whatsapp/evolution/logout", {
@@ -126,6 +150,10 @@ export function WhatsAppConnection({
               {[conn.name, conn.number && `+${conn.number}`].filter(Boolean).join(" · ") || "WhatsApp ativo"}
             </p>
           </div>
+          <Button variant="outline" size="sm" onClick={rescue} disabled={rescuing}>
+            {rescuing ? <Loader2 className="size-4 animate-spin" /> : <History className="size-4" />}
+            Buscar mensagens perdidas
+          </Button>
           <Button variant="outline" size="sm" onClick={logout}>
             <LogOut className="size-4" />
             Desconectar
